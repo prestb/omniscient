@@ -17,11 +17,11 @@
 
                 <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-24 md:py-28">
                     <div class="text-center max-w-3xl mx-auto">
-                        <!-- <span
+                        <span
                         class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] sm:text-xs font-medium tracking-wide uppercase text-primary-100 mb-4 sm:mb-6 backdrop-blur-sm">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                         Trusted by thousands across Cameroon
-                    </span> -->
+                    </span>
 
                         <h1
                             class="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-5 leading-tight tracking-tight">
