@@ -80,8 +80,49 @@ jobs:
           echo "MySQL failed to start"
           exit 1
 
+      - name: Diagnostic — dump env files and test MySQL connection
+        run: |
+          echo "===== .env content ====="
+          cat .env
+          echo ""
+          echo "===== .env.testing presence ====="
+          if [ -f .env.testing ]; then
+            echo "WARNING: .env.testing exists and will be loaded during tests!"
+            cat .env.testing
+          else
+            echo "OK: .env.testing does not exist (tests will use .env)"
+          fi
+          echo ""
+          echo "===== MySQL service info ====="
+          docker ps --format "{{.Names}} {{.Image}} {{.Ports}}"
+          echo ""
+          echo "===== Test connection as ci_user ====="
+          mysql -h 127.0.0.1 -u ci_user -pci_password -e "SELECT USER(), CURRENT_USER();" || echo "ci_user FAILED"
+          echo ""
+          echo "===== Test connection as root ====="
+          mysql -h 127.0.0.1 -u root -proot -e "SELECT USER(), CURRENT_USER();" || echo "root FAILED"
+          echo ""
+          echo "===== List MySQL users ====="
+          mysql -h 127.0.0.1 -u root -proot -e "SELECT user, host FROM mysql.user;" || echo "List FAILED"
+          echo ""
+          echo "===== Show databases ====="
+          mysql -h 127.0.0.1 -u root -proot -e "SHOW DATABASES;" || echo "Show FAILED"
+          echo ""
+          echo "===== Laravel resolved DB config ====="
+          php artisan config:clear
+          php artisan tinker --execute="echo json_encode([
+            'default' => config('database.default'),
+            'host' => config('database.connections.mysql.host'),
+            'port' => config('database.connections.mysql.port'),
+            'database' => config('database.connections.mysql.database'),
+            'username' => config('database.connections.mysql.username'),
+          ], JSON_PRETTY_PRINT);"
+
       - name: Run migrations
         run: php artisan migrate --force
+
+      - name: Clear config cache
+        run: php artisan config:clear
 
       - name: Run test suite
         run: php artisan test
