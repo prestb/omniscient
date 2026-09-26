@@ -1,0 +1,168 @@
+<!-- resources/js/Components/Owner/DeleteBusinessModal.vue -->
+<template>
+    <Teleport to="body">
+        <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0"
+            enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="isOpen"
+                class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                @click.self="close(false)">
+                <Transition enter-active-class="transition duration-300 ease-out"
+                    enter-from-class="opacity-0 scale-95 translate-y-4"
+                    enter-to-class="opacity-100 scale-100 translate-y-0" appear>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                        <!-- Header -->
+                        <div class="bg-gradient-to-r from-red-500 to-red-600 p-6 text-white">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold">Delete Business</h3>
+                                    <p class="text-sm text-white/80">This action requires confirmation</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="p-6 space-y-5">
+                            <!-- Warning -->
+                            <div
+                                class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+                                <p class="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
+                                    What will be deleted:
+                                </p>
+                                <ul class="text-xs text-red-700 dark:text-red-400 space-y-1 ml-4 list-disc">
+                                    <li v-if="business.branches_count > 0">
+                                        <strong>{{ business.branches_count }}</strong> branch{{ business.branches_count
+                                            > 1 ? 'es' : '' }}
+                                    </li>
+                                    <li v-if="business.services_count > 0">
+                                        <strong>{{ business.services_count }}</strong> service{{ business.services_count
+                                            > 1 ? 's' : '' }}
+                                    </li>
+                                    <li v-if="business.images_count > 0">
+                                        <strong>{{ business.images_count }}</strong> image{{ business.images_count > 1 ?
+                                            's' : '' }}
+                                    </li>
+                                    <li v-if="business.reviews_count > 0">
+                                        <strong>{{ business.reviews_count }}</strong> review{{ business.reviews_count >
+                                            1 ? 's' : '' }}
+                                    </li>
+                                    <li>All contact information and business hours</li>
+                                    <li>The business profile itself</li>
+                                </ul>
+                            </div>
+
+                            <!-- Info -->
+                            <div
+                                class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl flex items-start gap-2">
+                                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="text-xs text-blue-700 dark:text-blue-400">
+                                    Your subscription is unaffected. You can add a new business on your current plan.
+                                </p>
+                            </div>
+
+                            <!-- Confirmation Input -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Type <strong class="text-red-600 dark:text-red-400">{{ business.name }}</strong> to confirm:
+                                </label>
+                                <input v-model="confirmText" type="text" :placeholder="business.name"
+                                    class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-sm"
+                                    @paste.prevent />
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="p-6 bg-gray-50 dark:bg-gray-900/50 flex flex-col sm:flex-row gap-3">
+                            <button @click="close(false)" :disabled="processing"
+                                class="flex-1 px-5 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors disabled:opacity-50">
+                                Cancel
+                            </button>
+                            <button @click="confirm" :disabled="!canDelete || processing"
+                                class="flex-1 px-5 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span v-if="processing" class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    Deleting...
+                                </span>
+                                <span v-else>Delete Permanently</span>
+                            </button>
+                        </div>
+                    </div>
+                </Transition>
+            </div>
+        </Transition>
+    </Teleport>
+</template>
+
+<script setup>
+    import { ref, computed, watch } from 'vue';
+    import { router } from '@inertiajs/vue3';
+    import { useToast } from '@/composables/useToast';
+
+    const props = defineProps({
+        isOpen: { type: Boolean, default: false },
+        business: { type: Object, required: true },
+    });
+
+    const emit = defineEmits(['close']);
+
+    const { error: showError } = useToast();
+    const confirmText = ref('');
+    const processing = ref(false);
+
+    const canDelete = computed(() => confirmText.value.trim() === props.business.name);
+
+    // Reset confirmText when modal opens
+    watch(() => props.isOpen, (open) => {
+        if (open) confirmText.value = '';
+    });
+
+    const close = (force = false) => {
+        // ✅ force=true bypasses the processing guard so onSuccess can
+        //    close the modal even while the request is finishing.
+        if (processing.value && !force) return;
+        confirmText.value = '';
+        processing.value = false;
+        emit('close');
+    };
+
+    const confirm = () => {
+        if (!canDelete.value || processing.value) return;
+
+        processing.value = true;
+
+        router.delete(`/owner/businesses/${props.business.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                // ✅ Force-close the modal — the controller flashes
+                //    "<name> has been deleted." and AuthenticatedLayout
+                //    shows it exactly once.
+                close(true);
+            },
+            onError: (errors) => {
+                // Client-side-only: server rejected before any flash.
+                showError('Delete Failed', Object.values(errors)[0] || 'Something went wrong.');
+                processing.value = false;
+            },
+            onFinish: () => {
+                processing.value = false;
+            },
+        });
+    };
+</script>

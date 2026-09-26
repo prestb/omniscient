@@ -1,0 +1,108 @@
+/* resources/css/app.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* ===================================================================
+   Pull-to-Refresh
+   Suppresses native browser PTR so our custom component takes over.
+   Only affects the vertical overscroll axis — horizontal carousels
+   and scrollable lists are unaffected.
+   =================================================================== */
+html {
+    overscroll-behavior-y: contain;
+}
+
+
+@layer base {
+
+    html {
+        @apply antialiased;
+    }
+
+    body {
+        @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200;
+    }
+
+    /* Scrollbar Dark Mode */
+    .dark ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+        @apply bg-gray-800;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb {
+        @apply bg-gray-600 rounded-full;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb:hover {
+        @apply bg-gray-500;
+    }
+}
+
+@layer components {
+
+    .card {
+        @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700;
+    }
+    
+    .input {
+        @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+               bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+               focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors;
+    }
+
+    .btn-primary {
+        @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 
+               transition-colors disabled:opacity-50;
+    }
+    
+    .btn-secondary {
+        @apply px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 
+               rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors;
+    }
+
+    .input-field {
+        @apply mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500;
+    }
+
+    .label {
+        @apply block text-sm font-medium text-gray-700 mb-1;
+    }
+}
+
+/* resources/css/app.css */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* ✅ Global utility — hides scrollbars on horizontal-scroll containers.
+   Used by carousels, chip rows, and any edge-to-edge scroller. */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}

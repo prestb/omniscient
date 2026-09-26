@@ -1,0 +1,133 @@
+<?php
+
+namespace App\Traits;
+
+use App\Models\Plan;
+
+trait HasPlanFeatures
+{
+    /**
+     * Check if user has a specific feature
+     */
+    public function canUse(string $feature): bool
+    {
+        $plan = $this->getCurrentPlan();
+
+        // No plan = free plan features
+        if (!$plan) {
+            return false;
+        }
+
+        return $plan->hasFeature($feature);
+    }
+
+    /**
+     * Check if user can add more of a resource
+     */
+    public function canAdd(string $resource): bool
+    {
+        $plan = $this->getCurrentPlan();
+
+        if (!$plan) {
+            return false;
+        }
+
+        // Unlimited
+        if ($plan->isUnlimited($resource)) {
+            return true;
+        }
+
+        $limit = $plan->getLimit($resource);
+        $current = $this->getCurrentUsage($resource);
+
+        return $current < $limit;
+    }
+
+    /**
+     * Get remaining quota for a resource
+     */
+    public function remaining(string $resource): int
+    {
+        $plan = $this->getCurrentPlan();
+
+        if (!$plan || $plan->isUnlimited($resource)) {
+            return -1; // unlimited
+        }
+
+        $limit = $plan->getLimit($resource);
+        $current = $this->getCurrentUsage($resource);
+
+        return max(0, $limit - $current);
+    }
+
+    /**
+     * Get current usage for a resource
+     */
+    public function getCurrentUsage(string $resource): int
+    {
+        return match ($resource) {
+            'businesses' => $this->businesses()->count(),
+            'branches' => $this->getBranchesCount(),
+            'services' => $this->getServicesCount(),
+            'images' => $this->getImagesCount(),
+            'coupons' => method_exists($this, 'coupons') ? $this->coupons()->count() : 0,
+            default => 0,
+        };
+    }
+
+    protected function getBranchesCount(): int
+    {
+        if (!method_exists($this, 'businesses'))
+            return 0;
+        return $this->businesses()->withCount('branches')->get()->sum('branches_count');
+    }
+
+    protected function getServicesCount(): int
+    {
+        if (!method_exists($this, 'businesses'))
+            return 0;
+        return $this->businesses()->withCount('services')->get()->sum('services_count');
+    }
+
+    protected function getImagesCount(): int
+    {
+        if (!method_exists($this, 'businesses'))
+            return 0;
+        return $this->businesses()->withCount('images')->get()->sum('images_count');
+    }
+
+    /**
+     * Get the current plan
+     */
+    public function getCurrentPlan(): ?Plan
+    {
+        // Active subscription (now user-based)
+        $subscription = $this->active_subscription;
+        if ($subscription && $subscription->plan) {
+            return $subscription->plan;
+        }
+
+        // Fallback to free plan
+        return Plan::where('tier', 'free')->first();
+    }
+
+    /**
+     * Get the plan tier name
+     */
+    public function getPlanTier(): string
+    {
+        $plan = $this->getCurrentPlan();
+        return $plan?->tier ?? 'free';
+    }
+
+    /**
+     * Check if user is on a specific tier or higher
+     */
+    public function isAtLeast(string $tier): bool
+    {
+        $tiers = ['free' => 0, 'starter' => 1, 'growth' => 2, 'premium' => 3];
+        $userTier = $this->getPlanTier();
+
+        return ($tiers[$userTier] ?? 0) >= ($tiers[$tier] ?? 0);
+    }
+}

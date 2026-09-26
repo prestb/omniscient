@@ -1,0 +1,116 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  tests:
+    name: Run test suite
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: omniscient_testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql, mbstring, openssl, zip, gd, intl, exif, pcntl, bcmath, curl, xml, fileinfo, sqlite3
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Copy .env
+        run: cp .env.example .env
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Set up test environment variables
+        run: |
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_DATABASE=omniscient_testing" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=root" >> .env
+          echo "APP_ENV=testing" >> .env
+          echo "MAIL_MAILER=array" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          echo "CACHE_STORE=array" >> .env
+          echo "SESSION_DRIVER=array" >> .env
+          echo "BACKUP_NOTIFICATION_EMAIL=backup-test@example.com" >> .env
+          echo "BACKUP_ARCHIVE_PASSWORD=test-password" >> .env
+          echo "SCOUT_DRIVER=null" >> .env
+          echo "MEILISEARCH_HOST=" >> .env
+          echo "AWS_ACCESS_KEY_ID=test" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=test" >> .env
+          echo "AWS_DEFAULT_REGION=eu-north-1" >> .env
+          echo "AWS_BUCKET=test-bucket" >> .env
+          echo "AWS_BACKUP_BUCKET=test-backup-bucket" >> .env
+
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -u root -proot --silent 2>/dev/null; then
+              echo "MySQL is ready"
+              exit 0
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+          echo "MySQL failed to start"
+          exit 1
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Run test suite
+        run: php artisan test
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: storage/logs/
+          retention-days: 7
