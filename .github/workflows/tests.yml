@@ -50,8 +50,8 @@ jobs:
           key: composer-${{ hashFiles('composer.lock') }}
           restore-keys: composer-
 
-      - name: Copy .env
-        run: cp .env.example .env
+      - name: Copy CI env
+        run: cp .env.ci .env
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
@@ -61,40 +61,6 @@ jobs:
 
       - name: Build frontend assets
         run: npm run build
-
-      - name: Set up test environment variables
-        run: |
-          cat > .env <<'EOF'
-          APP_NAME=Omniscient
-          APP_ENV=testing
-          APP_KEY=base64:PLACEHOLDER
-          APP_DEBUG=true
-          APP_URL=http://localhost
-
-          DB_CONNECTION=mysql
-          DB_HOST=127.0.0.1
-          DB_PORT=3306
-          DB_DATABASE=omniscient_testing
-          DB_USERNAME=root
-          DB_PASSWORD=root
-
-          MAIL_MAILER=array
-          QUEUE_CONNECTION=sync
-          CACHE_STORE=array
-          SESSION_DRIVER=array
-
-          BACKUP_NOTIFICATION_EMAIL=backup-test@example.com
-          BACKUP_ARCHIVE_PASSWORD=test-password
-
-          SCOUT_DRIVER=null
-          MEILISEARCH_HOST=
-
-          AWS_ACCESS_KEY_ID=test
-          AWS_SECRET_ACCESS_KEY=test
-          AWS_DEFAULT_REGION=eu-north-1
-          AWS_BUCKET=test-bucket
-          AWS_BACKUP_BUCKET=test-backup-bucket
-          EOF
 
       - name: Generate app key
         run: php artisan key:generate
