@@ -17,6 +17,8 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: omniscient_testing
+          MYSQL_USER: ci_user
+          MYSQL_PASSWORD: ci_password
         ports:
           - 3306:3306
         options: >-
@@ -68,7 +70,7 @@ jobs:
       - name: Wait for MySQL to be ready
         run: |
           for i in {1..30}; do
-            if mysqladmin ping -h 127.0.0.1 -u root -proot --silent 2>/dev/null; then
+            if mysqladmin ping -h 127.0.0.1 -u ci_user -pci_password --silent 2>/dev/null; then
               echo "MySQL is ready"
               exit 0
             fi
