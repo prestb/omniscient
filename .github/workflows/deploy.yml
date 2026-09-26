@@ -14,16 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: pdo, pdo_mysql, mbstring, openssl, zip, gd, intl, exif, pcntl, bcmath, curl, xml, fileinfo
-          coverage: none
-
-      - name: Install Composer dependencies locally (for deploy artifacts)
-        run: composer install --prefer-dist --no-interaction --no-progress --no-dev --optimize-autoloader
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -33,11 +23,11 @@ jobs:
           port: ${{ secrets.HOSTINGER_SSH_PORT }}
           script: |
             set -e
-            cd ~/domains/lightgoldenrodyellow-dugong-584603.hostingersite.com/public_html
+            cd /home/u884012182/domains/lightgoldenrodyellow-dugong-584603.hostingersite.com/public_html/omniscient
 
-            echo "=== Pull latest code from Hostinger's Git mirror ==="
-            # Hostinger's Git deploy already pulled this. If using manual pull:
-            # git pull origin main
+            echo "=== Pull latest code ==="
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "=== Install PHP dependencies (no-dev) ==="
             composer install --no-dev --optimize-autoloader --no-interaction
@@ -45,7 +35,7 @@ jobs:
             echo "=== Run migrations ==="
             php artisan migrate --force
 
-            echo "=== Clear and rebuild caches ==="
+            echo "=== Rebuild caches ==="
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
