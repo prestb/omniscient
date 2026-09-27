@@ -4,7 +4,7 @@
         <!-- Notification Status -->
         <div class="flex items-center gap-2">
             <span v-if="isSupported" class="text-xs text-gray-500 dark:text-gray-400">
-                {{ isSubscribed ? '🔔 Notifications on' : '🔕 Notifications off' }}
+                {{ isSubscribed ? '' : '' }}
             </span>
             <span v-else class="text-xs text-gray-400 dark:text-gray-500">
                 ⚠️ Not supported
