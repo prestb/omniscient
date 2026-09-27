@@ -171,7 +171,7 @@ const subscribePush = async () => {
 
         if (response.data.success) {
             isSubscribed.value = true;
-            statusMessage.value = '✅ Push notifications enabled!';
+            statusMessage.value = '';
             statusType.value = 'success';
             success('Notifications Enabled', 'You will now receive push notifications.');
         }
@@ -201,7 +201,7 @@ const unsubscribePush = async () => {
 
         isSubscribed.value = false;
         pushSubscription = null;
-        statusMessage.value = '🔕 Push notifications disabled';
+        statusMessage.value = '';
         statusType.value = 'success';
         success('Notifications Disabled', 'You will no longer receive push notifications.');
     } catch (err) {
