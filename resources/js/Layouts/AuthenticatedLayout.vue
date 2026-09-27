@@ -168,8 +168,17 @@
             const url = role === 'admin' || role === 'super_admin'
                 ? '/admin/notifications/unread-count'
                 : '/owner/notifications/unread-count';
-            const response = await axios.get(url);
-            notificationCount.value = response.data.count || 0;
+            // With this:
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+            if (!response.ok) throw new Error(await response.text());
+            const data = await response.json();
+            notificationCount.value = data.count || 0;
         } catch (error) {
             console.error('Error fetching notification count:', error);
         }
