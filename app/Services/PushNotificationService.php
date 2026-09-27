@@ -17,9 +17,9 @@ class PushNotificationService
     {
         $this->webPush = new WebPush([
             'VAPID' => [
-                'subject' => env('VAPID_SUBJECT', 'mailto:donyohel@gmail.com'),
-                'publicKey' => env('VAPID_PUBLIC_KEY'),
-                'privateKey' => env('VAPID_PRIVATE_KEY'),
+                'subject' => config('webpush.vapid.subject', 'mailto:donyohel@gmail.com'),
+                'publicKey' => config('webpush.vapid.public_key'),
+                'privateKey' => config('webpush.vapid.private_key'),
             ],
         ]);
     }
@@ -51,7 +51,7 @@ class PushNotificationService
             try {
                 // ✅ Check if keys exist before using them
                 $keys = $subscription->keys ?? [];
-                
+
                 $pushSubscription = Subscription::create([
                     'endpoint' => $subscription->endpoint,
                     'authToken' => $keys['auth'] ?? '',
