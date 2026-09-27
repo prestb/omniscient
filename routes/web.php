@@ -1,7 +1,22 @@
 <?php
 
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+
+// Serve uploaded files through Laravel.
+// Hostinger's LiteSpeed refuses to serve anything under /storage/ directly,
+// so we intercept the request here and stream the file ourselves.
+Route::get('/storage/{path}', function (string $path) {
+    $disk = Storage::disk('public');
+
+    abort_unless($disk->exists($path), 404);
+
+    return response()->file($disk->path($path), [
+        'Cache-Control' => 'public, max-age=31536000, immutable',
+    ]);
+})->where('path', '.*')->name('storage.serve');
 
 // ============== CONTROLLERS ==============
 // Public
