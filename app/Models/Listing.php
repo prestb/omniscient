@@ -362,8 +362,18 @@ class Listing extends Model
             //
             // A Business-less Listing publishes 0 / 0 - the existing zero
             // semantics - never a fabricated rating.
-            'rating' => (float) ($this->business?->average_rating ?? 0),
-            'reviews_count' => (int) ($this->business?->total_reviews ?? 0),
+            // SAME aggregate source as the SQL directory (which uses
+            // withAvg/withCount on usinessReviews), so the two engines sort
+            // on identical semantics. The Business verage_rating /
+            // 	otal_reviews accessors were NOT usable here: they read
+            // withCount/withAvg attributes and never query on their own, so they
+            // silently reported 0 during indexing.
+            'rating' => $this->business_id
+                ? round((float) $this->businessReviews()->avg('rating'), 1)
+                : 0.0,
+            'reviews_count' => $this->business_id
+                ? (int) $this->businessReviews()->count()
+                : 0,
             // Explicit numeric promotion signal. is_featured stays a boolean
             // filter; this is what the ranking rule reads.
             'is_featured_rank' => $this->is_featured ? 1 : 0,
