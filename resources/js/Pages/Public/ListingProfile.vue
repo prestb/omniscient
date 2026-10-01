@@ -103,9 +103,11 @@
                         <span v-if="listing.location.address">{{ listing.location.address }}<br /></span>
                         <span v-if="listing.location.city">{{ listing.location.city }}</span>
                     </p>
-                    <p v-if="listing.location.phone" class="text-sm text-gray-700 dark:text-gray-300 mt-3">
+                    <a v-if="listing.location.phone" :href="`tel:${listing.location.phone}`"
+                        @click="trackClick('phone')"
+                        class="inline-block text-sm text-gray-700 dark:text-gray-300 mt-3">
                         📞 {{ listing.location.phone }}
-                    </p>
+                    </a>
                 </section>
             </aside>
         </div>
@@ -116,9 +118,26 @@
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import OptimizedImage from '@/Components/Public/OptimizedImage.vue';
 import { Head } from '@inertiajs/vue3';
+import axios from 'axios';
+import { onMounted } from 'vue';
 
-defineProps({
+const props = defineProps({
     listing: { type: Object, required: true },
     reviews: { type: Array, default: () => [] },
+});
+
+/**
+ * PHASE 11 / WAVE 1D-3 — CANONICAL LISTING TRACKING (PATH A).
+ *
+ * Analytics are Listing-owned, so every event carries the EXPLICIT Listing id
+ * from this page's own props — never a Business id, and never a Listing
+ * resolved through a Business.
+ */
+const trackClick = (type) => {
+    axios.post(`/analytics/listing/${props.listing.id}/track-click/${type}`).catch(() => {});
+};
+
+onMounted(() => {
+    axios.post(`/analytics/listing/${props.listing.id}/track-view`).catch(() => {});
 });
 </script>

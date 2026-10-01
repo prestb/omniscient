@@ -159,6 +159,21 @@ Route::post('/analytics/track-click/{business}/{type}', [AnalyticsController::cl
     ->middleware('throttle:analytics')
     ->name('analytics.track-click');
 
+// PHASE 11 / WAVE 1D-3 — CANONICAL LISTING-SCOPED TRACKING (PATH A).
+// The route parameter is the LISTING and resolves directly through route model
+// binding. It is not a renamed Business, and the controller never calls
+// Business::primaryListing().
+//
+// The path is /analytics/listing/{listing}/... rather than
+// /analytics/track-view/{listing} because that URL pattern is already taken by
+// the Business-keyed route above; two identical patterns cannot coexist.
+Route::post('/analytics/listing/{listing}/track-view', [\App\Http\Controllers\Api\AnalyticsController::class, 'trackListingView'])
+    ->middleware('throttle:analytics')
+    ->name('analytics.listing.track-view');
+Route::post('/analytics/listing/{listing}/track-click/{type}', [\App\Http\Controllers\Api\AnalyticsController::class, 'trackListingClick'])
+    ->middleware('throttle:analytics')
+    ->name('analytics.listing.track-click');
+
 // Contact
 Route::get('/contact', [PublicContactController::class, 'index'])->name('contact');
 Route::post('/contact', [PublicContactController::class, 'store'])
