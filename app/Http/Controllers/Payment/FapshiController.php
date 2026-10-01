@@ -89,9 +89,19 @@ class FapshiController extends Controller
             }
 
             if (!$subscription) {
-                // If no subscription passed, find the latest pending one
-                $business = $user->businesses()->first();
-                $subscription = Subscription::where('business_id', $business->id)
+                // PHASE 11 / WAVE 1D-5 — ACCOUNT-SCOPED FALLBACK.
+                // A Subscription is USER-owned, so it is resolved by the
+                // authenticated account, never by an arbitrary Business.
+                // `businesses()->first()` previously stood here and must not
+                // return: a Business never arbitrates Subscription identity.
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unable to resolve a subscription for this request.',
+                    ], 400);
+                }
+
+                $subscription = Subscription::where('user_id', $user->id)
                     ->where('plan_id', $plan->id)
                     ->where('status', Subscription::STATUS_PENDING)
                     ->latest()

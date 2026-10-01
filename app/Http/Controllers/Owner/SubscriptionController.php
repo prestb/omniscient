@@ -28,7 +28,12 @@ class SubscriptionController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $business = Business::where('owner_id', $user->id)->first();
+
+        // PHASE 11 / WAVE 1D-5 — a Subscription is USER-owned. No representing
+        // Business is selected for subscription pages; `hasBusiness` is a plain
+        // existence check (an aggregate the UI legitimately wants), never a
+        // representative pick.
+        $hasBusiness = Business::where('owner_id', $user->id)->exists();
 
         $subscription = $user->active_subscription;
 
@@ -54,10 +59,10 @@ class SubscriptionController extends Controller
             ->sum('credit_balance');
 
         return Inertia::render('Owner/Subscription/Index', [
-            'business' => $business,
+            'business' => null,
             'subscription' => $subscription,
             'subscriptionHistory' => $subscriptionHistory,
-            'hasBusiness' => $business !== null,
+            'hasBusiness' => $hasBusiness,
             'pendingBusinesses' => $pendingBusinesses,
             'approvedCount' => $approvedCount,
             'totalCreditBalance' => $totalCreditBalance, // ✅ NEW
@@ -67,7 +72,6 @@ class SubscriptionController extends Controller
     public function renew()
     {
         $user = auth()->user();
-        $business = Business::where('owner_id', $user->id)->first();
 
         $currentSubscription = $user->active_subscription;
 
@@ -92,7 +96,7 @@ class SubscriptionController extends Controller
             ->sum('credit_balance');
 
         return Inertia::render('Owner/Subscription/Renew', [
-            'business' => $business,
+            'business' => null,
             'currentSubscription' => $currentSubscription,
             'plans' => $plans,
             'hasSubscription' => $currentSubscription !== null,
@@ -120,16 +124,13 @@ class SubscriptionController extends Controller
 
         $user = auth()->user();
 
-        $business = Business::where('owner_id', $user->id)->first();
-
-        if (!$business) {
-            $business = Business::create([
-                'owner_id' => $user->id,
-                'name' => $user->name . "'s Business",
-                'slug' => \Illuminate\Support\Str::slug($user->name . '-business-' . $user->id),
-                'status' => 'draft',
-            ]);
-        }
+        // PHASE 11 / WAVE 1D-5 — a Subscription is USER-owned, so NO Business is
+        // required or invented here. This previously did
+        // `Business::where('owner_id', $user->id)->first()` and, when none
+        // existed, CREATED one named "<user>'s Business" purely to satisfy the
+        // subscription write. Manufacturing an organization to satisfy
+        // subscription ownership is the inverse of the account-scoped invariant
+        // and is removed.
 
         $plan = Plan::find($validated['plan_id']);
         $billingType = $validated['billing_type'];
@@ -202,7 +203,9 @@ class SubscriptionController extends Controller
                 'status' => Subscription::STATUS_PENDING,
             ],
             [
-                'business_id' => $business->id,
+                // PHASE 11 / WAVE 1D-5 — `business_id` is OPTIONAL organization
+                // context and is deliberately NOT written: this flow has no
+                // explicit Business context, and inventing one is forbidden.
                 'plan_id' => $plan->id,
                 'start_date' => $actionType === 'new' ? null : $startDate,
                 'end_date' => $actionType === 'new' ? null : $endDate,
@@ -274,25 +277,28 @@ class SubscriptionController extends Controller
     public function payment()
     {
         $planId = session('selected_plan_id');
-        $businessId = session('selected_business_id');
         $billingPeriod = session('billing_period', 'yearly');
         $endDate = session('end_date');
 
-        if (!$planId || !$businessId) {
+        if (!$planId) {
             return redirect()->route('owner.subscription.index')
                 ->with('error', 'Please select a plan first.');
         }
 
         $plan = Plan::findOrFail($planId);
-        $business = Business::findOrFail($businessId);
 
         $price = $billingPeriod === 'yearly'
             ? $plan->price_annual
             : $plan->price_monthly;
 
+        // PHASE 11 / WAVE 1D-5 — a Subscription is USER-owned, so this page does
+        // NOT require a Business. `selected_business_id` was previously read and
+        // required here but is written NOWHERE in the repository, which made this
+        // page unreachable; it has been removed. `business` is passed as optional
+        // organization context and is null when none was explicitly chosen.
         return Inertia::render('Owner/Subscription/Payment', [
             'plan' => $plan,
-            'business' => $business,
+            'business' => null,
             'billingPeriod' => $billingPeriod,
             'price' => $price,
             'endDate' => $endDate,
@@ -302,11 +308,6 @@ class SubscriptionController extends Controller
     public function processPayment(Request $request)
     {
         $user = Auth::user();
-        $business = $user->businesses()->first();
-
-        if (!$business) {
-            return redirect()->back()->with('error', 'No business found.');
-        }
 
         $planId = session('selected_plan_id');
         $billingPeriod = session('billing_period', 'yearly');
@@ -319,8 +320,16 @@ class SubscriptionController extends Controller
 
         $plan = Plan::findOrFail($planId);
 
-        $existingActive = $business->subscriptions()
-            ->where('status', Subscription::STATUS_ACTIVE)
+        // PHASE 11 / WAVE 1D-5 — ONE ACTIVE SUBSCRIPTION PER USER.
+        // A Subscription is USER-owned, so the guard is account-scoped. It is
+        // NOT scoped to a Business: two Businesses must not permit two active
+        // subscriptions for one account.
+        $existingActive = $user->subscriptions()
+            ->whereIn('status', [
+                Subscription::STATUS_ACTIVE,
+                Subscription::STATUS_EXPIRING_SOON,
+                Subscription::STATUS_GRACE_PERIOD,
+            ])
             ->exists();
 
         if ($existingActive) {
@@ -328,18 +337,22 @@ class SubscriptionController extends Controller
                 ->with('error', 'You already have an active subscription.');
         }
 
+        // `user_id` is the authoritative owner. `business_id` is NOT written:
+        // there is no explicit Business context in this flow (the session key
+        // that once supplied one was never written anywhere), and inventing one
+        // with businesses()->first() is exactly what this slice removes.
         $subscription = Subscription::create([
-            'business_id' => $business->id,
+            'user_id' => $user->id,
             'plan_id' => $plan->id,
             'status' => Subscription::STATUS_PENDING,
             'start_date' => now()->toDateString(),
             'end_date' => $endDate,
         ]);
 
-        session()->forget(['selected_plan_id', 'selected_business_id', 'billing_period', 'end_date']);
+        session()->forget(['selected_plan_id', 'billing_period', 'end_date']);
 
         try {
-            $business->owner->notify(new \App\Notifications\SubscriptionNotification(
+            $user->notify(new \App\Notifications\SubscriptionNotification(
                 $subscription,
                 'pending'
             ));
@@ -354,13 +367,11 @@ class SubscriptionController extends Controller
     public function status()
     {
         $user = Auth::user();
-        $business = $user->businesses()->first();
 
-        if (!$business) {
-            return response()->json(['error' => 'No business found'], 404);
-        }
-
-        $subscription = $business->subscriptions()
+        // PHASE 11 / WAVE 1D-5 — account-scoped read. The authenticated User's
+        // subscription state is derived from the User, never from an arbitrary
+        // Business. A user with zero Businesses has a subscription state.
+        $subscription = $user->subscriptions()
             ->with(['plan'])
             ->whereIn('status', [
                 Subscription::STATUS_ACTIVE,
