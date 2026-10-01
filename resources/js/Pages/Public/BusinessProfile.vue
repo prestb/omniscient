@@ -138,6 +138,67 @@
                 <!-- ==================== LEFT COLUMN ==================== -->
                 <div class="lg:col-span-2 space-y-6">
 
+                    <!-- ==================== ORGANIZATION LISTINGS ==================== -->
+                    <!-- PHASE 11 / WAVE 1D-2 — THIS IS THE ORGANIZATION PAGE.
+                         Each Listing below is its own discoverable entity with its
+                         own /listing/{slug} identity. A Business is never collapsed
+                         into a single Listing. -->
+                    <div v-if="listings && listings.length > 0"
+                        class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 md:p-8">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div
+                                class="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 6h16M4 12h16M4 18h7" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Listings</h2>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ listings.length }} discoverable
+                                    {{ listings.length === 1 ? 'listing' : 'listings' }} from this organization
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <a v-for="listing in listings" :key="listing.id" :href="`/listing/${listing.slug}`"
+                                class="group block rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-lg transition-all">
+                                <div class="h-28 bg-gray-100 dark:bg-gray-900 overflow-hidden">
+                                    <OptimizedImage v-if="listing.cover_image" :path="listing.cover_image"
+                                        size="medium" :alt="listing.name"
+                                        img-class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        fallback-class="w-full h-full bg-gradient-to-br from-primary-600 to-primary-800" />
+                                    <div v-else
+                                        class="w-full h-full bg-gradient-to-br from-primary-600 to-primary-800"></div>
+                                </div>
+                                <div class="p-4">
+                                    <span
+                                        class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300">
+                                        {{ listing.listing_type }}
+                                    </span>
+                                    <h3 class="mt-2 text-sm font-bold text-gray-900 dark:text-white truncate">
+                                        {{ listing.name }}
+                                    </h3>
+                                    <p v-if="listing.location?.city"
+                                        class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        {{ listing.location.city }}
+                                    </p>
+                                    <span
+                                        class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-600 dark:text-primary-400">
+                                        View Listing
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- ABOUT -->
                     <div
                         class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 md:p-8">
@@ -765,6 +826,13 @@
             default: () => ({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }),
         },
         relatedBusinesses: {
+            type: Array,
+            default: () => [],
+        },
+        // PHASE 11 / WAVE 1D-2 — the organization's published Listings.
+        // Each is an independently addressable discoverable entity whose public
+        // identity is /listing/{slug}.
+        listings: {
             type: Array,
             default: () => [],
         },

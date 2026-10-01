@@ -195,9 +195,18 @@ test('the business organization page lists all of its listings', function () {
         ->assertInertia(function ($page) use ($business, $a, $b, $c) {
             $page->component('Public/BusinessProfile')->where('business.id', $business->id);
 
-            $ids = collect($page->toArray()['props']['listings'])->pluck('id')->sort()->values()->all();
+            $props = $page->toArray()['props']['listings'];
 
+            $ids = collect($props)->pluck('id')->sort()->values()->all();
             expect($ids)->toBe(collect([$a->id, $b->id, $c->id])->sort()->values()->all());
+
+            // Each Listing keeps its own slug identity — the value the
+            // organization page links to as /listing/{slug}.
+            $slugs = collect($props)->pluck('slug')->sort()->values()->all();
+            expect($slugs)->toBe(collect([$a->slug, $b->slug, $c->slug])->sort()->values()->all());
+
+            // Every entry is a LISTING, never a Business.
+            expect(collect($props)->pluck('type')->unique()->values()->all())->toBe(['listing']);
         });
 
     // Each Listing keeps its own independent public identity.
