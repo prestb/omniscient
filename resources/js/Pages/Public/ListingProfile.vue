@@ -67,21 +67,12 @@
                     </ul>
                 </section>
 
-                <!-- ==================== REVIEWS ==================== -->
-                <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Reviews</h2>
-                    <div v-if="!reviews.length" class="text-sm text-gray-500 dark:text-gray-400">No reviews yet.</div>
-                    <ul v-else class="space-y-4">
-                        <li v-for="r in reviews" :key="r.id" class="border-b border-gray-100 dark:border-gray-700 pb-3 last:border-0">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ r.user_name || 'Anonymous' }}</span>
-                                <span class="text-xs text-gray-400">{{ r.created_at }}</span>
-                            </div>
-                            <div class="text-amber-500 text-sm">{{ '★'.repeat(r.rating) }}</div>
-                            <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ r.content }}</p>
-                        </li>
-                    </ul>
-                </section>
+                <!-- PHASE 11 — no Listing review section. Reviews belong to the
+                     owning BUSINESS; this page shows only the Business's aggregate
+                     rating/count in the header. Displaying an individual review
+                     list here would present a Business-owned resource as a
+                     Listing-owned feature. -->
+
             </div>
 
             <!-- ==================== SIDEBAR ==================== -->
@@ -123,7 +114,6 @@ import { onMounted } from 'vue';
 
 const props = defineProps({
     listing: { type: Object, required: true },
-    reviews: { type: Array, default: () => [] },
 });
 
 /**

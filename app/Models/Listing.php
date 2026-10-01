@@ -182,10 +182,17 @@ class Listing extends Model
         return $this->hasMany(ListingContact::class)->orderBy('sort_order');
     }
 
-    public function reviews()
-    {
-        return $this->hasMany(Review::class)->approved();
-    }
+    /**
+     * PHASE 11 — Listings do NOT own Reviews.
+     *
+     * `reviews()` was a hasMany on `reviews.listing_id`, a column no application
+     * writer ever populated. It was therefore permanently empty while the
+     * Listing profile page rendered it, presenting a Business-owned resource as
+     * a Listing-owned feature. Removed with the column, not replaced.
+     *
+     * Listings DISPLAY the owning Business's aggregate through
+     * {@see businessReviews()} below.
+     */
 
     /**
      * PHASE 11 — BUSINESS REVIEW AGGREGATE (Step 1 of review attribution integrity).

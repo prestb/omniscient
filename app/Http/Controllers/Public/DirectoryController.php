@@ -203,8 +203,11 @@ class DirectoryController extends Controller
         // ============== MIN RATING ==============
         if ($request->filled('min_rating')) {
             $minRating = (float) $request->min_rating;
+            // PHASE 11 — Reviews are BUSINESS-owned, so the rating filter matches
+            // against the LISTING's OWNING BUSINESS aggregate. `reviews.listing_id`
+            // no longer exists; joining on `business_id` is the canonical path.
             $query->whereRaw(
-                '(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE reviews.listing_id = listings.id AND reviews.status = ?) >= ?',
+                '(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE reviews.business_id = listings.business_id AND reviews.status = ?) >= ?',
                 ['approved', $minRating]
             );
         }

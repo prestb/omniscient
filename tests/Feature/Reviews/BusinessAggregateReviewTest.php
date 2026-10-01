@@ -132,9 +132,22 @@ test('business review behaviour remains intact', function () {
     expect($business->fresh()->total_reviews)->toBe(2);
 });
 
-test('the obsolete listing-owned reviews relation is still present, pending step 2', function () {
-    // Step 1 does not remove anything. This asserts the deliberate interim state
-    // so Step 2's removal is an intentional, reviewed change.
-    expect(method_exists(Listing::class, 'reviews'))->toBeTrue();
+test('the obsolete listing-owned review relation and column are gone', function () {
+    // Step 2 removed Listing::reviews(), Review::listing(), Review::scopeForListing()
+    // and the reviews.listing_id column.
+    expect(method_exists(Listing::class, 'reviews'))->toBeFalse();
     expect(method_exists(Listing::class, 'businessReviews'))->toBeTrue();
+    expect(method_exists(Review::class, 'listing'))->toBeFalse();
+    expect(method_exists(Review::class, 'scopeForListing'))->toBeFalse();
+
+    expect(DB::selectOne(
+        "select count(*) c from information_schema.columns
+         where table_schema = database() and table_name = 'reviews' and column_name = 'listing_id'"
+    )->c)->toBe(0);
+
+    // Business ownership is untouched.
+    expect(DB::selectOne(
+        "select count(*) c from information_schema.columns
+         where table_schema = database() and table_name = 'reviews' and column_name = 'business_id'"
+    )->c)->toBe(1);
 });

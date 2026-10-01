@@ -205,7 +205,9 @@ final class DataOwnership
             'listing_services',
             'listing_images',
             'listing_contacts',
-            'reviews',
+            // PHASE 11 — `reviews` is NOT listing-scoped. Reviews belong to the
+            // BUSINESS; `reviews.listing_id` was obsolete scaffolding that no
+            // application writer populated, and it has been removed.
             'listing_analytics',
             'leads',
             'coupons',

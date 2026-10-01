@@ -36,9 +36,10 @@ class ListingController extends Controller
                 'services' => fn($q) => $q->whereNull('hidden_at'),
                 'images' => fn($q) => $q->whereNull('hidden_at'),
                 'contacts',
-                'reviews' => fn($q) => $q->where('status', 'approved')
-                    ->with('user:id,name')
-                    ->latest(),
+                // PHASE 11 — Reviews are BUSINESS-owned. This page does not load a
+                // Listing review collection: no such collection exists. The
+                // Listing's displayed rating/count come from the owning Business's
+                // aggregate via businessReviews() below.
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',
             ])
@@ -48,13 +49,6 @@ class ListingController extends Controller
 
         return Inertia::render('Public/ListingProfile', [
             'listing' => (new ListingDirectoryResource($listing))->resolve(),
-            'reviews' => $listing->reviews->map(fn($review) => [
-                'id' => $review->id,
-                'rating' => $review->rating,
-                'content' => $review->content,
-                'created_at' => $review->created_at?->toDateString(),
-                'user_name' => $review->user?->name,
-            ])->values(),
         ]);
     }
 }

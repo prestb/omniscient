@@ -19,9 +19,11 @@ use Tests\TestCase;
 /**
  * PHASE 9 — discoverable children are owned by the LISTING.
  *
- * A Listing owns its services / media / contacts / reviews / analytics /
- * leads / coupons / favorites. Two listings under one organization do NOT
+ * A Listing owns its services / media / contacts / analytics / leads / coupons /
+ * favorites. Two listings under one organization do NOT
  * share children and never duplicate each other's data.
+ *
+ * PHASE 11 — Reviews are BUSINESS-owned and are deliberately NOT in this list.
  */
 class ListingChildOwnershipTest extends TestCase
 {
@@ -56,25 +58,14 @@ class ListingChildOwnershipTest extends TestCase
         $this->assertSame(2, ListingService::count());
     }
 
-    public function test_reviews_belong_to_a_listing_and_are_never_copied(): void
-    {
-        [$business, $buea] = $this->twoListings();
-        $user = User::factory()->create();
-
-        $review = Review::create([
-            'business_id' => $business->id,
-            'listing_id' => $buea->id,
-            'user_id' => $user->id,
-            'rating' => 5,
-            'content' => 'Great place.',
-            'status' => Review::STATUS_APPROVED,
-            'approved_at' => now(),
-        ]);
-
-        $this->assertSame(1, Review::count());
-        $this->assertSame($buea->id, $review->fresh()->listing_id);
-        $this->assertSame(1, $buea->reviews()->count());
-    }
+    /**
+     * PHASE 11 — `test_reviews_belong_to_a_listing_and_are_never_copied` was
+     * REMOVED here. It asserted Listing-owned reviews (`reviews.listing_id`),
+     * which the audit established no application writer ever populated. Reviews
+     * are BUSINESS-owned; the Listing-owned column, relation and scope are gone.
+     * Business review behaviour is covered by
+     * tests/Feature/Reviews/BusinessAggregateReviewTest.php.
+     */
 
     public function test_media_is_listing_scoped(): void
     {

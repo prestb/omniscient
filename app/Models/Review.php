@@ -12,7 +12,6 @@ class Review extends Model
 
     protected $fillable = [
         'business_id',
-        'listing_id',
         'user_id',
         'rating',
         'title',
@@ -41,21 +40,13 @@ class Review extends Model
     }
 
     /**
-     * PHASE 9 — the canonical owner of a review is the LISTING. A review
-     * belongs to the discoverable entity ("ABC — Buea"), not the abstract
-     * organization. `business_id` is retained as an organization pointer for
-     * aggregate/organization-page reporting only.
+     * PHASE 11 — REVIEWS ARE BUSINESS-OWNED.
+     *
+     * `business_id` is the authoritative owner and the only Review ownership
+     * relation. The former `listing()` relation and `scopeForListing()` were
+     * obsolete scaffolding resolving on `reviews.listing_id`, a column no
+     * application writer ever populated. Both are removed with the column.
      */
-    public function listing()
-    {
-        return $this->belongsTo(Listing::class);
-    }
-
-    /** Reviews scoped to a specific listing. */
-    public function scopeForListing($query, int $listingId)
-    {
-        return $query->where('listing_id', $listingId);
-    }
 
     public function user()
     {
