@@ -20,21 +20,20 @@
                         </Link>
                     </div>
 
-                    <div class="hidden md:flex items-center space-x-6">
-                        <Link href="/directory"
-                            class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                            Directory
-                        </Link>
-                        <Link href="/explore"
-                            class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                            Explore
-                        </Link>
+                    <div class="hidden md:flex items-center gap-1">
+                        <!-- PHASE 16D — navigation is organised around DISCOVERY
+                             TASKS, not the old directory/marketing set. Pricing
+                             and Contact are commercial, so they move secondary. -->
+                        <PublicDesktopNav />
+
+                        <span class="mx-1 h-5 w-px bg-hairline dark:bg-hairline-dark" aria-hidden="true"></span>
+
                         <Link href="/pricing"
-                            class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                            class="px-3 py-2 rounded-control text-body-sm font-medium text-ink-muted dark:text-gray-400 hover:text-ink dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-fast">
                             Pricing
                         </Link>
                         <Link href="/contact"
-                            class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                            class="px-3 py-2 rounded-control text-body-sm font-medium text-ink-muted dark:text-gray-400 hover:text-ink dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-fast">
                             Contact
                         </Link>
 
@@ -75,34 +74,6 @@
                 enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0"
                 leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 translate-y-0"
                 leave-to-class="opacity-0 -translate-y-2">
-                <div v-if="isMobileMenuOpen"
-                    class="md:hidden absolute top-full left-0 right-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-                    <div class="px-4 py-2.5 space-y-1.5">
-                        <Link href="/directory"
-                            class="block px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
-                            @click="isMobileMenuOpen = false">Directory</Link>
-                        <Link href="/explore"
-                            class="block px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
-                            @click="isMobileMenuOpen = false">Explore</Link>
-                        <Link href="/pricing"
-                            class="block px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
-                            @click="isMobileMenuOpen = false">Pricing</Link>
-                        <Link href="/contact"
-                            class="block px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
-                            @click="isMobileMenuOpen = false">Contact</Link>
-                        <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-                        <Link v-if="$page.props.auth?.user" href="/dashboard"
-                            class="block px-3 py-2 bg-primary-600 text-white rounded-lg text-center"
-                            @click="isMobileMenuOpen = false">
-                            Dashboard
-                        </Link>
-                        <Link v-else href="/login"
-                            class="block px-3 py-2 bg-primary-600 text-white rounded-lg text-center"
-                            @click="isMobileMenuOpen = false">
-                            Sign In
-                        </Link>
-                    </div>
-                </div>
             </Transition>
         </nav>
 
@@ -110,6 +81,25 @@
         <main class="pb-[env(safe-area-inset-bottom)]">
             <slot />
         </main>
+        <!-- PHASE 16D — public mobile bottom navigation (primary). -->
+        <PublicMobileNav @open-menu="isMobileMenuOpen = true" />
+
+        <!-- Secondary mobile navigation: things that are not primary
+             discovery. Deliberately NOT a copy of the bottom nav. -->
+        <Sheet :show="isMobileMenuOpen" title="Menu" @update:show="isMobileMenuOpen = $event">
+            <nav class="p-4 space-y-1" aria-label="Secondary">
+                <Link href="/categories" class="block px-4 py-3 rounded-control text-body font-medium text-ink dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Categories</Link>
+                <Link href="/locations" class="block px-4 py-3 rounded-control text-body font-medium text-ink dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Locations</Link>
+                <Link href="/directory" class="block px-4 py-3 rounded-control text-body font-medium text-ink dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Browse all</Link>
+                <div class="my-2 border-t border-hairline dark:border-hairline-dark"></div>
+                <Link href="/pricing" class="block px-4 py-3 rounded-control text-body font-medium text-ink dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Pricing</Link>
+                <Link href="/contact" class="block px-4 py-3 rounded-control text-body font-medium text-ink dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Contact</Link>
+                <div class="my-2 border-t border-hairline dark:border-hairline-dark"></div>
+                <Link v-if="$page.props.auth?.user" href="/dashboard" class="block px-4 py-3 rounded-control text-body font-semibold text-primary-700 dark:text-primary-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Dashboard</Link>
+                <Link v-else href="/login" class="block px-4 py-3 rounded-control text-body font-semibold text-primary-700 dark:text-primary-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="isMobileMenuOpen = false">Sign in</Link>
+            </nav>
+        </Sheet>
+
 
         <!-- Footer -->
         <footer class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 mt-12">
@@ -203,6 +193,11 @@
     import ConfirmModal from '@/Components/ConfirmModal.vue';
     import DarkModeToggle from '@/Components/DarkModeToggle.vue';
     import OfflineBanner from '@/Components/Common/OfflineBanner.vue';
+    // PHASE 16D — public shell navigation. Authenticated navigation
+    // (Navbar/MobileNav/Sidebar) is deliberately NOT reused here.
+    import PublicDesktopNav from '@/Components/Public/Shell/PublicDesktopNav.vue';
+    import PublicMobileNav from '@/Components/Public/Shell/PublicMobileNav.vue';
+    import Sheet from '@/Components/Public/ui/Sheet.vue';
 
     const isMobileMenuOpen = ref(false);
     const navRef = ref(null);
