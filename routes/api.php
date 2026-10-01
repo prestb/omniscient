@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\LocationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 
 
@@ -22,9 +21,11 @@ Route::prefix('locations')->group(function () {
 });
 
 
-// Analytics Tracking Routes
-Route::post('/analytics/track-view/{business}', [AnalyticsController::class, 'trackView']);
-Route::post('/analytics/track-click/{business}/{type}', [AnalyticsController::class, 'trackClick']);
+// PHASE 11 / WAVE 1D-3 — the Business-keyed analytics tracking routes
+// (/api/analytics/track-view/{business} and /api/analytics/track-click/{business}/{type})
+// were DELETED. Analytics are Listing-owned; the canonical public ingestion path
+// is /analytics/listing/{listing}/track-view|track-click/{type} in routes/web.php.
+// No compatibility wrapper is provided.
 
 
 

@@ -447,7 +447,7 @@
                         <div class="space-y-3">
                             <!-- Phone unlocked -->
                             <a v-if="contactPhone && hasFeature('phone_display')" :href="`tel:${contactPhone}`"
-                                @click="trackClick('phone')"
+                                @click="trackClick('phone', contactPhoneListingId)"
                                 class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer group">
                                 <div
                                     class="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/60 transition-colors flex-shrink-0">
@@ -483,7 +483,7 @@
                             <!-- WhatsApp unlocked -->
                             <a v-if="contactWhatsApp && hasFeature('whatsapp_button')"
                                 :href="`https://wa.me/${contactWhatsApp.replace(/[^0-9]/g, '')}`" target="_blank"
-                                @click="trackClick('whatsapp')"
+                                @click="trackClick('whatsapp', contactWhatsAppListingId)"
                                 class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer group">
                                 <div
                                     class="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/60 transition-colors flex-shrink-0">
@@ -533,9 +533,10 @@
                                 </span>
                             </a>
 
-                            <!-- Website -->
+                            <!-- Website — PHASE 11 / WAVE 1D-3: `businesses.website`
+                                 is an ORGANIZATION-owned resource with no Listing
+                                 owner, so this interaction emits NO Listing analytics. -->
                             <a v-if="business.website" :href="business.website" target="_blank"
-                                @click="trackClick('website')"
                                 class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors cursor-pointer group">
                                 <div
                                     class="w-9 h-9 bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/60 transition-colors flex-shrink-0">
@@ -609,7 +610,7 @@
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <a v-for="contact in socialContacts" :key="contact.id" :href="getSocialUrl(contact)"
-                                target="_blank" @click="trackClick('social')"
+                                target="_blank" @click="trackClick('social', contact.listing_id)"
                                 class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-sm text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer border border-transparent hover:border-primary-200 dark:hover:border-primary-800 font-medium">
                                 <ContactIcon :type="contact.type" size="sm" class="text-gray-500 dark:text-gray-400" />
                                 {{ getSocialLabel(contact.type) }}
@@ -1092,11 +1093,17 @@
     };
 
     // ============== Tracking ==============
-    const trackClick = (type) => {
-        const businessId = props.business.id;
-        axios.post(`/analytics/track-click/${businessId}/${type}`)
-            .then(() => console.log(`${type} click tracked successfully`))
-            .catch((error) => console.error(`Error tracking ${type} click:`, error));
+    // PHASE 11 / WAVE 1D-3 — analytics are LISTING-owned.
+    //
+    // The organization page records an interaction ONLY when the clicked
+    // resource actually carries Listing identity (a ListingContact). Resources
+    // owned by the organization itself — `businesses.website`, and the
+    // Location-supplied phone/WhatsApp numbers from `primaryLocation` — have no
+    // Listing owner, so they emit NO Listing analytics rather than being
+    // attributed to an arbitrary Listing through Business::primaryListing().
+    const trackClick = (type, listingId = null) => {
+        if (!listingId) return;
+        axios.post(`/analytics/listing/${listingId}/track-click/${type}`).catch(() => {});
     };
 
     // ============== Share ==============
@@ -1311,6 +1318,24 @@
         return (props.business.contacts || []).filter(
             (c) => c.type !== 'phone' && c.type !== 'whatsapp'
         );
+    });
+
+    // PHASE 11 / WAVE 1D-3 — a Listing id is available ONLY when the displayed
+    // number came from a ListingContact. When `primaryLocation` supplies it, the
+    // number belongs to a Location (locations.phone / locations.whatsapp), which
+    // has NO Listing owner — so we return null and no event is recorded.
+    //
+    // Display behaviour is unchanged: the same number is shown either way.
+    const contactPhoneListingId = computed(() => {
+        if (props.primaryLocation?.phone) return null;
+        const c = (props.business.contacts || []).find((x) => x.type === 'phone');
+        return c?.listing_id ?? null;
+    });
+
+    const contactWhatsAppListingId = computed(() => {
+        if (props.primaryLocation?.whatsapp) return null;
+        const c = (props.business.contacts || []).find((x) => x.type === 'whatsapp');
+        return c?.listing_id ?? null;
     });
 
     const collectionCrossLink = computed(() => {

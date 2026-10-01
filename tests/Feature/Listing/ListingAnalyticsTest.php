@@ -3,6 +3,10 @@
 use App\Models\Business;
 use App\Models\Listing;
 use App\Models\ListingAnalytics;
+use App\Models\ListingContact;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -120,12 +124,99 @@ test('an unknown listing is rejected', function () {
     $this->post('/analytics/listing/999999/track-click/phone')->assertNotFound();
 });
 
-test('the business-keyed tracking routes remain in place and untouched', function () {
-    // This unit must NOT migrate or remove them.
-    expect(str_contains(File::get(base_path('routes/web.php')), '/analytics/track-view/{business}'))->toBeTrue();
-    expect(str_contains(File::get(base_path('routes/web.php')), '/analytics/track-click/{business}/{type}'))->toBeTrue();
-    expect(str_contains(File::get(base_path('routes/api.php')), '/analytics/track-view/{business}'))->toBeTrue();
+test('the obsolete Business-keyed tracking routes were removed', function () {
+    $web = File::get(base_path('routes/web.php'));
+    $api = File::get(base_path('routes/api.php'));
 
-    // And the bridge they use is still present on the model.
+    foreach ([
+        "Route::post('/analytics/track-view/{business}'",
+        "Route::post('/analytics/track-click/{business}/{type}'",
+        "Route::post('/track-view/{business}'",
+        "Route::post('/track-click/{business}/{type}'",
+    ] as $gone) {
+        expect(str_contains($web, $gone))->toBeFalse("web.php still registers {$gone}");
+    }
+
+    expect(str_contains($api, "Route::post('/analytics/track"))
+        ->toBeFalse('api.php still registers Business-keyed analytics.');
+
+    // The old endpoints genuinely no longer respond.
+    $this->post('/analytics/track-click/1/phone')->assertNotFound();
+    $this->post('/analytics/track-view/1')->assertNotFound();
+
+    // The bridge itself is retained for the one remaining caller (Category slice).
     expect(method_exists(Business::class, 'primaryListing'))->toBeTrue();
+});
+
+test('a contact event is attributed to the listing that owns the contact', function () {
+    $business = Business::factory()->create();
+
+    $a = Listing::factory()->forBusiness($business)->create();
+    $b = Listing::factory()->forBusiness($business)->create();
+
+    // Contacts belong to their own Listings. A `facebook` contact is a social
+    // contact, so its click emits the analytics type `social`.
+    ListingContact::create(['listing_id' => $a->id, 'type' => 'phone', 'value' => '+237 111', 'sort_order' => 1]);
+    ListingContact::create(['listing_id' => $b->id, 'type' => 'facebook', 'value' => 'https://x.test', 'sort_order' => 1]);
+
+    // The organization page sends the clicked contact's own listing_id.
+    $this->post("/analytics/listing/{$a->id}/track-click/phone")->assertOk();
+    $this->post("/analytics/listing/{$b->id}/track-click/social")->assertOk();
+
+    expect(analyticsFor($a)->phone_clicks)->toBe(1);
+    expect(analyticsFor($a)->social_clicks)->toBe(0);
+    expect(analyticsFor($b)->social_clicks)->toBe(1);
+    expect(analyticsFor($b)->phone_clicks)->toBe(0);
+});
+
+test('the organization page no longer emits Business-keyed analytics', function () {
+    $source = File::get(resource_path('js/Pages/Public/BusinessProfile.vue'));
+
+    // No Business-keyed ingestion call remains.
+    expect(str_contains($source, 'analytics/track-click/${businessId}'))->toBeFalse();
+    expect(str_contains($source, "trackClick('website')"))->toBeFalse();
+
+    // The three contact events route through the explicit Listing path.
+    expect(str_contains($source, "trackClick('phone', contactPhoneListingId)"))->toBeTrue();
+    expect(str_contains($source, "trackClick('whatsapp', contactWhatsAppListingId)"))->toBeTrue();
+    expect(str_contains($source, "trackClick('social', contact.listing_id)"))->toBeTrue();
+
+    // Website rendering is untouched — only its analytics event is gone.
+    expect(str_contains($source, 'business.website'))->toBeTrue();
+});
+
+test('an organization-owned website click creates no listing analytics', function () {
+    $business = Business::factory()->create(['website' => 'https://acme.test']);
+    Listing::factory()->forBusiness($business)->create();
+
+    // The emission was removed entirely. Nothing is recorded, and there is no
+    // organization-level analytics record either — none should exist.
+    expect(ListingAnalytics::count())->toBe(0);
+});
+
+test('the canonical Business aggregate dashboard still sums across listings', function () {
+    $plan = Plan::factory()->create(['max_listings' => 10]);
+    $owner = User::factory()->owner()->create();
+
+    Subscription::factory()->create([
+        'user_id' => $owner->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+    ]);
+
+    $business = Business::factory()->create(['owner_id' => $owner->id, 'status' => 'published']);
+
+    $a = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
+    $b = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
+
+    $this->post("/analytics/listing/{$a->id}/track-view")->assertOk();
+    $this->post("/analytics/listing/{$b->id}/track-view")->assertOk();
+    $this->post("/analytics/listing/{$b->id}/track-click/phone")->assertOk();
+
+    // index() aggregates the Business's Listings — unchanged by this wave.
+    $response = $this->actingAs($owner)->get('/owner/analytics');
+    $response->assertOk();
+
+    expect((int) $response->viewData('page')['props']['summary']['total_views'])->toBe(2);
+    expect((int) $response->viewData('page')['props']['summary']['total_phone_clicks'])->toBe(1);
 });

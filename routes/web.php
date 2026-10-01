@@ -151,22 +151,16 @@ Route::prefix('business/{business}/reviews')->name('business.reviews.')->group(f
         ->name('store');
 });
 
-// Analytics tracking (public)
-Route::post('/analytics/track-view/{business}', [AnalyticsController::class, 'trackView'])
-    ->middleware('throttle:analytics')
-    ->name('analytics.track-view');
-Route::post('/analytics/track-click/{business}/{type}', [AnalyticsController::class, 'trackClick'])
-    ->middleware('throttle:analytics')
-    ->name('analytics.track-click');
-
-// PHASE 11 / WAVE 1D-3 — CANONICAL LISTING-SCOPED TRACKING (PATH A).
+// PHASE 11 / WAVE 1D-3 — CANONICAL LISTING-SCOPED TRACKING.
 // The route parameter is the LISTING and resolves directly through route model
 // binding. It is not a renamed Business, and the controller never calls
 // Business::primaryListing().
 //
-// The path is /analytics/listing/{listing}/... rather than
-// /analytics/track-view/{listing} because that URL pattern is already taken by
-// the Business-keyed route above; two identical patterns cannot coexist.
+// The four Business-keyed tracking routes that used to live here
+// (/analytics/track-view/{business}, /analytics/track-click/{business}/{type}
+// and their /owner/analytics equivalents) were DELETED in this wave. Analytics
+// are Listing-owned, so there is no legitimate Business-keyed ingestion path
+// and no compatibility wrapper is kept.
 Route::post('/analytics/listing/{listing}/track-view', [\App\Http\Controllers\Api\AnalyticsController::class, 'trackListingView'])
     ->middleware('throttle:analytics')
     ->name('analytics.listing.track-view');
@@ -444,11 +438,13 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
             ->middleware('plan.feature:respond_to_reviews');
     });
 
-    // Analytics
+    // Analytics — PHASE 11 / WAVE 1D-3: the Business-keyed tracking writers
+    // (/track-view/{business}, /track-click/{business}/{type}) were DELETED.
+    // Analytics are Listing-owned and recorded through
+    // /analytics/listing/{listing}/track-*. What remains here are the
+    // legitimate Business AGGREGATE reads and exports.
     Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('/', [AnalyticsController::class, 'index'])->name('index');
-        Route::post('/track-view/{business}', [AnalyticsController::class, 'trackView'])->name('track-view');
-        Route::post('/track-click/{business}/{type}', [AnalyticsController::class, 'trackClick'])->name('track-click');
 
         // ✅ Export
         Route::get('/export/csv', [AnalyticsController::class, 'exportCsv'])->name('export.csv');

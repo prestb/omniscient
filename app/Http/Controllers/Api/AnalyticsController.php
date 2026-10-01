@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Business;
 use App\Models\Listing;
 use App\Models\ListingAnalytics;
 use Illuminate\Http\Request;
@@ -17,61 +16,10 @@ class AnalyticsController extends Controller
      */
     private const VALID_CLICK_TYPES = ['phone', 'whatsapp', 'website', 'direction', 'social'];
 
-    public function trackView($businessId)
-    {
-        try {
-            Log::info('Tracking view for business: ' . $businessId);
-            $business = Business::findOrFail($businessId);
-
-            // PHASE 11 / WAVE 1B — analytics are listing-owned. Attribute to the
-            // organization's primary listing.
-            $listing = $business->primaryListing();
-            if (!$listing) {
-                return response()->json(['success' => false, 'error' => 'No listing for business'], 422);
-            }
-
-            ListingAnalytics::trackView($listing->id);
-
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            Log::error('Error tracking view: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function trackClick(Request $request, $businessId, $type)
-    {
-        try {
-            Log::info('Tracking click for business: ' . $businessId . ' type: ' . $type);
-            
-            $business = Business::findOrFail($businessId);
-            
-            // Validate click type
-            $validTypes = ['phone', 'whatsapp', 'website', 'direction', 'social'];
-            if (!in_array($type, $validTypes)) {
-                Log::warning('Invalid click type: ' . $type);
-                return response()->json(['error' => 'Invalid click type'], 400);
-            }
-
-            // PHASE 11 / WAVE 1B — analytics are listing-owned.
-            $listing = $business->primaryListing();
-            if (!$listing) {
-                return response()->json(['success' => false, 'error' => 'No listing for business'], 422);
-            }
-
-            $result = ListingAnalytics::trackClick($listing->id, $type);
-            
-            if ($result) {
-                Log::info('Click tracked successfully for: ' . $businessId . ' type: ' . $type);
-                return response()->json(['success' => true]);
-            } else {
-                return response()->json(['error' => 'Failed to track click'], 500);
-            }
-        } catch (\Exception $e) {
-            Log::error('Error tracking click: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
+    // PHASE 11 / WAVE 1D-3 — the Business-keyed trackView($businessId) and
+    // trackClick($request, $businessId, $type) writers were DELETED. They existed
+    // only to resolve an arbitrary Listing through Business::primaryListing() and
+    // attribute Listing-owned analytics to it. No compatibility wrapper remains.
 
     // =========================================================================
     // PHASE 11 / WAVE 1D-3 — CANONICAL LISTING-SCOPED TRACKING (PATH A)

@@ -113,27 +113,14 @@ class AnalyticsController extends Controller
         ]);
     }
 
-        public function trackView($businessId)
-    {
-        // PHASE 11 / WAVE 1B — attribute to the organization's primary listing.
-        $business = \App\Models\Business::find($businessId);
-        $listing = $business?->primaryListing();
-        if ($listing) {
-            ListingAnalytics::trackView($listing->id);
-        }
-        return response()->json(['success' => true]);
-    }
-
-    public function trackClick($businessId, $type)
-    {
-        // PHASE 11 / WAVE 1B — attribute to the organization's primary listing.
-        $business = \App\Models\Business::find($businessId);
-        $listing = $business?->primaryListing();
-        if ($listing) {
-            ListingAnalytics::trackClick($listing->id, $type);
-        }
-        return response()->json(['success' => true]);
-    }
+    // PHASE 11 / WAVE 1D-3 — the Business-keyed trackView($businessId) and
+    // trackClick($businessId, $type) writers were DELETED. They existed only to
+    // attribute Listing-owned analytics to an arbitrary Listing chosen by
+    // Business::primaryListing(), and had no in-repository caller. Analytics are
+    // recorded on the canonical Listing path instead:
+    // /analytics/listing/{listing}/track-view|track-click/{type}.
+    //
+    // What remains here are the legitimate Business AGGREGATE reads and exports.
 
     /**
      * ✅ Export analytics as CSV.
