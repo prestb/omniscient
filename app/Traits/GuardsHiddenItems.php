@@ -85,8 +85,9 @@ trait GuardsHiddenItems
     {
         return match ($label) {
             'business' => '/owner/businesses',
+            'listing' => '/owner/listings',
             'branch' => '/owner/businesses',   // best we can do without business context
-            'service' => '/owner/businesses',
+            'service' => '/owner/listings',
             'image' => '/owner/businesses',
             'coupon' => '/owner/coupons',
             default => '/owner/dashboard',

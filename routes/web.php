@@ -273,6 +273,18 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
         Route::post('/{listing}/publish', [OwnerListingController::class, 'publish'])->name('publish');
         Route::post('/{listing}/unpublish', [OwnerListingController::class, 'unpublish'])->name('unpublish');
         Route::delete('/{listing}', [OwnerListingController::class, 'destroy'])->name('destroy');
+
+        // PHASE 11 / WAVE 1D-3 — SERVICES ARE LISTING-OWNED.
+        // The Listing is the authoritative route entity: no Business ->
+        // primaryListing() bridge and no arbitrary Listing selection.
+        Route::prefix('{listing}/services')->name('services.')->group(function () {
+            Route::get('/', [ServiceController::class, 'index'])->name('index');
+            Route::post('/', [ServiceController::class, 'store'])
+                ->name('store')
+                ->middleware('plan.limit:services');
+            Route::put('/{service}', [ServiceController::class, 'update'])->name('update');
+            Route::delete('/{service}', [ServiceController::class, 'destroy'])->name('destroy');
+        });
     });
 
     Route::prefix('owner/businesses')->name('owner.businesses.')->group(function () {
@@ -305,15 +317,9 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
             Route::delete('/{location}', [OwnerLocationController::class, 'destroy'])->name('destroy');
         });
 
-        // ✅ Services (needed for setup)
-        Route::prefix('{business}/services')->name('services.')->group(function () {
-            Route::get('/', [ServiceController::class, 'index'])->name('index');
-            Route::post('/', [ServiceController::class, 'store'])
-                ->name('store')
-                ->middleware('plan.limit:services');
-            Route::put('/{service}', [ServiceController::class, 'update'])->name('update');
-            Route::delete('/{service}', [ServiceController::class, 'destroy'])->name('destroy');
-        });
+        // PHASE 11 / WAVE 1D-3 — the Business-scoped services routes were
+        // REMOVED. A service is Listing-owned, so service management now lives at
+        // /owner/listings/{listing}/services (route names owner.listings.services.*).
 
         // ✅ Contacts (needed for setup)
         Route::prefix('{business}/contacts')->name('contacts.')->group(function () {

@@ -3,46 +3,49 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
-use App\Models\Business;
+use App\Models\Listing;
 use App\Models\ListingService;
+use App\Traits\GuardsHiddenItems;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
-use App\Traits\GuardsHiddenItems;
-
+/**
+ * PHASE 11 / WAVE 1D-3 — LISTING-OWNED SERVICES.
+ *
+ * A service belongs to a LISTING:
+ *
+ *     Listing -> listing_services
+ *
+ * The Listing is supplied explicitly by the route
+ * (`/owner/listings/{listing}/services`) and authorized through
+ * {@see \App\Policies\ListingPolicy}. This controller never resolves a Listing
+ * from a Business — no `primaryListing()`, no `listings()->first()`, and no
+ * other arbitrary selection.
+ */
 class ServiceController extends Controller
 {
     use GuardsHiddenItems;
-    public function index(Business $business)
-    {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
 
-        $services = $business->services()->ordered()->get();
+    public function index(Listing $listing)
+    {
+        Gate::authorize('update', $listing);
+
+        $services = $listing->services()->ordered()->get();
 
         return Inertia::render('Owner/Services/Index', [
-            'business' => $business,
+            'listing' => $listing->only(['id', 'name', 'slug', 'type', 'status', 'business_id']),
             'services' => $services,
         ]);
     }
 
-    public function store(Request $request, Business $business)
+    public function store(Request $request, Listing $listing)
     {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
+        Gate::authorize('update', $listing);
 
-        // ✅ Server-side lock: can't add service to hidden business
-        if ($redirect = $this->guardNotHidden($business, 'business')) {
+        // ✅ Server-side lock: can't add services to a hidden listing
+        if ($redirect = $this->guardNotHidden($listing, 'listing')) {
             return $redirect;
-        }
-
-        // PHASE 11 / WAVE 1B — services are listing-owned. Attach to the
-        // organization's primary listing.
-        $listing = $business->primaryListing();
-        if (!$listing) {
-            return redirect()->back()->with('error', 'No listing found to attach services to.');
         }
 
         $validated = $request->validate([
@@ -54,7 +57,7 @@ class ServiceController extends Controller
             'listing_id' => $listing->id,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'sort_order' => $business->services()->count() + 1,
+            'sort_order' => $listing->services()->count() + 1,
         ]);
 
         if ($request->wantsJson()) {
@@ -64,19 +67,20 @@ class ServiceController extends Controller
         return redirect()->back()->with('success', 'Service added successfully.');
     }
 
-    public function update(Request $request, Business $business, ListingService $service)
+    public function update(Request $request, Listing $listing, ListingService $service)
     {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
+        Gate::authorize('update', $listing);
 
         // ✅ Server-side lock
-        if ($redirect = $this->guardNotHidden($business, 'business')) {
+        if ($redirect = $this->guardNotHidden($listing, 'listing')) {
             return $redirect;
         }
         if ($redirect = $this->guardNotHidden($service, 'service')) {
             return $redirect;
         }
+
+        // The service must belong to the Listing named in the route.
+        abort_unless((int) $service->listing_id === (int) $listing->id, 404);
 
         $validated = $request->validate([
             'name' => 'required|string|max:50',
@@ -92,11 +96,11 @@ class ServiceController extends Controller
         return redirect()->back()->with('success', 'Service updated successfully.');
     }
 
-        public function destroy(Business $business, ListingService $service)
+    public function destroy(Listing $listing, ListingService $service)
     {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
+        Gate::authorize('update', $listing);
+
+        abort_unless((int) $service->listing_id === (int) $listing->id, 404);
 
         $service->delete();
 

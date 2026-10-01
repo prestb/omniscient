@@ -347,8 +347,11 @@
                         </div>
                     </a>
 
-                    <!-- Services -->
-                    <a :href="`/owner/businesses/${business.id}/services`"
+                    <!-- Services — PHASE 11 / WAVE 1D-3: services are LISTING-owned,
+                         so this no longer links to a Business-scoped route. The owner
+                         picks the Listing to manage from My Listings; the app never
+                         silently selects one. -->
+                    <a :href="`/owner/listings`"
                         class="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-teal-200 dark:hover:border-teal-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-5 sm:p-6">
                         <div
                             class="absolute -top-8 -right-8 w-24 h-24 bg-gradient-to-br from-teal-100 to-teal-50 dark:from-teal-900/30 dark:to-teal-900/10 rounded-full blur-2xl opacity-60 group-hover:opacity-100 transition-opacity">

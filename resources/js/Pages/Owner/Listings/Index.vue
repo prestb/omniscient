@@ -64,6 +64,11 @@
                                 <a :href="`/owner/listings/${listing.id}/edit`"
                                     class="text-sm font-semibold text-primary-600 hover:text-primary-700">Edit</a>
 
+                                <!-- PHASE 11 / WAVE 1D-3 — services are Listing-owned, so
+                                     they are managed against an explicit Listing. -->
+                                <a :href="`/owner/listings/${listing.id}/services`"
+                                    class="text-sm font-semibold text-teal-600 hover:text-teal-700">Services</a>
+
                                 <a v-if="listing.status === 'published'" :href="`/listing/${listing.slug}`" target="_blank"
                                     class="text-sm font-semibold text-gray-500 hover:text-gray-700">View</a>
 

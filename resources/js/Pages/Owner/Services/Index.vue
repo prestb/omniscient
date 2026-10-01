@@ -6,8 +6,8 @@
             color="teal"
             :breadcrumb="[
                 { label: 'Dashboard', href: '/owner/dashboard' },
-                { label: 'Businesses', href: '/owner/businesses' },
-                { label: business.name, href: `/owner/businesses/${business.id}/edit` },
+                { label: 'My Listings', href: '/owner/listings' },
+                { label: listing.name, href: `/owner/listings/${listing.id}/edit` },
                 { label: 'Services' }
             ]"
         >
@@ -18,7 +18,7 @@
                       d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </template>
             <template #title>Services & products</template>
-            <template #subtitle>{{ business.name }}</template>
+            <template #subtitle>{{ listing.name }}</template>
             <template #actions>
                 <button @click="openCreateModal"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg shadow-primary-500/25 text-sm">
@@ -102,7 +102,7 @@
                 </div>
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">No services yet</h3>
                 <p class="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6 text-sm">
-                    Add services or products your business offers to help customers understand what you do.
+                    Add services or products this listing offers to help customers understand what you do.
                 </p>
                 <button @click="openCreateModal"
                         class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-0.5 font-semibold text-sm">
@@ -132,7 +132,7 @@ import PageHeader from '@/Components/PageHeader.vue';
 import ServiceModal from '@/Components/Owner/ServiceModal.vue';
 
 const props = defineProps({
-    business: Object,
+    listing: Object,
     services: Array,
 });
 
@@ -156,8 +156,8 @@ const closeModal = () => {
 
 const saveService = (data, options = {}) => {
     const url = editingService.value
-        ? `/owner/businesses/${props.business.id}/services/${editingService.value.id}`
-        : `/owner/businesses/${props.business.id}/services`;
+        ? `/owner/listings/${props.listing.id}/services/${editingService.value.id}`
+        : `/owner/listings/${props.listing.id}/services`;
     const method = editingService.value ? 'put' : 'post';
 
     router[method](url, data, {
@@ -175,7 +175,7 @@ const saveService = (data, options = {}) => {
 
 const deleteService = (service) => {
     if (confirm(`Delete "${service.name}"?`)) {
-        router.delete(`/owner/businesses/${props.business.id}/services/${service.id}`, {
+        router.delete(`/owner/listings/${props.listing.id}/services/${service.id}`, {
             onSuccess: () => {
                 router.reload();
             },
