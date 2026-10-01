@@ -766,21 +766,32 @@ class Business extends Model
         return $this->ownerCanUseFeature('coupons');
     }
 
+    /**
+     * PHASE 11 / WAVE 1D-5A — favorites are LISTING-owned.
+     *
+     * An organization is not directly favoritable. These are genuine Business
+     * AGGREGATES across the organization's Listings, which remain legitimate:
+     * "is any Listing of this organization favorited by this user".
+     */
     public function favorites()
     {
-        return $this->hasMany(Favorite::class);
-    }
-
-    public function favoritedBy()
-    {
-        return $this->belongsToMany(User::class, 'favorites')->withTimestamps();
+        return $this->hasManyThrough(
+            Favorite::class,
+            Listing::class,
+            'business_id',   // FK on listings
+            'listing_id',    // FK on favorites
+            'id',            // local key on businesses
+            'id'             // local key on listings
+        );
     }
 
     public function isFavoritedBy(?User $user): bool
     {
-        if (!$user)
+        if (!$user) {
             return false;
-        return $this->favorites()->where('user_id', $user->id)->exists();
+        }
+
+        return $this->favorites()->where('favorites.user_id', $user->id)->exists();
     }
 
 }

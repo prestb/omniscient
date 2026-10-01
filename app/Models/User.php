@@ -513,16 +513,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(CouponRedemption::class);
     }
 
-    public function favoriteBusinesses()
+    /**
+     * PHASE 11 / WAVE 1D-5A — favorites are LISTING-owned.
+     */
+    public function favoriteListings()
     {
-        return $this->belongsToMany(Business::class, 'favorites')
+        return $this->belongsToMany(Listing::class, 'favorites')
             ->withTimestamps()
             ->orderBy('favorites.created_at', 'desc');
     }
 
-    public function hasFavorited(Business $business): bool
+    public function hasFavoritedListing(Listing $listing): bool
     {
-        return $this->favorites()->where('business_id', $business->id)->exists();
+        return $this->favorites()->where('listing_id', $listing->id)->exists();
     }
 
     public function getFavoritesCountAttribute(): int

@@ -241,12 +241,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/unsubscribe', [PushSubscriptionController::class, 'unsubscribe'])->name('unsubscribe');
     });
 
-    // Favorites
-    Route::post('/favorites/{business}/toggle', [FavoriteController::class, 'toggle'])
+    // Favorites — PHASE 11 / WAVE 1D-5A: favorites are LISTING-owned.
+    // The favoritable entity is a Listing; the old Business-keyed routes are
+    // removed with no compatibility alias.
+    Route::post('/favorites/{listing}/toggle', [FavoriteController::class, 'toggle'])
         ->middleware('throttle:favorites')
         ->name('favorites.toggle');
     Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites.index');
-    Route::delete('/favorites/{business}', [FavoriteController::class, 'destroy'])
+    Route::delete('/favorites/{listing}', [FavoriteController::class, 'destroy'])
         ->name('favorites.destroy');
 });
 

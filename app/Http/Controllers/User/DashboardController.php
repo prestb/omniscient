@@ -24,15 +24,15 @@ class DashboardController extends Controller
         $reviewCount = Review::where('user_id', $user->id)->count();
         $unreadNotifications = $user->unreadNotifications()->count();
 
-        // Recent favorites
-        $recentFavorites = $user->favoriteBusinesses()
-            ->with(['primaryLocation', 'logo', 'coverImage'])
+        // Recent favorites — PHASE 11 / WAVE 1D-5A: favorites are LISTING-owned.
+        $recentFavorites = $user->favoriteListings()
+            ->with(['business:id,name,slug', 'location.city', 'images'])
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
             ->take(6)
             ->get()
-            ->map(function ($business) {
-                return array_merge($business->toArray(), ['is_favorited' => true]);
+            ->map(function ($listing) {
+                return array_merge($listing->toArray(), ['is_favorited' => true]);
             });
 
         // Recent reviews

@@ -16,28 +16,12 @@
                 style="background-image: radial-gradient(circle, white 1px, transparent 1px); background-size: 22px 22px;">
             </div>
 
-            <!-- Status badges (top right) -->
-            <!-- ✅ Favorite heart (top left) -->
-            <div class="absolute top-4 left-4 z-10">
-                <button type="button" @click.stop="toggleFavorite" :disabled="favProcessing"
-                    :aria-label="isFavorited ? 'Remove from favorites' : 'Add to favorites'" :class="[
-                        'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-sm shadow-lg border transition-all active:scale-95',
-                        isFavorited
-                            ? 'bg-white/95 border-white/40 text-red-500 hover:bg-white'
-                            : 'bg-black/30 border-white/20 text-white hover:bg-black/50',
-                        favProcessing ? 'opacity-50 cursor-wait' : 'cursor-pointer'
-                    ]">
-                    <svg class="w-4 h-4 transition-transform" :class="isFavorited ? 'scale-110' : 'scale-100'"
-                        :fill="isFavorited ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    <span class="hidden sm:inline text-xs font-bold uppercase tracking-wide">
-                        {{ isFavorited ? 'Saved' : 'Save' }}
-                    </span>
-                </button>
-            </div>
+            <!-- PHASE 11 / WAVE 1D-5A — organizations are NOT favoritable.
+                 Favorites are LISTING-owned, so the heart lives on the Listing
+                 page / directory cards, which carry a Listing id. This page is
+                 the ORGANIZATION page and has no Listing identity to save, so
+                 the heart was removed here rather than posting a Business id to
+                 a Listing-scoped endpoint. -->
 
             <!-- Status badges (top right) -->
             <div class="absolute top-4 right-4 flex flex-wrap gap-2 justify-end max-w-[90%]">
@@ -841,51 +825,11 @@
 
     const page = usePage();
 
-    const isFavorited = ref(props.business.is_favorited || false);
-    const favProcessing = ref(false);
-
+    // PHASE 11 / WAVE 1D-5A — organizations are NOT favoritable. Favorites are
+    // LISTING-owned and are toggled from the directory cards / Listing page,
+    // which carry a Listing id. The org-page heart and its handler were removed
+    // rather than posting a Business id to a Listing-scoped endpoint.
     const isLoggedIn = computed(() => !!page.props.auth?.user);
-
-    const toggleFavorite = async () => {
-        if (favProcessing.value) return;
-
-        if (!isLoggedIn.value) {
-            router.visit("/login?redirect=" + encodeURIComponent(window.location.pathname));
-            return;
-        }
-
-        favProcessing.value = true;
-        const previous = isFavorited.value;
-        isFavorited.value = !previous;
-
-        try {
-            const response = await axios.post(
-                `/favorites/${props.business.id}/toggle`,
-                {},
-                {
-                    headers: {
-                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.content,
-                    },
-                }
-            );
-
-            if (response.data.success) {
-                isFavorited.value = response.data.is_favorited;
-
-                if (response.data.is_favorited) {
-                    success('Added to favorites ❤️', props.business.name, { duration: 2500 });
-                } else {
-                    success('Removed from favorites', props.business.name, { duration: 2500 });
-                }
-            }
-        } catch (err) {
-            isFavorited.value = previous;
-            console.error("Favorite toggle failed:", err);
-            error('Error', err.response?.data?.message || 'Failed to update favorite.', { duration: 3000 });
-        } finally {
-            favProcessing.value = false;
-        }
-    };
 
     // ============== Gallery Lightbox ==============
     const selectedImage = ref(null);

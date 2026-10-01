@@ -11,7 +11,6 @@ class Favorite extends Model
 
     protected $fillable = [
         'user_id',
-        'business_id',
         'listing_id',
     ];
 
@@ -20,15 +19,11 @@ class Favorite extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function business()
-    {
-        return $this->belongsTo(Business::class);
-    }
-
     /**
-     * PHASE 9 — a favorite targets a LISTING (e.g. "ABC — Buea"), not an
-     * abstract organization. `business_id` is retained as the organization
-     * pointer during the transition.
+     * PHASE 11 / WAVE 1D-5A — a favorite targets a LISTING, and `listing_id` is
+     * now the authoritative, required key. `business_id` was dropped from the
+     * schema and from this model: it was the obsolete Business-as-favorite-target
+     * key and never participated in the Listing-centric invariant.
      */
     public function listing()
     {

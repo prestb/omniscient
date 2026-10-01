@@ -3,15 +3,27 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\Business;
 use App\Models\Favorite;
+use App\Models\Listing;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+/**
+ * PHASE 11 / WAVE 1D-5A — FAVORITES ARE LISTING-OWNED.
+ *
+ *   User -> Favorite -> Listing
+ *
+ * `listing_id` is the authoritative key. `business_id` is gone from the schema
+ * and from this controller: a Business is never the favorite target, and no
+ * Listing is ever resolved through a Business.
+ *
+ * The heart in BusinessCard.vue already sends the LISTING id, because the
+ * directory renders Listings through that card.
+ */
 class FavoriteController extends Controller
 {
     /**
-     * Show user's favorites page
+     * Show the user's favorited Listings.
      */
     public function index(Request $request)
     {
@@ -21,36 +33,38 @@ class FavoriteController extends Controller
             return redirect()->route('login');
         }
 
-        $favorites = $user->favoriteBusinesses()
+        $favorites = $user->favoriteListings()
             ->with([
-                'primaryLocation',
-                'primaryLocation.city',
-                'primaryLocation.country',
-                'logo',
-                'coverImage',
+                'business:id,name,slug',
+                'location.city',
+                'location.country',
+                'images',
+                'categories',
             ])
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
-            ->orderBy('favorites.created_at', 'desc')
             ->paginate(12);
 
-        // Transform for BusinessCard
-        $businesses = $favorites->through(function ($business) {
-            return array_merge($business->toArray(), [
-                'is_favorited' => true,
-            ]);
+        // The existing Favorites UI consumes a ListingDirectoryResource-shaped
+        // payload under the `businesses` prop. That prop NAME is 1D-6 naming
+        // debt; the DATA is Listings, which is the architectural truth.
+        $listings = $favorites->through(function (Listing $listing) {
+            return array_merge(
+                (new \App\Http\Resources\ListingDirectoryResource($listing))->resolve(),
+                ['is_favorited' => true]
+            );
         });
 
         return Inertia::render('Public/Favorites', [
-            'businesses' => $businesses,
+            'businesses' => $listings,
             'totalCount' => $user->favorites()->count(),
         ]);
     }
 
     /**
-     * Toggle a business as favorite (AJAX)
+     * Toggle a LISTING as favorite (AJAX).
      */
-    public function toggle(Request $request, Business $business)
+    public function toggle(Request $request, Listing $listing)
     {
         $user = $request->user();
 
@@ -62,8 +76,9 @@ class FavoriteController extends Controller
             ], 401);
         }
 
+        // Lookup is keyed by user_id + listing_id — never by Business.
         $existing = Favorite::where('user_id', $user->id)
-            ->where('business_id', $business->id)
+            ->where('listing_id', $listing->id)
             ->first();
 
         if ($existing) {
@@ -73,7 +88,7 @@ class FavoriteController extends Controller
         } else {
             Favorite::create([
                 'user_id' => $user->id,
-                'business_id' => $business->id,
+                'listing_id' => $listing->id,
             ]);
             $isFavorited = true;
             $message = 'Added to favorites!';
@@ -88,9 +103,9 @@ class FavoriteController extends Controller
     }
 
     /**
-     * Remove a specific favorite
+     * Remove a specific favorited LISTING.
      */
-    public function destroy(Request $request, Business $business)
+    public function destroy(Request $request, Listing $listing)
     {
         $user = $request->user();
 
@@ -99,7 +114,7 @@ class FavoriteController extends Controller
         }
 
         Favorite::where('user_id', $user->id)
-            ->where('business_id', $business->id)
+            ->where('listing_id', $listing->id)
             ->delete();
 
         return back()->with('success', 'Removed from favorites.');
