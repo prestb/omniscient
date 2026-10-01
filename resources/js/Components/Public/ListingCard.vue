@@ -76,9 +76,15 @@
 
             <!-- ============== CONTENT ============== -->
             <div class="p-2.5 sm:p-4">
-                <!-- Business Name -->
+                <!-- PHASE 16C — Listing TYPE is now visible to visitors.
+                     Phase 16A found ListingType existed in the backend but was
+                     invisible in the UI. It renders nothing for an unknown or
+                     future enum value, so the layout never depends on it. -->
+                <ListingTypeBadge :type="listing.type" class="mb-1" />
+
+                <!-- Listing Name -->
                 <h3
-                    class="text-xs sm:text-base font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-1 leading-snug">
+                    class="text-heading-sm sm:text-heading-md text-ink dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-fast line-clamp-1 leading-snug">
                     {{ listing.name }}
                 </h3>
 

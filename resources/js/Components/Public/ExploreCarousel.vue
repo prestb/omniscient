@@ -50,7 +50,7 @@
             <div ref="scroller" class="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1 -mx-4 px-4 sm:mx-0 sm:px-0"
                 @scroll="updateArrows">
                 <div v-for="biz in businesses" :key="biz.id" class="flex-shrink-0 w-[160px] sm:w-[180px] snap-start">
-                    <ExploreCard :business="biz" />
+                    <ExploreCard :listing="biz" />
                 </div>
             </div>
         </div>

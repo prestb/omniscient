@@ -118,7 +118,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import RatingDisplay from '@/Components/Public/RatingDisplay.vue';
+import RatingSummary from '@/Components/Public/ui/RatingSummary.vue';
 import ReviewImageGallery from '@/Components/Public/ReviewImageGallery.vue';
 const props = defineProps({
     review: {
