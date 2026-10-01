@@ -263,7 +263,8 @@
             preserveScroll: true,
             // ✅ No success toast — the controller flashes 'Lead deleted.'
             //    and AuthenticatedLayout shows it once. The controller
-            //    also redirects to /owner/leads, so the user lands on
+            //    also redirects to the route owner.businesses.leads.index
+            //    (owner/businesses/{business}/leads), so the user lands on
             //    the index (not a ghost page).
             onError: () => {
                 // Client-side fallback for network / auth errors.
