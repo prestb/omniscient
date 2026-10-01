@@ -197,29 +197,40 @@ class SubscriptionController extends Controller
         // ============================================================
         // Create or update the pending subscription row
         // ============================================================
-        $subscription = Subscription::updateOrCreate(
-            [
-                'user_id' => $user->id,
-                'status' => Subscription::STATUS_PENDING,
-            ],
-            [
-                // PHASE 11 / WAVE 1D-5 — `business_id` is OPTIONAL organization
-                // context and is deliberately NOT written: this flow has no
-                // explicit Business context, and inventing one is forbidden.
-                'plan_id' => $plan->id,
-                'start_date' => $actionType === 'new' ? null : $startDate,
-                'end_date' => $actionType === 'new' ? null : $endDate,
-                'duration_months' => $durationMonths,
-                'total_price' => $totalPrice,
-                'monthly_price' => $plan->price_monthly,
-                'discount_percentage' => $discountPercentage,
-                'credit_balance' => $leftoverCredit,
-                'is_trial' => false,
-                'failure_reason' => null,
-                'upgraded_from_subscription_id' => $upgradedFromId,
-                'action_type' => $actionType,
-            ]
-        );
+        $attributes = [
+            'user_id' => $user->id,
+            'status' => Subscription::STATUS_PENDING,
+        ];
+
+        $values = [
+            // PHASE 11 / WAVE 1D-5 — `business_id` is OPTIONAL organization
+            // context and is deliberately NOT written: this flow has no
+            // explicit Business context, and inventing one is forbidden.
+            'plan_id' => $plan->id,
+            'start_date' => $actionType === 'new' ? null : $startDate,
+            'end_date' => $actionType === 'new' ? null : $endDate,
+            'duration_months' => $durationMonths,
+            'total_price' => $totalPrice,
+            'monthly_price' => $plan->price_monthly,
+            'discount_percentage' => $discountPercentage,
+            'credit_balance' => $leftoverCredit,
+            'is_trial' => false,
+            'failure_reason' => null,
+            'upgraded_from_subscription_id' => $upgradedFromId,
+            'action_type' => $actionType,
+        ];
+
+        // PHASE 11 — the DB now enforces one pending row per user. Two concurrent
+        // initiations can both miss the existing row and both attempt an INSERT;
+        // the loser raises 1062. Rather than creating a duplicate to repair, the
+        // row the winner created is re-resolved and updated — which is exactly
+        // what updateOrCreate intended, just made race-safe.
+        try {
+            $subscription = Subscription::updateOrCreate($attributes, $values);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            $subscription = Subscription::where($attributes)->firstOrFail();
+            $subscription->update($values);
+        }
 
         // ✅ Detect downgrade — fires whenever the user moves to a DIFFERENT plan.
         //    The frontend may send 'upgrade' | 'renew' | 'new' — we don't rely on it.
@@ -341,13 +352,23 @@ class SubscriptionController extends Controller
         // there is no explicit Business context in this flow (the session key
         // that once supplied one was never written anywhere), and inventing one
         // with businesses()->first() is exactly what this slice removes.
-        $subscription = Subscription::create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'status' => Subscription::STATUS_PENDING,
-            'start_date' => now()->toDateString(),
-            'end_date' => $endDate,
-        ]);
+        //
+        // PHASE 11 — the DB enforces one active AND one pending subscription per
+        // user. A concurrent request that lost the race raises 1062 here; it is
+        // converted into the same user-facing outcome rather than a 500, and no
+        // second subscription is created to be repaired afterwards.
+        try {
+            $subscription = Subscription::create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'status' => Subscription::STATUS_PENDING,
+                'start_date' => now()->toDateString(),
+                'end_date' => $endDate,
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return redirect()->route('owner.subscription.index')
+                ->with('error', 'You already have a subscription request in progress.');
+        }
 
         session()->forget(['selected_plan_id', 'billing_period', 'end_date']);
 
