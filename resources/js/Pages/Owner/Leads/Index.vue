@@ -113,7 +113,7 @@
                 </div>
 
                 <div v-if="leads.data && leads.data.length > 0" class="divide-y divide-gray-100 dark:divide-gray-700">
-                    <a v-for="lead in leads.data" :key="lead.id" :href="`/owner/leads/${lead.id}`"
+                    <a v-for="lead in leads.data" :key="lead.id" :href="`/owner/businesses/${business.id}/leads/${lead.id}`"
                         class="block p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
                         :class="lead.status === 'new' ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''">
                         <div class="flex items-start gap-4">
@@ -255,7 +255,7 @@
     };
 
     const applyFilters = () => {
-        router.get('/owner/leads', filters, {
+        router.get(`/owner/businesses/${props.business.id}/leads`, filters, {
             preserveState: true,
             preserveScroll: true,
         });

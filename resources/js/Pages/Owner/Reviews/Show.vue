@@ -4,7 +4,7 @@
         <!-- COMPACT HEADER -->
         <PageHeader color="amber" :breadcrumb="[
             { label: 'Dashboard', href: '/owner/dashboard' },
-            { label: 'Reviews', href: '/owner/reviews' },
+            { label: 'Reviews', href: `/owner/businesses/${business.id}/reviews` },
             { label: 'Review Details' }
         ]">
             <template #icon>
@@ -18,7 +18,7 @@
                     class="inline-flex items-center px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full border border-gray-200 dark:border-gray-600">
                     {{ review.status.charAt(0).toUpperCase() + review.status.slice(1) }}
                 </span>
-                <a href="/owner/reviews"
+                <a :href="`/owner/businesses/${business.id}/reviews`"
                     class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-semibold">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -396,7 +396,7 @@
         }
 
         replying.value = true;
-        router.post(`/owner/reviews/${props.review.id}/reply`, {
+        router.post(`/owner/businesses/${props.business.id}/reviews/${props.review.id}/reply`, {
             content: replyContent.value
         }, {
             preserveScroll: true,

@@ -179,7 +179,7 @@
                                     </span>
 
                                     <a v-if="canReply"
-                                       :href="`/owner/reviews/${review.id}`"
+                                       :href="`/owner/businesses/${business.id}/reviews/${review.id}`"
                                        class="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-semibold transition-colors group">
                                         View & reply
                                         <svg class="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -312,7 +312,7 @@ const getStatusCount = (status) => {
 const { review: statusClass } = useStatusBadge();
 
 const applyFilters = () => {
-    router.get('/owner/reviews', filters, {
+    router.get(`/owner/businesses/${props.business.id}/reviews`, filters, {
         preserveState: true,
         preserveScroll: true,
     });

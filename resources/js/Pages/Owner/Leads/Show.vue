@@ -4,7 +4,7 @@
         <!-- COMPACT HEADER -->
         <PageHeader color="cyan" :breadcrumb="[
             { label: 'Dashboard', href: '/owner/dashboard' },
-            { label: 'Leads', href: '/owner/leads' },
+            { label: 'Leads', href: `/owner/businesses/${business.id}/leads` },
             { label: lead.name }
         ]">
             <template #icon>
@@ -18,7 +18,7 @@
                     class="inline-flex items-center px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full border border-gray-200 dark:border-gray-600">
                     {{ lead.status }}
                 </span>
-                <a href="/owner/leads"
+                <a :href="`/owner/businesses/${business.id}/leads`"
                     class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-semibold">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -233,14 +233,14 @@
     };
 
     const updateStatus = (status) => {
-        router.put(`/owner/leads/${props.lead.id}/status`, { status }, {
+        router.put(`/owner/businesses/${props.business.id}/leads/${props.lead.id}/status`, { status }, {
             preserveScroll: true,
         });
     };
 
     const saveNotes = () => {
         notesProcessing.value = true;
-        notesForm.put(`/owner/leads/${props.lead.id}/notes`, {
+        notesForm.put(`/owner/businesses/${props.business.id}/leads/${props.lead.id}/notes`, {
             preserveScroll: true,
             onFinish: () => {
                 notesProcessing.value = false;
@@ -259,7 +259,7 @@
 
         if (!confirmed) return;
 
-        router.delete(`/owner/leads/${props.lead.id}`, {
+        router.delete(`/owner/businesses/${props.business.id}/leads/${props.lead.id}`, {
             preserveScroll: true,
             // ✅ No success toast — the controller flashes 'Lead deleted.'
             //    and AuthenticatedLayout shows it once. The controller

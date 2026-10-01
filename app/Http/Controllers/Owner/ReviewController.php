@@ -12,15 +12,19 @@ use Inertia\Inertia;
 
 class ReviewController extends Controller
 {
-    public function index()
+    /**
+     * PHASE 11 / WAVE 1D — owner review management is BUSINESS-SPECIFIC.
+     * The Business comes from the route and is authorized against the
+     * authenticated owner. There is no representative-Business selection.
+     */
+    private function authorizeBusiness(Business $business): void
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
+        abort_unless((int) $business->owner_id === (int) auth()->id(), 403);
+    }
 
-        if (!$business) {
-            return redirect()->route('owner.dashboard')
-                ->with('error', 'You don\'t have a business yet.');
-        }
+    public function index(Business $business)
+    {
+        $this->authorizeBusiness($business);
 
         $reviews = $business->allReviews()
             ->with(['user', 'replies.user'])
@@ -30,24 +34,16 @@ class ReviewController extends Controller
         return Inertia::render('Owner/Reviews/Index', [
             'business' => $business,
             'reviews' => $reviews,
-            'canReply' => $business?->hasReviewResponseFeature() ?? false,
+            'canReply' => $business->hasReviewResponseFeature(),
         ]);
     }
 
-    public function show(Review $review)
+    public function show(Business $business, Review $review)
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
+        $this->authorizeBusiness($business);
 
-        if (!$business) {
-            return redirect()->route('owner.dashboard')
-                ->with('error', 'You don\'t have a business yet.');
-        }
-
-        // Ensure the review belongs to the owner's business
-        if ($review->business_id !== $business->id) {
-            abort(403, 'This review does not belong to your business.');
-        }
+        // The Review's Business relationship remains authoritative.
+        abort_unless((int) $review->business_id === (int) $business->id, 403);
 
         $review->load(['user', 'replies.user', 'business']);
 
@@ -57,18 +53,15 @@ class ReviewController extends Controller
         ]);
     }
 
-    public function reply(Request $request, Review $review)
+    public function reply(Request $request, Business $business, Review $review)
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
+        $this->authorizeBusiness($business);
 
-        if (!$business || !$business->hasReviewResponseFeature()) {
-        return back()->with('error', 'Reply feature requires Starter plan or higher.');
-    }
-
-        if ($review->business_id !== $business->id) {
-            abort(403);
+        if (!$business->hasReviewResponseFeature()) {
+            return back()->with('error', 'Reply feature requires Starter plan or higher.');
         }
+
+        abort_unless((int) $review->business_id === (int) $business->id, 403);
 
         $validated = $request->validate([
             'content' => 'required|string|max:1000',

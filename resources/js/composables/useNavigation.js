@@ -16,9 +16,12 @@ export function useNavigation() {
         owner: [
             { label: 'Dashboard',      href: '/owner/dashboard',          icon: 'grid' },
             { label: 'Businesses',     href: '/owner/businesses',         icon: 'briefcase' },
-            { label: 'Reviews',        href: '/owner/reviews',            icon: 'star' },
+            // PHASE 11 / WAVE 1D — Reviews are Business-specific, so this points at the
+        // owner's Businesses; the Business is chosen explicitly, never guessed.
+        { label: 'Reviews',        href: '/owner/businesses',          icon: 'star' },
             { label: 'Coupons',        href: '/owner/coupons',            icon: 'ticket' },
-            { label: 'Leads',          href: '/owner/leads',              icon: 'inbox' },
+            // PHASE 11 / WAVE 1D — Leads are Business-specific (see Reviews above).
+        { label: 'Leads',          href: '/owner/businesses',          icon: 'inbox' },
             { label: 'Analytics',      href: '/owner/analytics',          icon: 'chart-bar' },
             { label: 'Usage',          href: '/owner/usage',              icon: 'list' },
             { label: 'Subscription',   href: '/owner/subscription',       icon: 'credit-card' },

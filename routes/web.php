@@ -429,8 +429,10 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
         Route::get('/{coupon}/analytics', [CouponController::class, 'analytics'])->name('analytics');
     });
 
-    // Reviews
-    Route::prefix('reviews')->name('reviews.')->group(function () {
+    // Reviews — PHASE 11 / WAVE 1D: EXPLICIT Business context.
+    // A Review is Business-owned, so the Business is identified by the route,
+    // never selected from the owner's Businesses.
+    Route::prefix('businesses/{business}/reviews')->name('businesses.reviews.')->group(function () {
         Route::get('/', [OwnerReviewController::class, 'index'])->name('index');
         Route::get('/{review}', [OwnerReviewController::class, 'show'])->name('show');
         Route::post('/{review}/reply', [OwnerReviewController::class, 'reply'])
@@ -464,8 +466,10 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
         Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
     });
 
-    // Leads
-    Route::prefix('leads')->name('leads.')->group(function () {
+    // Leads — PHASE 11 / WAVE 1D: EXPLICIT Business context.
+    // A Lead is Business-owned, so the Business is identified by the route,
+    // never selected from the owner's Businesses.
+    Route::prefix('businesses/{business}/leads')->name('businesses.leads.')->group(function () {
         Route::get('/', [OwnerLeadController::class, 'index'])
             ->name('index')
             ->middleware('plan.feature:lead_capture');

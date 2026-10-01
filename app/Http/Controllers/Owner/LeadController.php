@@ -8,17 +8,31 @@ use App\Models\Lead;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+/**
+ * PHASE 11 / WAVE 1D — owner lead management is BUSINESS-SPECIFIC.
+ *
+ * Leads remain Business-owned. The Business comes from the route
+ * (`owner/businesses/{business}/leads`) and is authorized against the
+ * authenticated owner; it is never selected from the owner's Businesses.
+ *
+ * `listing_id` is display/eager-load information only and is deliberately NOT
+ * part of authorization.
+ */
 class LeadController extends Controller
 {
-    public function index(Request $request)
+    private function authorizeBusiness(Business $business): void
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
+        abort_unless((int) $business->owner_id === (int) auth()->id(), 403);
+    }
 
-        if (!$business) {
-            return redirect()->route('owner.dashboard')
-                ->with('error', 'You don\'t have a business yet.');
-        }
+    private function authorizeLead(Business $business, Lead $lead): void
+    {
+        abort_unless((int) $lead->business_id === (int) $business->id, 403);
+    }
+
+    public function index(Request $request, Business $business)
+    {
+        $this->authorizeBusiness($business);
 
         // ✅ Check feature
         if (!$business->hasLeadCaptureFeature()) {
@@ -69,14 +83,10 @@ class LeadController extends Controller
         ]);
     }
 
-    public function show(Lead $lead)
+    public function show(Business $business, Lead $lead)
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
-
-        if (!$business || $lead->business_id !== $business->id) {
-            abort(403);
-        }
+        $this->authorizeBusiness($business);
+        $this->authorizeLead($business, $lead);
 
         // Auto-mark as read
         $lead->markAsRead();
@@ -89,14 +99,10 @@ class LeadController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, Lead $lead)
+    public function updateStatus(Request $request, Business $business, Lead $lead)
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
-
-        if (!$business || $lead->business_id !== $business->id) {
-            abort(403);
-        }
+        $this->authorizeBusiness($business);
+        $this->authorizeLead($business, $lead);
 
         $validated = $request->validate([
             'status' => 'required|in:new,read,replied,archived',
@@ -107,14 +113,10 @@ class LeadController extends Controller
         return back()->with('success', 'Lead status updated.');
     }
 
-    public function updateNotes(Request $request, Lead $lead)
+    public function updateNotes(Request $request, Business $business, Lead $lead)
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
-
-        if (!$business || $lead->business_id !== $business->id) {
-            abort(403);
-        }
+        $this->authorizeBusiness($business);
+        $this->authorizeLead($business, $lead);
 
         $validated = $request->validate([
             'owner_notes' => 'nullable|string|max:2000',
@@ -125,18 +127,14 @@ class LeadController extends Controller
         return back()->with('success', 'Notes saved.');
     }
 
-    public function destroy(Lead $lead)
+    public function destroy(Business $business, Lead $lead)
     {
-        $user = auth()->user();
-        $business = $user->businesses()->first();
-
-        if (!$business || $lead->business_id !== $business->id) {
-            abort(403);
-        }
+        $this->authorizeBusiness($business);
+        $this->authorizeLead($business, $lead);
 
         $lead->delete();
 
-        return redirect()->route('owner.leads.index')
+        return redirect()->route('owner.businesses.leads.index', $business)
             ->with('success', 'Lead deleted.');
     }
 }

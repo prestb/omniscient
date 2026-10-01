@@ -572,7 +572,7 @@
                                              </p>
                                         </div>
                                    </div>
-                                   <a href="/owner/reviews"
+                                   <a href="/owner/businesses"
                                         class="text-xs font-bold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors">
                                         View all →
                                    </a>
@@ -642,7 +642,7 @@
                                              </span>
                                         </div>
                                    </div>
-                                   <a v-if="hasLeadCapture" href="/owner/leads"
+                                   <a v-if="hasLeadCapture" href="/owner/businesses"
                                         class="text-xs font-bold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors">
                                         View all →
                                    </a>
@@ -1067,7 +1067,7 @@
                     icon: "⭐",
                     label: "Reviews pending",
                     count: props.reviewStats.pending,
-                    href: "/owner/reviews?status=pending",
+                    href: "/owner/businesses",
                     classes:
                          "bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:border-amber-300 dark:hover:border-amber-700",
                     countClasses: "bg-amber-500 text-white",
@@ -1081,7 +1081,7 @@
                     icon: "📥",
                     label: "New leads",
                     count: props.leadStats.new,
-                    href: "/owner/leads",
+                    href: "/owner/businesses",
                     classes: "bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700",
                     countClasses: "bg-blue-500 text-white",
                });
