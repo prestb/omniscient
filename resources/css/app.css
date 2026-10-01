@@ -15,6 +15,25 @@ html {
 }
 
 
+/* ===================================================================
+   PHASE 16B — REDUCED MOTION.
+
+   The audit found no prefers-reduced-motion handling anywhere. Motion is part
+   of the design system, so the system must also state when motion stops:
+   honour the OS preference globally rather than per component.
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+
 @layer base {
 
     html {
