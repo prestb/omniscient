@@ -98,6 +98,10 @@ Route::get('/business/{slug}', [DirectoryController::class, 'show'])
 // A Listing has its OWN slug and its OWN identity; it is not addressed
 // through a Business.
 Route::get('/listing/{slug}', [PublicListingController::class, 'show'])->name('listing.show');
+
+// PHASE 15B — dynamic XML sitemap. Canonical public URLs only;
+// never query/filter/pagination variants or JSON endpoints.
+Route::get('/sitemap.xml', [\App\Http\Controllers\Public\SitemapController::class, 'index'])->name('sitemap');
 Route::get('/categories', [DirectoryController::class, 'categories'])->name('categories');
 Route::get('/locations', [DirectoryController::class, 'locations'])->name('locations');
 Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');

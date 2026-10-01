@@ -1,7 +1,18 @@
 <!-- resources/js/Pages/Public/ListingProfile.vue -->
 <template>
     <PublicLayout>
-        <Head :title="`${listing.name} · Omniscient`" />
+        <!-- PHASE 15B — canonical + social metadata for the canonical entity.
+             Skipped entirely when props.seo is absent (older payloads). -->
+        <Head v-if="seo">
+            <title>{{ seo.title }}</title>
+            <meta v-if="seo.description" name="description" :content="seo.description" />
+            <link rel="canonical" :href="seo.canonical" />
+            <meta property="og:title" :content="seo.title" />
+            <meta v-if="seo.description" property="og:description" :content="seo.description" />
+            <meta property="og:type" :content="seo.type || 'website'" />
+            <meta property="og:url" :content="seo.canonical" />
+            <meta v-if="seo.image" property="og:image" :content="seo.image" />
+        </Head>
 
         <!-- ==================== COVER ==================== -->
         <div class="relative h-64 md:h-96 bg-gray-900 overflow-hidden">
@@ -124,6 +135,8 @@ import { onMounted } from 'vue';
 
 const props = defineProps({
     listing: { type: Object, required: true },
+    // PHASE 15B - canonical metadata passed by the controller.
+    seo: { type: Object, default: null },
 });
 
 /**

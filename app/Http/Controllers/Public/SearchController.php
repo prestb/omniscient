@@ -89,6 +89,14 @@ class SearchController extends Controller
 
         return Inertia::render('Public/Search/Index', [
             'listings' => ListingDirectoryResource::collection($listings),
+            // PHASE 15B — /search is a discovery UTILITY. Arbitrary q/filter/
+            // sort/page permutations must not be indexed. `follow` keeps the
+            // Listing links inside the results crawlable.
+            'seo' => [
+                'title' => $query !== '' ? $query . ' - Search - Omniscient' : 'Search - Omniscient',
+                'robots' => 'noindex, follow',
+                'canonical' => url('/search'),
+            ],
             'query' => $query,
             'sort' => $sort,
             'sortOptions' => DiscoverySort::options(),

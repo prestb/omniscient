@@ -1,6 +1,15 @@
 <!-- resources/js/Pages/Public/Search/Index.vue -->
 <template>
     <PublicLayout>
+        <!-- PHASE 15B - discovery UTILITY.
+             Filter/sort/pagination permutations must not be indexed; ollow
+             keeps the Listing links inside the results crawlable. -->
+        <Head v-if="seo">
+            <title>{{ seo.title }}</title>
+            <meta name="robots" :content="seo.robots || 'noindex, follow'" />
+            <link rel="canonical" :href="seo.canonical" />
+        </Head>
+
         <!-- Header -->
         <div class="bg-white border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -252,6 +261,8 @@
 </template>
 
 <script setup>
+    // PHASE 15B - indexation control
+    import { Head } from '@inertiajs/vue3';
     import { ref, reactive, computed } from 'vue';
     import { router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
@@ -261,6 +272,8 @@
     import MobileFilterSheet from '@/Components/Public/MobileFilterSheet.vue';
 
     const props = defineProps({
+    // PHASE 15B - indexation metadata from the controller.
+    seo: { type: Object, default: null },
         listings: Object,
         query: String,
         filters: Object,

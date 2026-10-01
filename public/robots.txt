@@ -1,2 +1,23 @@
 User-agent: *
-Disallow:
+Allow: /
+
+# PHASE 15B — crawl policy.
+#
+# The canonical public content is fully crawlable:
+#   /listing/{slug}       canonical Listing
+#   /business/{slug}      organization page
+#   /{category}-in-{city} curated collection
+#
+# The discovery UTILITIES (/search, /directory) are deliberately NOT disallowed
+# here. Their indexation is controlled with an explicit `noindex, follow`
+# directive in the page head, which a crawler must be able to FETCH in order to
+# see. Blocking them in robots.txt would prevent that and leave them indexed.
+#
+# JSON utility endpoints are blocked: they have no crawl value and no SEO.
+Disallow: /search/autocomplete
+Disallow: /api/
+
+# Sitemap location. Kept RELATIVE on purpose: the canonical domain comes from
+# APP_URL, and hardcoding a production host here would be wrong for every other
+# environment. Most crawlers resolve this against the robots.txt host.
+Sitemap: /sitemap.xml

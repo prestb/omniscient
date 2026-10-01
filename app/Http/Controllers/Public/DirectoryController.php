@@ -322,6 +322,16 @@ class DirectoryController extends Controller
         $categories = Category::active()->root()->ordered()->get();
 
         return Inertia::render('Public/Directory', [
+            // PHASE 15B — /directory is a discovery UTILITY. It must not
+            // compete with canonical Listings or curated collections, and its
+            // filter/sort/pagination permutations must not become an
+            // uncontrolled indexation surface. `follow` keeps its outbound
+            // Listing links crawlable.
+            'seo' => [
+                'title' => 'Browse Listings - Omniscient',
+                'robots' => 'noindex, follow',
+                'canonical' => url('/directory'),
+            ],
             'listings' => $listings,
             'countries' => $countries,
             'categories' => $categories,
@@ -390,6 +400,20 @@ class DirectoryController extends Controller
             'address' => $location->full_address,
         ];
     }
+    /** PHASE 15B — organization description from Business-owned data only. */
+    private function businessDescription(Business $business): string
+    {
+        $description = trim((string) $business->description);
+
+        if ($description === '') {
+            $description = trim($business->name . ' on Omniscient');
+        }
+
+        return mb_strlen($description) > 155
+            ? rtrim(mb_substr($description, 0, 152)) . '...'
+            : $description;
+    }
+
     public function show($slug)
     {
         $business = Business::query()
@@ -543,6 +567,14 @@ class DirectoryController extends Controller
         $relatedBusinesses = $this->resolveRelatedBusinesses($business);
 
         return Inertia::render('Public/BusinessProfile', [
+            // PHASE 15B — organization metadata from Business-owned data only.
+            'seo' => [
+                'title' => $business->name . ' - Omniscient',
+                'description' => $this->businessDescription($business),
+                'canonical' => url('/business/' . $business->slug),
+                'type' => 'website',
+                'image' => $business->cover_image_url ?: ($business->logo_url ?: null),
+            ],
             'business' => $business,
             // PHASE 11 / WAVE 1D-2 — the organization's Listings. This route is
             // the ORGANIZATION page; each Listing is its own discoverable entity

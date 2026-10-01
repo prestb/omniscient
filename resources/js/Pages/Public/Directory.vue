@@ -1,6 +1,15 @@
 <!-- resources/js/Pages/Public/Directory.vue -->
 <template>
     <PublicLayout>
+        <!-- PHASE 15B - discovery UTILITY.
+             Filter/sort/pagination permutations must not be indexed; ollow
+             keeps the Listing links inside the results crawlable. -->
+        <Head v-if="seo">
+            <title>{{ seo.title }}</title>
+            <meta name="robots" :content="seo.robots || 'noindex, follow'" />
+            <link rel="canonical" :href="seo.canonical" />
+        </Head>
+
         <!-- Header (inlined — PublicLayout has no #header slot) -->
         <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div
@@ -81,6 +90,8 @@
 </template>
 
 <script setup>
+    // PHASE 15B - indexation control
+    import { Head } from '@inertiajs/vue3';
     import { computed } from 'vue';
     import { router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
@@ -96,6 +107,8 @@
     } from '@/composables/useDirectoryFilters';
 
     const props = defineProps({
+    // PHASE 15B - indexation metadata from the controller.
+    seo: { type: Object, default: null },
         listings: {
             type: [Object, Array],
             default: () => ({ data: [], links: [] }),

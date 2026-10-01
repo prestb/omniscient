@@ -1,6 +1,18 @@
 <!-- resources/js/Pages/Public/BusinessProfile.vue -->
 <template>
     <PublicLayout>
+        <!-- PHASE 15B — organization metadata (title / description / canonical / OG) -->
+        <Head v-if="seo">
+            <title>{{ seo.title }}</title>
+            <meta v-if="seo.description" name="description" :content="seo.description" />
+            <link rel="canonical" :href="seo.canonical" />
+            <meta property="og:title" :content="seo.title" />
+            <meta v-if="seo.description" property="og:description" :content="seo.description" />
+            <meta property="og:type" :content="seo.type || 'website'" />
+            <meta property="og:url" :content="seo.canonical" />
+            <meta v-if="seo.image" property="og:image" :content="seo.image" />
+        </Head>
+
         <!-- ==================== COVER HERO ==================== -->
         <div class="relative h-80 md:h-[440px] lg:h-[500px] bg-gray-900 overflow-hidden">
             <OptimizedImage v-if="business.cover_image" :path="business.cover_image" size="large" :alt="business.name"
@@ -766,6 +778,8 @@
 </template>
 
 <script setup>
+    // PHASE 15B - metadata rendering
+    import { Head } from '@inertiajs/vue3';
     import { ref, computed, onMounted, onUnmounted } from "vue";
     import axios from "axios";
     import { Link, router, usePage } from "@inertiajs/vue3";
@@ -794,6 +808,8 @@
     };
 
     const props = defineProps({
+        // PHASE 15B — canonical metadata passed by the controller.
+        seo: { type: Object, default: null },
         business: {
             type: Object,
             required: true,
