@@ -39,6 +39,8 @@ use App\Http\Controllers\User\DashboardController as UserDashboardController;
 
 // Owner
 use App\Http\Controllers\Owner\DashboardController as OwnerDashboardController;
+use App\Http\Controllers\Public\ListingController as PublicListingController;
+use App\Http\Controllers\Owner\ListingController as OwnerListingController;
 use App\Http\Controllers\Owner\BusinessController as OwnerBusinessController;
 use App\Http\Controllers\Owner\LocationController as OwnerLocationController;
 use App\Http\Controllers\Owner\ServiceController;
@@ -89,6 +91,11 @@ Route::get('/directory', [DirectoryController::class, 'index'])->name('directory
 Route::get('/business/{slug}', [DirectoryController::class, 'show'])
     ->name('business.show')
     ->middleware('track.business');
+
+// PHASE 11 / WAVE 1D-2 — the canonical public Listing page.
+// A Listing has its OWN slug and its OWN identity; it is not addressed
+// through a Business.
+Route::get('/listing/{slug}', [PublicListingController::class, 'show'])->name('listing.show');
 Route::get('/categories', [DirectoryController::class, 'categories'])->name('categories');
 Route::get('/locations', [DirectoryController::class, 'locations'])->name('locations');
 Route::get('/pricing', [PricingController::class, 'index'])->name('pricing');
@@ -251,6 +258,23 @@ Route::middleware(['auth', 'role:user,admin,super_admin'])
 // ============== For setting up a business and getting it approved
 // =============================================================
 Route::middleware(['auth', 'role:user,owner'])->group(function () {
+
+    // =========================================================
+    // PHASE 11 / WAVE 1D-2 — THE LISTING LIFECYCLE
+    // A Listing is created directly as the discoverable entity. Business
+    // association and Location are optional.
+    // =========================================================
+    Route::prefix('owner/listings')->name('owner.listings.')->group(function () {
+        Route::get('/', [OwnerListingController::class, 'index'])->name('index');
+        Route::get('/create', [OwnerListingController::class, 'create'])->name('create');
+        Route::post('/', [OwnerListingController::class, 'store'])->name('store');
+        Route::get('/{listing}/edit', [OwnerListingController::class, 'edit'])->name('edit');
+        Route::put('/{listing}', [OwnerListingController::class, 'update'])->name('update');
+        Route::post('/{listing}/publish', [OwnerListingController::class, 'publish'])->name('publish');
+        Route::post('/{listing}/unpublish', [OwnerListingController::class, 'unpublish'])->name('unpublish');
+        Route::delete('/{listing}', [OwnerListingController::class, 'destroy'])->name('destroy');
+    });
+
     Route::prefix('owner/businesses')->name('owner.businesses.')->group(function () {
 
         // Business CRUD

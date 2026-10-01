@@ -387,17 +387,29 @@ class DirectoryController extends Controller
                 },
                 'locations.hours',
                 'services' => function ($query) {
-                    $query->whereNull('hidden_at');  // ✅ skip hidden services
+                    // Qualified: `services()` is a hasManyThrough across
+                    // listing_services + listings, both of which have hidden_at.
+                    $query->whereNull('listing_services.hidden_at');
                 },
                 'contacts',
                 'logo',
                 'coverImage',
                 'galleryImages' => function ($query) {
-                    $query->whereNull('hidden_at');  // ✅ skip hidden images
+                    $query->whereNull('listing_images.hidden_at');
                 },
                 'owner',
                 'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags
                 'locations.hourOverrides',           // ✅ needed for is_open_now
+                // PHASE 11 / WAVE 1D-2 — the organization page lists its
+                // LISTINGS. Each is independently addressable at /listing/{slug};
+                // the organization is never collapsed into one discovery result.
+                'listings' => function ($query) {
+                    $query->where('status', Listing::STATUS_PUBLISHED)
+                        ->whereNull('listings.hidden_at')
+                        ->with(['location.city', 'categories', 'images'])
+                        ->withCount('reviews')
+                        ->withAvg('reviews', 'rating');
+                },
                 'reviews' => function ($query) {
                     $query->where('status', 'approved')
                         ->with(['user', 'replies.user'])
@@ -518,6 +530,10 @@ class DirectoryController extends Controller
 
         return Inertia::render('Public/BusinessProfile', [
             'business' => $business,
+            // PHASE 11 / WAVE 1D-2 — the organization's Listings. This route is
+            // the ORGANIZATION page; each Listing is its own discoverable entity
+            // with its own /listing/{slug} identity.
+            'listings' => ListingDirectoryResource::collection($business->listings)->resolve(),
             'coupons' => $coupons,
             'primaryLocation' => $primaryLocation,
             'isOpen' => $primaryLocation ? $primaryLocation->is_open_now : false,
