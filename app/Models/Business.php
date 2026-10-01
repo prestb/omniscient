@@ -119,77 +119,7 @@ class Business extends Model
 
     // ============== SUBSCRIPTION METHODS ==============
 
-    /**
-     * Check if business can create a new business
-     */
-    public static function canCreateBusiness($ownerId)
-    {
-        $owner = User::find($ownerId);
-        if (!$owner)
-            return false;
 
-        // Super admin can create unlimited
-        if ($owner->role === 'super_admin') {
-            return true;
-        }
-
-        // Get active subscription
-        $subscription = $owner->active_subscription;
-
-        // No active subscription
-        if (!$subscription) {
-            return false;
-        }
-
-                // Get plan limits
-        // PHASE 11 — reads the renamed `max_listings` quota column (identifier
-        // convergence; the Business→Listing enforcement flip is Wave 1D).
-        $maxBusinesses = $subscription->plan->max_listings ?? 0;
-
-        // Unlimited
-        if ($maxBusinesses === -1 || $maxBusinesses === 999) {
-
-            return true;
-        }
-
-        // Count existing businesses
-        $businessCount = self::where('owner_id', $ownerId)
-            ->whereNotIn('status', ['deleted', 'rejected'])
-            ->count();
-
-        return $businessCount < $maxBusinesses;
-    }
-
-    /**
-     * Get remaining business slots
-     */
-
-    public static function getRemainingBusinessSlots($ownerId)
-    {
-        $owner = User::find($ownerId);
-        if (!$owner)
-            return 0;
-
-        if ($owner->role === 'super_admin') {
-            return PHP_INT_MAX;
-        }
-
-        $subscription = $owner->active_subscription;
-        if (!$subscription) {
-            return 0;
-        }
-
-                $maxBusinesses = $subscription->plan->max_listings ?? 0;
-        if ($maxBusinesses === -1 || $maxBusinesses === 999) {
-            return PHP_INT_MAX;
-        }
-
-        $businessCount = self::where('owner_id', $ownerId)
-            ->whereNotIn('status', ['deleted', 'rejected'])
-            ->count();
-
-        return max(0, $maxBusinesses - $businessCount);
-    }
 
     /**
      * Check if user can add another physical Location to this organization.

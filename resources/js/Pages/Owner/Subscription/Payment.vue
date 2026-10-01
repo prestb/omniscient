@@ -96,12 +96,7 @@
                                 <div
                                     class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
                                     <span class="text-sm text-gray-600 dark:text-gray-400">Locations</span>
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ plan?.max_branches === 999 ?'♾️ Unlimited' : plan?.max_branches }}</span>
-                                </div>
-                                <div
-                                    class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">Businesses</span>
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ plan?.max_businesses === 999 ? '♾️ Unlimited' : plan?.max_businesses }}</span>
+                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ plan?.max_locations === 999 ?'♾️ Unlimited' : plan?.max_locations }}</span>
                                 </div>
                                 <div
                                     class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">

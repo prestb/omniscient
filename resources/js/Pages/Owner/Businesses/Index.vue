@@ -29,8 +29,8 @@
                     {{ subscription.plan_name }}
                     <span class="text-xs text-gray-400 dark:text-gray-500">·</span>
                     <span class="text-xs">
-                        {{ subscription.current_businesses }}/{{ subscription.is_unlimited ? '∞' :
-                            subscription.max_businesses }}
+                        {{ subscription.current_businesses }}
+                        {{ subscription.current_businesses === 1 ? 'business' : 'businesses' }}
                     </span>
                 </span>
 
@@ -63,25 +63,6 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
             <!-- ==================== WARNINGS ==================== -->
-            <div v-if="!canCreate && businesses.length > 0"
-                class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
-                <div class="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-sm font-bold text-amber-800">Business limit reached</p>
-                    <p class="text-sm text-amber-700 mt-0.5">
-                        You've reached the maximum of <strong>{{ subscription.max_businesses }}</strong> businesses on
-                        your
-                        current plan.
-                        Upgrade to add more.
-                    </p>
-                </div>
-            </div>
-
             <div v-if="!subscription.has_active_subscription && businesses.length > 0"
                 class="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl border border-red-200 p-5 flex items-start gap-4">
                 <div class="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -122,34 +103,9 @@
                     <div class="text-right">
                         <p class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
                             {{ subscription.current_businesses }}
-                            <span class="text-sm font-medium text-gray-400">
-                                / {{ subscription.is_unlimited ? '∞' : subscription.max_businesses }}
-                            </span>
                         </p>
-                        <p v-if="subscription.remaining_slots !== 'Unlimited' && subscription.remaining_slots > 0"
-                            class="text-xs text-emerald-600 font-medium">
-                            {{ subscription.remaining_slots }} remaining
-                        </p>
-                        <p v-else-if="!subscription.is_unlimited && subscription.remaining_slots === 0"
-                            class="text-xs text-red-600 font-medium">
-                            Limit reached
-                        </p>
-                        <p v-else class="text-xs text-emerald-600 font-medium">
-                            Unlimited
-                        </p>
+                        <p class="text-xs text-gray-400 font-medium">total</p>
                     </div>
-                </div>
-
-                <div class="w-full h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-500"
-                        :class="subscription.is_unlimited ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : (usagePercentage > 80 ? 'bg-gradient-to-r from-red-500 to-red-600' : usagePercentage > 60 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-emerald-400 to-emerald-500')"
-                        :style="{ width: subscription.is_unlimited ? '100%' : Math.min(usagePercentage, 100) + '%' }">
-                    </div>
-                </div>
-
-                <div class="flex justify-between text-[11px] text-gray-400 mt-2 font-medium">
-                    <span>0</span>
-                    <span>{{ subscription.is_unlimited ? '∞' : subscription.max_businesses }}</span>
                 </div>
             </div>
 
@@ -430,13 +386,8 @@
     const { business: statusClass } = useStatusBadge();
     const { confirm: confirmDialog } = useConfirm();
 
-    const usagePercentage = computed(() => {
-        if (!props.subscription) return 0;
-        if (props.subscription.is_unlimited) return 0;
-        const max = parseInt(props.subscription.max_businesses) || 1;
-        const current = props.subscription.current_businesses || 0;
-        return Math.min((current / max) * 100, 100);
-    });
+    // PHASE 11 / WAVE 1D-4 — a Business is not a quota unit, so there is no
+    // business usage percentage to compute. `max_listings` governs Listings.
 
     const getStatusLabel = (status) => {
         const labels = {

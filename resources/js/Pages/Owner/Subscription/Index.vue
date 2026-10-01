@@ -117,15 +117,9 @@
                         <div class="grid grid-cols-3 gap-4">
                             <div class="text-center">
                                 <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {{ formatLimit(subscription.plan?.max_branches) }}
+                                    {{ formatLimit(subscription.plan?.max_locations) }}
                                 </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Locations</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {{ formatLimit(subscription.plan?.max_businesses) }}
-                                </p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Businesses</p>
                             </div>
                             <div class="text-center">
                                 <p class="text-2xl font-bold text-gray-900 dark:text-white">

@@ -391,8 +391,7 @@
     const { confirm: confirmDialog } = useConfirm();
 
     const limitFields = [
-        { key: 'max_businesses', label: 'Businesses' },
-        { key: 'max_branches', label: 'Locations' },
+        { key: 'max_locations', label: 'Locations' },
         { key: 'max_services', label: 'Services' },
         { key: 'max_images', label: 'Images' },
         { key: 'max_coupons', label: 'Coupons' },
@@ -420,8 +419,7 @@
         yearly_discount_percentage: props.plan.yearly_discount_percentage || 0,
         currency: props.plan.currency || 'XAF',
         trial_days: props.plan.trial_days || 0,
-        max_businesses: props.plan.max_businesses ?? 1,
-        max_branches: props.plan.max_branches ?? 1,
+        max_locations: props.plan.max_locations ?? 1,
         max_services: props.plan.max_services ?? 3,
         max_images: props.plan.max_images ?? 3,
         max_coupons: props.plan.max_coupons ?? 0,

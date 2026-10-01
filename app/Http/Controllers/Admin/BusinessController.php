@@ -335,7 +335,9 @@ class BusinessController extends Controller
 //         ->whereIn('status', ['published', 'approved'])
 //         ->count();
 
-    //     $maxBusinesses = $activeSubscription->plan->max_businesses ?? 1;
+    // PHASE 11 / WAVE 1D-4 — the commented-out `plan->max_businesses` lookup that
+    // used to sit here was removed. `max_businesses` is not a plan column: a
+    // Business is an optional organization and is NOT a quota unit.
 //     $isUnlimited = $maxBusinesses === -1 || $maxBusinesses === 999;
 
     //     // If plan allows more and we're within limit, auto-publish

@@ -211,17 +211,8 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                                     </svg>
                                     <span>
-                                        <span class="font-semibold text-gray-900 dark:text-white">{{ formatLimit(plan.max_branches) }}</span>
-                                        {{ isUnlimited(plan.max_branches) ? 'unlimited locations' : (Number(plan.max_branches) === 1 ? 'location' : 'locations') }}
-                                    </span>
-                                </li>
-                                <li class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                    <svg class="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span>
-                                        <span class="font-semibold text-gray-900 dark:text-white">{{ formatLimit(plan.max_businesses) }}</span>
-                                        {{ isUnlimited(plan.max_businesses) ? 'unlimited businesses' : (Number(plan.max_businesses) === 1 ? 'business' : 'businesses') }}
+                                        <span class="font-semibold text-gray-900 dark:text-white">{{ formatLimit(plan.max_locations) }}</span>
+                                        {{ isUnlimited(plan.max_locations) ? 'unlimited locations' : (Number(plan.max_locations) === 1 ? 'location' : 'locations') }}
                                     </span>
                                 </li>
                                 <li class="flex items-center gap-2 text-gray-600 dark:text-gray-400">

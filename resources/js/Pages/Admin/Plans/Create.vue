@@ -349,8 +349,7 @@
     const { error } = useToast();
 
     const limitFields = [
-        { key: 'max_businesses', label: 'Businesses' },
-        { key: 'max_branches', label: 'Locations' },
+        { key: 'max_locations', label: 'Locations' },
         { key: 'max_services', label: 'Services' },
         { key: 'max_images', label: 'Images' },
         { key: 'max_coupons', label: 'Coupons' },
@@ -378,8 +377,7 @@
         yearly_discount_percentage: 0,
         currency: 'XAF',
         trial_days: 0,
-        max_businesses: 1,
-        max_branches: 1,
+        max_locations: 1,
         max_services: 3,
         max_images: 3,
         max_coupons: 0,

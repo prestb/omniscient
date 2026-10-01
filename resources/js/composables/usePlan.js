@@ -16,8 +16,9 @@ export function usePlan() {
     const canAdd = (resource) => {
         if (!plan.value) return false;
         const limits = {
-            businesses: plan.value.max_businesses,
-            branches: plan.value.max_branches,
+            // PHASE 11 / WAVE 1D-4 — a Business is an optional organization and
+            // is NOT a quota unit, so there is no `businesses` limit.
+            locations: plan.value.max_locations,
             services: plan.value.max_services,
             images: plan.value.max_images,
             coupons: plan.value.max_coupons,
@@ -31,8 +32,9 @@ export function usePlan() {
     const remaining = (resource) => {
         if (!plan.value) return 0;
         const limits = {
-            businesses: plan.value.max_businesses,
-            branches: plan.value.max_branches,
+            // PHASE 11 / WAVE 1D-4 — a Business is an optional organization and
+            // is NOT a quota unit, so there is no `businesses` limit.
+            locations: plan.value.max_locations,
             services: plan.value.max_services,
             images: plan.value.max_images,
             coupons: plan.value.max_coupons,

@@ -27,13 +27,11 @@ class BusinessController extends Controller
         // Get subscription details
         $subscription = $user->activeSubscription;
 
-                // Calculate limits
-        $maxBusinesses = $subscription ? ($subscription->plan->max_listings ?? 0) : 0;
-        $currentBusinesses = $businesses->count();
-        $canCreate = Business::canCreateBusiness($user->id);
-
-        // Get remaining slots
-        $remainingSlots = Business::getRemainingBusinessSlots($user->id);
+        // PHASE 11 / WAVE 1D-4 — a Business is an optional ORGANIZATION and is
+        // NOT a quota unit. There is no Business allowance: `max_listings`
+        // governs LISTINGS (enforced by PlanEnforcementService) and has nothing
+        // to do with how many Businesses an account may create.
+        $canCreate = true;
 
         // Get subscription plan name
         $planName = $subscription ? $subscription->plan->name : 'No Plan';
@@ -48,10 +46,7 @@ class BusinessController extends Controller
                 'status' => $planStatus,
                 'status_label' => $subscription ? $subscription->status_label : 'No Active Subscription',
                 'days_remaining' => $daysRemaining,
-                'max_businesses' => $maxBusinesses === -1 ? 'Unlimited' : $maxBusinesses,
-                'current_businesses' => $currentBusinesses,
-                'remaining_slots' => $remainingSlots === PHP_INT_MAX ? 'Unlimited' : $remainingSlots,
-                'is_unlimited' => $maxBusinesses === -1,
+                'current_businesses' => $businesses->count(),
                 'has_active_subscription' => $subscription !== null,
             ],
         ]);

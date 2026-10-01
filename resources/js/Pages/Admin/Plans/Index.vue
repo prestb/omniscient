@@ -148,26 +148,13 @@
                                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
                                             <span class="font-semibold text-gray-900 dark:text-white">{{
-                                                plan.max_branches ===
+                                                plan.max_locations ===
                                                     999 ? '∞'
                                                     :
 
 
-                                                plan.max_branches }}</span>
+                                                plan.max_locations }}</span>
                                             locations
-                                        </span>
-                                        <span class="text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
-                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
-                                            <span class="font-semibold text-gray-900 dark:text-white">{{
-                                                plan.max_businesses ===
-                                                    999 ?
-                                                '∞' :
-                                                plan.max_businesses }}</span>
-                                            businesses
                                         </span>
                                         <span class="text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
                                             <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"

@@ -365,64 +365,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     // ============== SUBSCRIPTION LIMIT CHECKS ==============
 
-    /**
-     * Check if user can create a new business
-     */
-    public function canCreateBusiness()
-    {
-        // Super admin can create unlimited
-        if ($this->role === 'super_admin') {
-            return true;
-        }
-
-        $subscription = $this->active_subscription;
-
-        // No active subscription
-        if (!$subscription) {
-            return false;
-        }
-
-        // Get plan limits
-        $maxBusinesses = $subscription->plan->max_listings ?? 0;
-
-        // Unlimited
-        if ($maxBusinesses === -1) {
-            return true;
-        }
-
-        // Count existing businesses
-        $businessCount = Business::where('owner_id', $this->id)
-            ->whereNotIn('status', ['deleted', 'rejected'])
-            ->count();
-
-        return $businessCount < $maxBusinesses;
-    }
-
-    /**
-     * Get remaining business slots
-     */
-    public function getRemainingBusinessSlots()
-    {
-        if ($this->role === 'super_admin') {
-            return PHP_INT_MAX;
-        }
-
-        $subscription = $this->active_subscription;
-        if (!$subscription) {
-            return 0;
-        }
-
-        $maxBusinesses = $subscription->plan->max_listings ?? 0;
-        if ($maxBusinesses === -1) {
-            return PHP_INT_MAX;
-        }
-
-        $businessCount = Business::where('owner_id', $this->id)
-            ->whereNotIn('status', ['deleted', 'rejected'])
-            ->count();
-
-        return max(0, $maxBusinesses - $businessCount);
-    }
 
     /**
      * Get current business count
