@@ -217,8 +217,9 @@ class BusinessController extends Controller
             'description' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'website' => 'nullable|url|max:255',
-            'categories' => 'required|array|min:1',
-            'categories.*' => 'exists:categories,id',
+            // PHASE 11 / WAVE 1D-3 — `categories` is no longer a Business input.
+            // Categories are Listing-owned (`listing_categories`) and are edited
+            // on the Listing that owns the relationship.
         ], [
             'name.unique' => 'You already have a business with this name. Please choose a different name.',
         ]);
@@ -238,11 +239,15 @@ class BusinessController extends Controller
                 ]);
         }
 
-        // PHASE 11 / WAVE 1C — categories belong to the LISTING, never to the
-        // organization (see store() for the primary-listing bridge rationale).
-        if ($listing = $business->primaryListing()) {
-            $listing->categories()->sync($validated['categories']);
-        }
+        // PHASE 11 / WAVE 1D-3 — the category sync that used to run here was
+        // REMOVED. It wrote Listing-owned `listing_categories` through
+        // Business::primaryListing(), i.e. onto an ARBITRARY Listing, and its
+        // `sync()` REPLACED that Listing's entire category set while silently
+        // leaving sibling Listings untouched — with no way for the owner to say
+        // which Listing they meant.
+        //
+        // Categories are now edited on the Listing that owns them:
+        // /owner/listings/{listing}/edit.
 
         return redirect()->back()
             ->with('success', 'Business details updated successfully.');

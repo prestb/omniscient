@@ -72,6 +72,16 @@
                     </div>
                 </div>
 
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+                        Categories <span class="normal-case font-normal text-gray-400">(this Listing)</span>
+                    </label>
+                    <!-- PHASE 11 / WAVE 1D-3 — categories are Listing-owned, so they
+                         are edited against THIS explicit Listing. -->
+                    <CategoryMultiSelect v-model="form.categories" :categories="categories" />
+                    <p v-if="form.errors.categories" class="text-xs text-rose-600 mt-1">{{ form.errors.categories }}</p>
+                </div>
+
                 <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
                     <div class="flex items-center gap-2">
                         <button v-if="listing.status !== 'published'" type="button" @click="publish"
@@ -91,11 +101,13 @@
 
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import CategoryMultiSelect from '@/Components/CategoryMultiSelect.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     listing: { type: Object, required: true },
     types: { type: Array, default: () => [] },
+    categories: { type: Array, default: () => [] },
     businesses: { type: Array, default: () => [] },
     locations: { type: Array, default: () => [] },
 });
@@ -108,6 +120,7 @@ const form = useForm({
     description: props.listing.description ?? '',
     business_id: props.listing.business_id ?? null,
     location_id: props.listing.location_id ?? null,
+    categories: (props.listing.categories ?? []).map((c) => c.id),
 });
 
 const submit = () => form.put(`/owner/listings/${props.listing.id}`);

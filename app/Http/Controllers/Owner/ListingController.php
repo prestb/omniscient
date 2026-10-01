@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Owner;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ListingRequest;
 use App\Models\Business;
+use App\Models\Category;
 use App\Models\Listing;
 use App\Models\Location;
 use App\Support\ListingType;
@@ -78,10 +79,11 @@ class ListingController extends Controller
     {
         Gate::authorize('update', $listing);
 
-        $listing->load(['business:id,name,slug', 'location.city']);
+        $listing->load(['business:id,name,slug', 'location.city', 'categories:id,name']);
 
         return Inertia::render('Owner/Listings/Edit', [
             'listing' => $listing,
+            'categories' => Category::orderBy('name')->get(['id', 'name']),
             'types' => $this->typeOptions(),
             'businesses' => $this->ownerBusinesses($request),
             'locations' => $this->ownerLocations($request),
@@ -101,6 +103,14 @@ class ListingController extends Controller
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
         ]);
+
+        // PHASE 11 / WAVE 1D-3 — categories are LISTING-owned
+        // (`listing_categories`). The Listing named in the route is the only
+        // entity whose categories this can touch. ListingPolicy already
+        // authorized ownership above.
+        if (array_key_exists('categories', $validated)) {
+            $listing->categories()->sync($validated['categories'] ?? []);
+        }
 
         return redirect()
             ->route('owner.listings.edit', $listing)

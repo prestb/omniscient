@@ -53,6 +53,11 @@ class ListingRequest extends FormRequest
 
             // Creation may publish immediately; otherwise the Listing is a draft.
             'publish' => ['nullable', 'boolean'],
+
+            // PHASE 11 / WAVE 1D-3 — categories are Listing-owned
+            // (`listing_categories`). Edited on the Listing, never on a Business.
+            'categories' => ['nullable', 'array'],
+            'categories.*' => ['exists:categories,id'],
         ];
     }
 

@@ -264,12 +264,18 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label
-                                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">Categories
-                                *</label>
-                            <CategoryMultiSelect v-model="form.categories" :categories="categories" />
-                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">Search and click to select one or more categories
+                        <!-- PHASE 11 / WAVE 1D-3 — categories are LISTING-owned
+                             (`listing_categories`), so they are edited on the Listing,
+                             not on the organization. This page no longer writes them. -->
+                        <div
+                            class="rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 p-4">
+                            <p
+                                class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                Categories</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Categories belong to a Listing. Choose the Listing you want to categorise from
+                                <a href="/owner/listings"
+                                    class="font-semibold text-primary-600 hover:text-primary-700">My Listings</a>.
                             </p>
                         </div>
 
