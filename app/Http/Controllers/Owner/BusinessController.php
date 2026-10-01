@@ -120,17 +120,15 @@ class BusinessController extends Controller
                 ]);
         }
 
-        // PHASE 11 / WAVE 1C — categories are owned by the LISTING. Owner routes
-        // still address an organization, so we attach to its primary listing —
-        // the same deterministic bridge Wave 1B established for services, media
-        // and contacts (multi-listing addressing is a Wave 1D concern).
-        if (isset($validated['category_id'])) {
-            if ($listing = $business->primaryListing()) {
-                $listing->categories()->syncWithoutDetaching([
-                    $validated['category_id'] => ['is_primary' => true],
-                ]);
-            }
-        }
+        // PHASE 11 / WAVE 1D-3 — category assignment is a LISTING operation and
+        // belongs to the Listing lifecycle (`/owner/listings/{listing}/edit`).
+        //
+        // This block used to attach the submitted category to
+        // `$business->primaryListing()`. It never executed: the Business had just
+        // been created on the line above and nothing creates a Listing for it, so
+        // `primaryListing()` always returned null. It is removed rather than
+        // replaced — organization creation does not create or select a Listing,
+        // and silently doing so would be a product decision, not a refactor.
 
 
         if ($business->status === 'submitted') {

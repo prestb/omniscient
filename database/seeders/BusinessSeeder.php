@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\Business;
+use App\Models\Listing;
 use App\Models\Location;
 use App\Models\Category;
 use App\Models\User;
+use App\Support\ListingType;
 use Illuminate\Database\Seeder;
 
 class BusinessSeeder extends Seeder
@@ -31,13 +33,20 @@ class BusinessSeeder extends Seeder
             'published_at' => now(),
         ]);
 
-        // PHASE 11 / WAVE 1C — categories are owned by the LISTING. Attach to the
-        // organization's primary listing; a business with no Listing has no
-        // category to own (the same guard Wave 1B uses for services/contacts).
+        // PHASE 11 / WAVE 1D-3 — categories are owned by a LISTING. The Listing is
+        // created explicitly here; it is never selected arbitrarily from the
+        // Business.
+        $pharmacyListing = Listing::create([
+            'owner_id' => $pharmacy->owner_id,
+            'business_id' => $pharmacy->id,
+            'type' => ListingType::BUSINESS->value,
+            'name' => $pharmacy->name,
+            'status' => Listing::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
         $pharmacyCategories = Category::whereIn('name', ['Pharmacies', 'Health & Medical'])->get();
-        if ($pharmacyListing = $pharmacy->primaryListing()) {
-            $pharmacyListing->categories()->attach($pharmacyCategories->pluck('id')->all(), ['is_primary' => true]);
-        }
+        $pharmacyListing->categories()->attach($pharmacyCategories->pluck('id')->all(), ['is_primary' => true]);
 
         // Create branches for ABC Pharmacy
         $branches = [
@@ -112,10 +121,17 @@ class BusinessSeeder extends Seeder
             'published_at' => now(),
         ]);
 
+        $hospitalListing = Listing::create([
+            'owner_id' => $hospital->owner_id,
+            'business_id' => $hospital->id,
+            'type' => ListingType::BUSINESS->value,
+            'name' => $hospital->name,
+            'status' => Listing::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
         $hospitalCategories = Category::whereIn('name', ['Hospitals', 'Health & Medical'])->get();
-        if ($hospitalListing = $hospital->primaryListing()) {
-            $hospitalListing->categories()->attach($hospitalCategories->pluck('id')->all(), ['is_primary' => true]);
-        }
+        $hospitalListing->categories()->attach($hospitalCategories->pluck('id')->all(), ['is_primary' => true]);
 
         // Create branch for hospital
         $buea = \App\Models\City::where('name', 'Buea')->first();
@@ -147,10 +163,17 @@ class BusinessSeeder extends Seeder
             'published_at' => now(),
         ]);
 
+        $restaurantListing = Listing::create([
+            'owner_id' => $restaurant->owner_id,
+            'business_id' => $restaurant->id,
+            'type' => ListingType::BUSINESS->value,
+            'name' => $restaurant->name,
+            'status' => Listing::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
         $restaurantCategories = Category::whereIn('name', ['Restaurants', 'Food & Dining'])->get();
-        if ($restaurantListing = $restaurant->primaryListing()) {
-            $restaurantListing->categories()->attach($restaurantCategories->pluck('id')->all(), ['is_primary' => true]);
-        }
+        $restaurantListing->categories()->attach($restaurantCategories->pluck('id')->all(), ['is_primary' => true]);
 
         $buea = \App\Models\City::where('name', 'Buea')->first();
         $greatSoppo = \App\Models\Area::where('name', 'Great Soppo')->first();

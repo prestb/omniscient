@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Models\Business;
-use App\Models\ListingAnalytics;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -23,28 +22,20 @@ class TrackBusinessView
                     $business = Business::where('slug', $slug)->first();
                     
                     if ($business) {
-                        // PHASE 11 / WAVE 1B — analytics are listing-owned.
-                        $listing = $business->primaryListing();
-
-                        // PHASE 11 / WAVE 1B — analytics are listing-owned and
-                        // `listing_id` is NOT NULL. Without a Listing there is no
-                        // valid owner, so skip tracking entirely rather than
-                        // fabricating one from the Business id.
-                        if (!$listing) {
-                            return $response;
-                        }
-
-                        $listingId = $listing->id;
-
-                        // Track view
-                        ListingAnalytics::trackView($listingId);
-                        
-                        // Track unique visitor (using session)
-                        $sessionKey = 'visited_business_' . $business->id;
-                        if (!$request->session()->has($sessionKey)) {
-                            ListingAnalytics::trackUniqueVisitor($listingId);
-                            $request->session()->put($sessionKey, true);
-                        }
+                        // PHASE 11 / WAVE 1D-3 — this middleware runs on
+                        // `/business/{slug}`, which is the ORGANIZATION page.
+                        //
+                        // It previously recorded LISTING analytics against
+                        // `$business->primaryListing()` — an arbitrary Listing
+                        // standing in for the organization. That is exactly the
+                        // Business-as-Listing assumption this wave removes, and a
+                        // wrong metric is worse than a temporarily absent one, so
+                        // the attribution is gone.
+                        //
+                        // Organization-level analytics need their own schema and
+                        // are deliberately deferred (see
+                        // docs/PHASE_11_WAVE_1D_3_PRIMARY_LISTING_AUDIT.md).
+                        // Listing analytics are recorded from /listing/{slug}.
                     }
                 } catch (\Exception $e) {
                     // Log error but don't break the page

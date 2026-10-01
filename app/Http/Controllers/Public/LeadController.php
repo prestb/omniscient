@@ -41,10 +41,16 @@ class LeadController extends Controller
         try {
                         $lead = Lead::create([
                 'business_id' => $business->id,
-                // PHASE 9/10 — a lead is attributed to a Listing. This public
-                // contact form is business-scoped, so we attribute to the
-                // organization's first listing when one exists.
-                'listing_id' => $business->listings()->value('id'),
+                // PHASE 11 / WAVE 1D-3 — this form is BUSINESS-scoped, and a
+                // Business may own many Listings, so there is no legitimate
+                // Listing to attribute the lead to.
+                //
+                // The previous `$business->listings()->value('id')` silently
+                // picked one. The lead is now recorded as an organization-level
+                // lead (`business_id` only, `listing_id` null). Listing-attributed
+                // leads originate from /listing/{slug}. Organization-level lead
+                // ownership semantics are deferred to Wave 1D-5.
+                'listing_id' => null,
                 'source' => 'contact_form',
                 'name' => $validated['name'],
                 'email' => $validated['email'] ?? null,

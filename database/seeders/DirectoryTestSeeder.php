@@ -68,10 +68,17 @@ class DirectoryTestSeeder extends Seeder
                     'is_featured' => $i === 1 && random_int(0, 3) === 0,
                 ]);
 
-                // PHASE 11 / WAVE 1C — categories are owned by the LISTING.
-                if ($listing = $business->primaryListing()) {
-                    $listing->categories()->attach($category->id, ['is_primary' => true]);
-                }
+                // PHASE 11 / WAVE 1D-3 — a category belongs to a LISTING. Create
+                // the Listing explicitly; never select one arbitrarily.
+                $listing = \App\Models\Listing::create([
+                    'owner_id' => $business->owner_id,
+                    'business_id' => $business->id,
+                    'type' => \App\Support\ListingType::BUSINESS->value,
+                    'name' => $business->name,
+                    'status' => \App\Models\Listing::STATUS_PUBLISHED,
+                    'published_at' => now(),
+                ]);
+                $listing->categories()->attach($category->id, ['is_primary' => true]);
 
                                 // ✅ Create a primary location in the target city
                 Location::create([

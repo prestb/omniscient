@@ -13,12 +13,18 @@ class ContactSeeder extends Seeder
         $business = Business::where('name', 'ABC Pharmacy')->first();
         
         if ($business) {
-            // PHASE 11 / WAVE 1B — contacts are listing-owned.
-            $listing = $business->primaryListing();
-
-            if (!$listing) {
-                return;
-            }
+            // PHASE 11 / WAVE 1D-3 — contacts are Listing-owned. Resolve the demo
+            // Listing deterministically by (business, name); never select an
+            // arbitrary Listing from the Business.
+            $listing = \App\Models\Listing::firstOrCreate(
+                ['business_id' => $business->id, 'name' => $business->name],
+                [
+                    'owner_id' => $business->owner_id,
+                    'type' => \App\Support\ListingType::BUSINESS->value,
+                    'status' => \App\Models\Listing::STATUS_PUBLISHED,
+                    'published_at' => now(),
+                ]
+            );
 
             $contacts = [
                 ['type' => 'phone', 'value' => '+237 699 123 456', 'is_primary' => true],
