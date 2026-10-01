@@ -342,21 +342,22 @@ class Business extends Model
     }
 
     /**
-     * PHASE 11 / WAVE 1B — resolve the listing that owner-facing child
-     * management (services/media/contacts/analytics) attaches to.
+     * PHASE 11 / WAVE 1D-3 — `primaryListing()` was DELETED here.
      *
-     * Listing-owned children require a `listing_id`. The owner UI still
-     * addresses an organization (`{business}`), so we deterministically pick
-     * the organization's PRIMARY listing — the oldest published listing, or
-     * else the oldest listing. Multi-listing addressing is a Wave 1D concern.
+     * It returned the organization's "primary" Listing (oldest published, else
+     * oldest) and existed only so owner-facing routes addressed by `{business}`
+     * could reach Listing-owned children. Every such operation has been migrated
+     * to explicit Listing context (services, contacts, images, analytics,
+     * categories), so nothing may select a representative Listing for a Business
+     * any more.
+     *
+     * A Business is an OPTIONAL organization that may own zero, one or many
+     * Listings. Aggregating across ALL of them (`$business->listings()`) remains
+     * legitimate — see the Business aggregate analytics dashboard. Choosing ONE
+     * of them to perform a Listing-owned operation is not.
+     *
+     * No replacement resolver exists or may be introduced.
      */
-    public function primaryListing(): ?Listing
-    {
-        return $this->listings()
-            ->orderByRaw("CASE WHEN status = 'published' THEN 0 ELSE 1 END")
-            ->orderBy('id')
-            ->first();
-    }
 
     /**
      * PHASE 11 / WAVE 1C — constrain to organizations that own a DISCOVERABLE

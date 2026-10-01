@@ -57,14 +57,14 @@ test('a click is recorded against the explicit listing only', function () {
 test('listing identity is authoritative and never resolves through the business', function () {
     $business = Business::factory()->create();
 
-    // B is created first, so it is the "oldest" Listing — i.e. exactly what
-    // Business::primaryListing() would have returned.
+    // B is created FIRST, so any ordering-based "representative Listing"
+    // heuristic would have selected B rather than A.
     $b = Listing::factory()->forBusiness($business)->create();
     $a = Listing::factory()->forBusiness($business)->create();
 
     $this->post("/analytics/listing/{$a->id}/track-click/website")->assertOk();
 
-    // The event landed on A, NOT on the Listing primaryListing() would pick.
+    // The event landed on the explicitly routed Listing A, not on B.
     expect(analyticsFor($a)->website_clicks)->toBe(1);
     expect(analyticsFor($b))->toBeNull();
 
@@ -144,8 +144,8 @@ test('the obsolete Business-keyed tracking routes were removed', function () {
     $this->post('/analytics/track-click/1/phone')->assertNotFound();
     $this->post('/analytics/track-view/1')->assertNotFound();
 
-    // The bridge itself is retained for the one remaining caller (Category slice).
-    expect(method_exists(Business::class, 'primaryListing'))->toBeTrue();
+    // The transitional bridge is GONE entirely — no replacement resolver exists.
+    expect(method_exists(Business::class, 'primaryListing'))->toBeFalse();
 });
 
 test('a contact event is attributed to the listing that owns the contact', function () {
