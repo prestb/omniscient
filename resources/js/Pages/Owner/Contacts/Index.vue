@@ -4,8 +4,8 @@
         <!-- COMPACT HEADER -->
         <PageHeader color="blue" :breadcrumb="[
             { label: 'Dashboard', href: '/owner/dashboard' },
-            { label: 'Businesses', href: '/owner/businesses' },
-            { label: business.name, href: `/owner/businesses/${business.id}/edit` },
+            { label: 'My Listings', href: '/owner/listings' },
+            { label: listing.name, href: `/owner/listings/${listing.id}/edit` },
             { label: 'Contacts' }
         ]">
             <template #icon>
@@ -13,7 +13,7 @@
                     d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </template>
             <template #title>Contacts</template>
-            <template #subtitle>{{ business.name }}</template>
+            <template #subtitle>{{ listing.name }}</template>
             <template #actions>
                 <button @click="openCreateModal"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg shadow-primary-500/25 text-sm">
@@ -123,7 +123,7 @@
     import ContactIcon from '@/Components/ContactIcon.vue';
 
     const props = defineProps({
-        business: Object,
+        listing: Object,
         contacts: Array,
     });
 
@@ -156,8 +156,8 @@
 
     const saveContact = (data, options = {}) => {
         const url = editingContact.value
-            ? `/owner/businesses/${props.business.id}/contacts/${editingContact.value.id}`
-            : `/owner/businesses/${props.business.id}/contacts`;
+            ? `/owner/listings/${props.listing.id}/contacts/${editingContact.value.id}`
+            : `/owner/listings/${props.listing.id}/contacts`;
         const method = editingContact.value ? 'put' : 'post';
 
         router[method](url, data, {
@@ -175,7 +175,7 @@
 
     const deleteContact = (contact) => {
         if (confirm(`Delete this contact?`)) {
-            router.delete(`/owner/businesses/${props.business.id}/contacts/${contact.id}`, {
+            router.delete(`/owner/listings/${props.listing.id}/contacts/${contact.id}`, {
                 onSuccess: () => {
                     router.reload();
                 },

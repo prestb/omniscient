@@ -383,8 +383,11 @@
                         </div>
                     </a>
 
-                    <!-- Contacts -->
-                    <a :href="`/owner/businesses/${business.id}/contacts`"
+                    <!-- Contacts — PHASE 11 / WAVE 1D-3: contacts are LISTING-owned,
+                         so this no longer links to a Business-scoped route. The owner
+                         picks the Listing to manage from My Listings; the app never
+                         silently selects one. -->
+                    <a :href="`/owner/listings`"
                         class="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-5 sm:p-6">
                         <div
                             class="absolute -top-8 -right-8 w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/30 dark:to-blue-900/10 rounded-full blur-2xl opacity-60 group-hover:opacity-100 transition-opacity">

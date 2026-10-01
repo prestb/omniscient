@@ -285,6 +285,16 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
             Route::put('/{service}', [ServiceController::class, 'update'])->name('update');
             Route::delete('/{service}', [ServiceController::class, 'destroy'])->name('destroy');
         });
+
+        // PHASE 11 / WAVE 1D-3 — CONTACTS ARE LISTING-OWNED.
+        // The Listing is the authoritative route entity: no Business ->
+        // primaryListing() bridge and no arbitrary Listing selection.
+        Route::prefix('{listing}/contacts')->name('contacts.')->group(function () {
+            Route::get('/', [ContactController::class, 'index'])->name('index');
+            Route::post('/', [ContactController::class, 'store'])->name('store');
+            Route::put('/{contact}', [ContactController::class, 'update'])->name('update');
+            Route::delete('/{contact}', [ContactController::class, 'destroy'])->name('destroy');
+        });
     });
 
     Route::prefix('owner/businesses')->name('owner.businesses.')->group(function () {
@@ -321,13 +331,9 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
         // REMOVED. A service is Listing-owned, so service management now lives at
         // /owner/listings/{listing}/services (route names owner.listings.services.*).
 
-        // ✅ Contacts (needed for setup)
-        Route::prefix('{business}/contacts')->name('contacts.')->group(function () {
-            Route::get('/', [ContactController::class, 'index'])->name('index');
-            Route::post('/', [ContactController::class, 'store'])->name('store');
-            Route::put('/{contact}', [ContactController::class, 'update'])->name('update');
-            Route::delete('/{contact}', [ContactController::class, 'destroy'])->name('destroy');
-        });
+        // PHASE 11 / WAVE 1D-3 — the Business-scoped contacts routes were
+        // REMOVED. A contact is Listing-owned, so contact management now lives at
+        // /owner/listings/{listing}/contacts (route names owner.listings.contacts.*).
 
         // ✅ Images (needed for setup)
         Route::prefix('{business}/images')->name('images.')->group(function () {
