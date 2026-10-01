@@ -352,6 +352,21 @@ class Listing extends Model
             // previous Business-level `has_active_subscription` filter meaning
             // without keeping Business as a search entity.
             'has_active_subscription' => (bool) ($this->owner?->activeSubscription),
+
+            // PHASE 13 - SORTABLE QUALITY + PROMOTION SIGNALS.
+            //
+            // Reviews are BUSINESS-owned (Phase 11/12). A Listing therefore
+            // publishes its OWNING BUSINESS's review aggregate, exactly as the
+            // SQL directory does via usinessReviews. There are no Listing-owned
+            // reviews and this does not introduce any.
+            //
+            // A Business-less Listing publishes 0 / 0 - the existing zero
+            // semantics - never a fabricated rating.
+            'rating' => (float) ($this->business?->average_rating ?? 0),
+            'reviews_count' => (int) ($this->business?->total_reviews ?? 0),
+            // Explicit numeric promotion signal. is_featured stays a boolean
+            // filter; this is what the ranking rule reads.
+            'is_featured_rank' => $this->is_featured ? 1 : 0,
         ];
     }
 

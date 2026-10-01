@@ -60,14 +60,46 @@ class ConfigureMeilisearch extends Command
         }
 
         // Update sortable attributes
+        //
+        // PHASE 13 — `/search` (Meilisearch) and `/directory` (SQL) must expose
+        // the same sort vocabulary. `rating` and `reviews_count` are the OWNING
+        // BUSINESS's review aggregate (reviews are Business-owned); a
+        // Business-less Listing indexes 0 / 0.
         $index->updateSortableAttributes([
             'created_at',
             'published_at',
+            'rating',
+            'reviews_count',
+            'is_featured_rank',
         ]);
 
         $this->info('✅ Sortable attributes updated:');
-        $this->line('  - created_at');
-        $this->line('  - published_at');
+        foreach (['created_at', 'published_at', 'rating', 'reviews_count', 'is_featured_rank'] as $attribute) {
+            $this->line('  - ' . $attribute);
+        }
+
+        // Ranking rules — PHASE 13.
+        //
+        // Textual relevance is preserved absolutely: every built-in relevance
+        // rule runs BEFORE any custom signal. `rating:desc` then
+        // `is_featured_rank:desc` are appended as pure TIE-BREAKERS, so a
+        // featured Listing can never outrank a strongly matching non-featured
+        // Listing. Promotion is the last signal considered, not the first.
+        //
+        // Rule names match the installed Meilisearch (1.53.1).
+        $index->updateRankingRules([
+            'words',
+            'typo',
+            'proximity',
+            'attributeRank',
+            'sort',
+            'wordPosition',
+            'exactness',
+            'rating:desc',
+            'is_featured_rank:desc',
+        ]);
+
+        $this->info('✅ Ranking rules updated: relevance first, quality then promotion as tie-breakers.');
 
         // Update searchable attributes
         $index->updateSearchableAttributes([

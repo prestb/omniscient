@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\Listing;
+use App\Support\DiscoverySort;
 use App\Models\Region;
 use App\Services\SearchIntentParser;
 use Illuminate\Http\Request;
@@ -226,21 +227,21 @@ class DirectoryController extends Controller
         }
 
         // ============== SORT ==============
-        $sort = $request->input('sort', 'newest');
+        $sort = DiscoverySort::normalize($request->input('sort', 'newest'));
 
         switch ($sort) {
-            case 'rating':
+            case DiscoverySort::RATING:
                 $query->withAvg('businessReviews', 'rating')
                     ->orderByDesc('business_reviews_avg_rating');
                 break;
-            case 'reviews':
+            case DiscoverySort::REVIEWS:
                 $query->withCount('businessReviews')
                     ->orderByDesc('business_reviews_count');
                 break;
             case 'name':
                 $query->orderBy('name', 'asc');
                 break;
-            case 'newest':
+            case DiscoverySort::NEWEST:
             default:
                 $query->orderByDesc('is_featured')
                     ->latest('published_at');

@@ -7,6 +7,7 @@ use App\Http\Resources\ListingDirectoryResource;
 use App\Models\Category;
 use App\Models\City;
 use App\Models\Listing;
+use App\Support\DiscoverySort;
 use App\Models\Region;
 use App\Services\SearchIntentParser;
 use Illuminate\Http\Request;
@@ -70,7 +71,16 @@ class SearchController extends Controller
             $search->where('is_open_now', true);
         }
 
-        $listings = $search->paginate(12);
+        // PHASE 13 — canonical discovery sort vocabulary.
+        // Default is RELEVANCE, which applies NO orderBy so Meilisearch's
+        // textual ranking is left completely intact.
+        $sort = DiscoverySort::normalize($request->input('sort'));
+
+        foreach (DiscoverySort::meilisearchOrder($sort) as [$column, $direction]) {
+            $search->orderBy($column, $direction);
+        }
+
+        $listings = $search->paginate(12)->withQueryString();
 
         // Get filter data
         $categories = Category::active()->root()->ordered()->get();
@@ -80,6 +90,8 @@ class SearchController extends Controller
         return Inertia::render('Public/Search/Index', [
             'listings' => ListingDirectoryResource::collection($listings),
             'query' => $query,
+            'sort' => $sort,
+            'sortOptions' => DiscoverySort::options(),
             'filters' => [
                 'category' => $categoryId,
                 'city' => $cityId,
