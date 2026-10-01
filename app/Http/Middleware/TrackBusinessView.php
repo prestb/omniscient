@@ -25,7 +25,16 @@ class TrackBusinessView
                     if ($business) {
                         // PHASE 11 / WAVE 1B — analytics are listing-owned.
                         $listing = $business->primaryListing();
-                        $listingId = $listing?->id ?? $business->id;
+
+                        // PHASE 11 / WAVE 1B — analytics are listing-owned and
+                        // `listing_id` is NOT NULL. Without a Listing there is no
+                        // valid owner, so skip tracking entirely rather than
+                        // fabricating one from the Business id.
+                        if (!$listing) {
+                            return $response;
+                        }
+
+                        $listingId = $listing->id;
 
                         // Track view
                         ListingAnalytics::trackView($listingId);
