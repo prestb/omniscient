@@ -30,8 +30,8 @@
                             </svg>
                             {{ listing.location.city }}
                         </span>
-                        <span v-if="listing.average_rating" class="inline-flex items-center gap-1">
-                            ★ {{ listing.average_rating }} ({{ listing.reviews_count }})
+                        <span v-if="listing.business_id && listing.average_rating" class="inline-flex items-center gap-1">
+                            ★ {{ listing.average_rating }} ({{ listing.reviews_count }}) <span class="text-xs font-normal text-gray-400 dark:text-gray-500">Business rating</span>
                         </span>
                     </div>
                 </div>

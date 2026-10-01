@@ -377,7 +377,16 @@ class DirectoryController extends Controller
             'cover_image_url' => $cover?->url ?? $listing->business?->cover_image_url,
             'logo_url' => $logo?->url ?? $listing->business?->logo_url,
             'is_featured' => (bool) $listing->is_featured,
-            'is_verified' => (bool) $listing->owner?->canUse('verified_badge'),
+            // PHASE 14 — `is_verified` REMOVED.
+            //
+            // It was the owner's PAID `verified_badge` plan feature, so it told
+            // visitors a Listing had been verified when the only thing that happened
+            // was that the owner bought a plan tier. No Listing verification process
+            // exists (no `verified_at`, no workflow).
+            //
+            // Not renamed to `has_verified_badge_feature` either: nothing in the map
+            // needs the owner's plan. Paid capability is exposed only where it is
+            // honestly labelled (feature_flags / `verified_badge`).
             'address' => $location->full_address,
         ];
     }

@@ -60,6 +60,26 @@
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                                 {{ listing.business?.name || '—' }}
                             </td>
+                            <!-- PHASE 14 - Listing-scoped completeness. Derived from this
+                                 Listing only; never persisted and never a search signal. -->
+                            <td class="px-4 py-3">
+                                <div v-if="listing.completeness" class="flex items-center gap-2">
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                        :class="{
+                                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300': listing.completeness.tier.color === 'emerald',
+                                            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300': listing.completeness.tier.color === 'blue',
+                                            'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300': listing.completeness.tier.color === 'amber',
+                                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': listing.completeness.tier.color === 'red',
+                                        }">
+                                        {{ listing.completeness.score }}%
+                                    </span>
+                                    <a :href="`/owner/listings/${listing.id}/edit`"
+                                        class="text-xs text-gray-500 hover:text-primary-600 dark:text-gray-400">
+                                        {{ listing.completeness.missing.length }} to improve
+                                    </a>
+                                </div>
+                                <span v-else class="text-sm text-gray-400">-</span>
+                            </td>
                             <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
                                 <a :href="`/owner/listings/${listing.id}/edit`"
                                     class="text-sm font-semibold text-primary-600 hover:text-primary-700">Edit</a>

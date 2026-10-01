@@ -335,21 +335,13 @@ const buildPopupHtml = (business) => {
             ">⭐ Featured</span>`
         : '';
 
-    const verified = business.is_verified
-        ? `<span class="omniscient-popup-badge-verified" style="
-                display: inline-flex;
-                align-items: center;
-                gap: 3px;
-                padding: 2px 6px;
-                background: #dbeafe;
-                color: #1e40af;
-                font-size: 9px;
-                font-weight: 700;
-                border-radius: 9999px;
-                text-transform: uppercase;
-                letter-spacing: 0.03em;
-            ">✓ Verified</span>`
-        : '';
+    // PHASE 14 - no "verified" badge on map results.
+    //
+    // `is_verified` was the owner's PAID `verified_badge` plan feature, so the badge
+    // claimed a Listing was verified when nothing had been verified. The field is gone
+    // from the payload; this emits nothing rather than turning a paid capability into a
+    // trust claim.
+    const verified = '';
 
     const rating = business.rating > 0
         ? `<div class="omniscient-popup-rating" style="display: flex; align-items: center; gap: 4px; font-size: 12px; margin-top: 4px;">

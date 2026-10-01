@@ -34,6 +34,17 @@ class ListingController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // PHASE 14 — Listing-scoped completeness. Calculated dynamically and
+        // never persisted. It is a quality/owner-guidance signal only and
+        // deliberately does NOT reach search or ranking.
+        $completeness = new \App\Services\ListingCompletenessService();
+
+        $listings->getCollection()->transform(function ($listing) use ($completeness) {
+            $listing->setAttribute('completeness', $completeness->calculate($listing));
+
+            return $listing;
+        });
+
         return Inertia::render('Owner/Listings/Index', [
             'listings' => $listings,
         ]);
