@@ -25,15 +25,25 @@ class DashboardController extends Controller
         $unreadNotifications = $user->unreadNotifications()->count();
 
         // Recent favorites — PHASE 11 / WAVE 1D-5A: favorites are LISTING-owned.
+        // Emitted through ListingDirectoryResource so this screen consumes the
+        // same Listing shape as the directory and the Favorites page. No
+        // Business-shaped compatibility transformer.
         $recentFavorites = $user->favoriteListings()
-            ->with(['business:id,name,slug', 'location.city', 'images'])
+            ->with([
+                'business:id,name,slug',
+                'location.city',
+                'location.country',
+                'location.hours',
+                'images',
+                'categories',
+                'owner.activeSubscription.plan',
+            ])
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
             ->take(6)
             ->get()
-            ->map(function ($listing) {
-                return array_merge($listing->toArray(), ['is_favorited' => true]);
-            });
+            ->map(fn($listing) => (new \App\Http\Resources\ListingDirectoryResource($listing))->resolve())
+            ->map(fn(array $data) => array_merge($data, ['is_favorited' => true]));
 
         // Recent reviews
         $recentReviews = Review::where('user_id', $user->id)

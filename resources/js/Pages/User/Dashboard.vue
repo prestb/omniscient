@@ -185,8 +185,10 @@
                     </a>
                 </div>
                 <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- PHASE 11 / WAVE 1D-5A — favorites are LISTINGS. Links go to
+                         the canonical /listing/{slug}, not the organization page. -->
                     <a v-for="business in recentFavorites" :key="business.id"
-                       :href="`/business/${business.slug}`"
+                       :href="`/listing/${business.slug}`"
                        class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
                         <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center font-bold text-primary-600 flex-shrink-0">
                             {{ business.name?.charAt(0) || '?' }}
@@ -196,7 +198,7 @@
                                 {{ business.name }}
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                {{ business.primary_location?.city?.name || 'View business' }}
+                                {{ business.location?.city || business.business_name || 'View listing' }}
                             </p>
                         </div>
                     </a>
