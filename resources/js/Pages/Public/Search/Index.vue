@@ -220,9 +220,9 @@
                     Found <span class="font-bold text-gray-900 dark:text-white">{{ listings.total }}</span> listings
                 </p>
                 <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                    <!-- Naming debt (Wave 1D-6): BusinessCard's prop is still named
+                    <!-- Naming debt (Wave 1D-6): ListingCard's prop is still named
                          `business`, but the result ENTITY is now always a Listing. -->
-                    <BusinessCard v-for="listing in listings.data" :key="listing.id" :business="listing" />
+                    <ListingCard v-for="listing in listings.data" :key="listing.id" :listing="listing" />
                 </div>
                 <div class="mt-6">
                     <Pagination :links="listings.links" />
@@ -256,7 +256,7 @@
     import { router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
     import SearchBar from '@/Components/Public/SearchBar.vue';
-    import BusinessCard from '@/Components/Public/BusinessCard.vue';
+    import ListingCard from '@/Components/Public/ListingCard.vue';
     import Pagination from '@/Components/Pagination.vue';
     import MobileFilterSheet from '@/Components/Public/MobileFilterSheet.vue';
 

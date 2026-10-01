@@ -88,8 +88,8 @@
             <!-- Grid -->
             <div v-if="listings.data && listings.data.length > 0">
                 <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                    <!-- Naming debt (1D-6): BusinessCard's prop is `business`, the entity is a Listing. -->
-                    <BusinessCard v-for="listing in listings.data" :key="listing.id" :business="listing" />
+                    <!-- Naming debt (1D-6): ListingCard's prop is `business`, the entity is a Listing. -->
+                    <ListingCard v-for="listing in listings.data" :key="listing.id" :listing="listing" />
                 </div>
 
                 <Pagination :links="listings.links" :from="listings.from || 0" :to="listings.to || 0"
@@ -127,7 +127,7 @@
     import { ref, computed, onMounted, onUnmounted } from 'vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
-    import BusinessCard from '@/Components/Public/BusinessCard.vue';
+    import ListingCard from '@/Components/Public/ListingCard.vue';
     import Pagination from '@/Components/Pagination.vue';
     import CategoryIcon from '@/Components/CategoryIcon.vue';
     import CollectionCrossLinks from '@/Components/Public/CollectionCrossLinks.vue';

@@ -227,16 +227,16 @@
                         <!-- Mobile: horizontal snap-scroll carousel -->
                         <div
                             class="sm:hidden -mx-4 px-4 scroll-pl-4 flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-                            <div v-for="business in featuredListings" :key="business.id"
+                            <div v-for="listing in featuredListings" :key="listing.id"
                                 class="flex-shrink-0 w-[62%] snap-start">
-                                <BusinessCard :business="business" />
+                                <ListingCard :listing="listing" />
                             </div>
                         </div>
 
                         <!-- Desktop: grid -->
                         <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                            <BusinessCard v-for="business in featuredListings" :key="business.id"
-                                :business="business" />
+                            <ListingCard v-for="listing in featuredListings" :key="listing.id"
+                                :listing="listing" />
                         </div>
                     </template>
                 </div>
@@ -324,16 +324,16 @@
                         <!-- Mobile: horizontal snap-scroll carousel -->
                         <div
                             class="sm:hidden -mx-4 px-4 scroll-pl-4 flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-                            <div v-for="business in recentListings" :key="business.id"
+                            <div v-for="listing in recentListings" :key="listing.id"
                                 class="flex-shrink-0 w-[62%] snap-start">
-                                <BusinessCard :business="business" />
+                                <ListingCard :listing="listing" />
                             </div>
                         </div>
 
                         <!-- Desktop: grid -->
                         <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                            <BusinessCard v-for="business in recentListings" :key="business.id"
-                                :business="business" />
+                            <ListingCard v-for="listing in recentListings" :key="listing.id"
+                                :listing="listing" />
                         </div>
                     </template>
                 </div>
@@ -412,7 +412,7 @@
     import { router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
     import SearchBar from '@/Components/Public/SearchBar.vue';
-    import BusinessCard from '@/Components/Public/BusinessCard.vue';
+    import ListingCard from '@/Components/Public/ListingCard.vue';
     import ReviewCardCompact from '@/Components/Public/ReviewCardCompact.vue';
     import CategoryIcon from '@/Components/CategoryIcon.vue';
     import PullToRefresh from '@/Components/Common/PullToRefresh.vue';

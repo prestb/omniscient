@@ -48,10 +48,10 @@
 
                 <!-- Grid -->
                 <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <BusinessCard 
-                        v-for="business in businesses.data" 
-                        :key="business.id" 
-                        :business="business" 
+                    <ListingCard 
+                        v-for="listing in businesses.data" 
+                        :key="listing.id" 
+                        :listing="listing" 
                     />
                 </div>
 
@@ -79,7 +79,7 @@
 <script setup>
 import { Head } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
-import BusinessCard from '@/Components/Public/BusinessCard.vue';
+import ListingCard from '@/Components/Public/ListingCard.vue';
 
 const props = defineProps({
     businesses: Object,
