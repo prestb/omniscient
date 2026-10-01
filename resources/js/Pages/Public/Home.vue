@@ -63,8 +63,8 @@
                         <div
                             class="mt-8 sm:mt-12 grid grid-cols-3 max-w-lg mx-auto divide-x divide-white/15 border-t border-white/15 pt-5 sm:pt-6">
                             <div class="px-3">
-                                <p class="text-2xl font-bold text-white">{{ stats.businesses }}+</p>
-                                <p class="text-xs uppercase tracking-wide text-primary-200 mt-0.5">Businesses</p>
+                                <p class="text-2xl font-bold text-white">{{ stats.listings }}+</p>
+                                <p class="text-xs uppercase tracking-wide text-primary-200 mt-0.5">Listings</p>
                             </div>
                             <div class="px-3">
                                 <p class="text-2xl font-bold text-white">{{ stats.reviews }}+</p>
@@ -227,7 +227,7 @@
                         <!-- Mobile: horizontal snap-scroll carousel -->
                         <div
                             class="sm:hidden -mx-4 px-4 scroll-pl-4 flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-                            <div v-for="business in featuredBusinesses" :key="business.id"
+                            <div v-for="business in featuredListings" :key="business.id"
                                 class="flex-shrink-0 w-[62%] snap-start">
                                 <BusinessCard :business="business" />
                             </div>
@@ -235,7 +235,7 @@
 
                         <!-- Desktop: grid -->
                         <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                            <BusinessCard v-for="business in featuredBusinesses" :key="business.id"
+                            <BusinessCard v-for="business in featuredListings" :key="business.id"
                                 :business="business" />
                         </div>
                     </template>
@@ -324,7 +324,7 @@
                         <!-- Mobile: horizontal snap-scroll carousel -->
                         <div
                             class="sm:hidden -mx-4 px-4 scroll-pl-4 flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-                            <div v-for="business in recentBusinesses" :key="business.id"
+                            <div v-for="business in recentListings" :key="business.id"
                                 class="flex-shrink-0 w-[62%] snap-start">
                                 <BusinessCard :business="business" />
                             </div>
@@ -332,7 +332,7 @@
 
                         <!-- Desktop: grid -->
                         <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                            <BusinessCard v-for="business in recentBusinesses" :key="business.id"
+                            <BusinessCard v-for="business in recentListings" :key="business.id"
                                 :business="business" />
                         </div>
                     </template>
@@ -419,8 +419,8 @@
     import SkeletonLoader from '@/Components/Common/SkeletonLoader.vue';
 
     const props = defineProps({
-        featuredBusinesses: { type: Array, default: () => [] },
-        recentBusinesses: { type: Array, default: () => [] },
+        featuredListings: { type: Array, default: () => [] },
+        recentListings: { type: Array, default: () => [] },
         popularCategories: { type: Array, default: () => [] },
         stripCategories: { type: Array, default: () => [] },
         latestReviews: { type: Array, default: () => [] },
@@ -433,7 +433,7 @@
      * what we already have so nothing renders as "undefined".
      */
     const stats = computed(() => ({
-        businesses: props.stats?.businesses ?? '1000',
+        listings: props.stats?.listings ?? '1000',
         reviews: props.stats?.reviews ?? '5000',
         categories: props.stats?.categories ?? (props.popularCategories?.length || '20'),
     }));

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\BusinessDirectoryResource;
+use App\Http\Resources\ListingDirectoryResource;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Listing;
@@ -16,60 +16,45 @@ class HomeController extends Controller
 {
     public function index()
     {
-        $featuredBusinesses = Business::with([
-            'primaryLocation',
-            'primaryLocation.country',
-            'primaryLocation.region',
-            'primaryLocation.city',
-            'locations' => function ($q) {
-                $q->whereNull('hidden_at');
-            },
-            'locations.city',
-            'locations.region',
-            'locations.country',
-            'locations.hours',
-            'locations.hourOverrides',   // ✅ for is_open_now override awareness
-            'logo',
-            'coverImage',
-            'galleryImages' => function ($q) {
-                $q->whereNull('hidden_at');
-            },
+        // PHASE 11 / WAVE 1D-1 — public discovery is LISTING-based.
+        $featuredListings = Listing::with([
+            'business:id,name,slug,logo,cover_image',
+            'location.country',
+            'location.region',
+            'location.city',
+            'location.hours',
+            'location.hourOverrides',   // ✅ for is_open_now override awareness
+            'categories',
+            'services' => fn($q) => $q->whereNull('hidden_at'),
+            'images' => fn($q) => $q->whereNull('hidden_at'),
             'owner:id,name,role',
             'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags
         ])
             ->where('is_featured', true)
-            ->where('status', Business::STATUS_PUBLISHED)
+            ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withCount(['reviews', 'galleryImages'])
+            ->withCount(['reviews', 'images'])
             ->withAvg('reviews', 'rating')
             ->inRandomOrder()
             ->take(6)
             ->get();
 
-        $recentBusinesses = Business::with([
-            'primaryLocation',
-            'primaryLocation.country',
-            'primaryLocation.region',
-            'primaryLocation.city',
-            'locations' => function ($q) {
-                $q->whereNull('hidden_at');
-            },
-            'locations.city',
-            'locations.region',
-            'locations.country',
-            'locations.hours',
-            'locations.hourOverrides',   // ✅ for is_open_now override awareness
-            'logo',
-            'coverImage',
-            'galleryImages' => function ($q) {
-                $q->whereNull('hidden_at');
-            },
+        $recentListings = Listing::with([
+            'business:id,name,slug,logo,cover_image',
+            'location.country',
+            'location.region',
+            'location.city',
+            'location.hours',
+            'location.hourOverrides',   // ✅ for is_open_now override awareness
+            'categories',
+            'services' => fn($q) => $q->whereNull('hidden_at'),
+            'images' => fn($q) => $q->whereNull('hidden_at'),
             'owner:id,name,role',
             'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags
         ])
-            ->where('status', Business::STATUS_PUBLISHED)
+            ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withCount(['reviews', 'galleryImages'])
+            ->withCount(['reviews', 'images'])
             ->withAvg('reviews', 'rating')
             ->latest()
             ->take(8)
@@ -141,7 +126,7 @@ class HomeController extends Controller
         // ============== HERO STATS (cached 1 hour) ==============
         $stats = Cache::remember('home.stats', now()->addHour(), function () {
             return [
-                'businesses' => Business::where('status', Business::STATUS_PUBLISHED)
+                'listings' => Listing::where('status', Listing::STATUS_PUBLISHED)
                     ->whereNull('hidden_at')
                     ->count(),
                 'reviews' => Review::where('status', 'approved')->count(),
@@ -150,8 +135,8 @@ class HomeController extends Controller
         });
 
         return Inertia::render('Public/Home', [
-            'featuredBusinesses' => BusinessDirectoryResource::collection($featuredBusinesses)->resolve(),
-            'recentBusinesses' => BusinessDirectoryResource::collection($recentBusinesses)->resolve(),
+            'featuredListings' => ListingDirectoryResource::collection($featuredListings)->resolve(),
+            'recentListings' => ListingDirectoryResource::collection($recentListings)->resolve(),
             'popularCategories' => $popularCategories,
             'stripCategories' => $stripCategories,
             'latestReviews' => $latestReviews,

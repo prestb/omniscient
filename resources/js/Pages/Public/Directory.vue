@@ -52,13 +52,14 @@
 
             <!-- ==================== LIST VIEW ==================== -->
             <div v-else>
-                <div v-if="businesses.data && businesses.data.length > 0">
+                <div v-if="listings.data && listings.data.length > 0">
                     <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                        <BusinessCard v-for="business in businesses.data" :key="business.id" :business="business" />
+                        <!-- Naming debt (1D-6): BusinessCard's prop is `business`, the entity is a Listing. -->
+                        <BusinessCard v-for="listing in listings.data" :key="listing.id" :business="listing" />
                     </div>
 
-                    <Pagination :links="businesses.links" :from="businesses.from || 0" :to="businesses.to || 0"
-                        :total="businesses.total || 0" class="mt-6" />
+                    <Pagination :links="listings.links" :from="listings.from || 0" :to="listings.to || 0"
+                        :total="listings.total || 0" class="mt-6" />
                 </div>
 
                 <!-- Empty State -->
@@ -95,7 +96,7 @@
     } from '@/composables/useDirectoryFilters';
 
     const props = defineProps({
-        businesses: {
+        listings: {
             type: [Object, Array],
             default: () => ({ data: [], links: [] }),
         },
@@ -136,8 +137,8 @@
     // In map mode, `businesses` is an object with { data: [...] } shape.
     // In list mode, it's a Laravel paginator.
     const mapBusinesses = computed(() => {
-        if (Array.isArray(props.businesses)) return props.businesses;
-        return props.businesses?.data || [];
+        if (Array.isArray(props.listings)) return props.listings;
+        return props.listings?.data || [];
     });
 
     // ============== VIEW SWITCH ==============

@@ -86,13 +86,14 @@
             </div>
 
             <!-- Grid -->
-            <div v-if="businesses.data && businesses.data.length > 0">
+            <div v-if="listings.data && listings.data.length > 0">
                 <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                    <BusinessCard v-for="business in businesses.data" :key="business.id" :business="business" />
+                    <!-- Naming debt (1D-6): BusinessCard's prop is `business`, the entity is a Listing. -->
+                    <BusinessCard v-for="listing in listings.data" :key="listing.id" :business="listing" />
                 </div>
 
-                <Pagination :links="businesses.links" :from="businesses.from || 0" :to="businesses.to || 0"
-                    :total="businesses.total || 0" class="mt-8" />
+                <Pagination :links="listings.links" :from="listings.from || 0" :to="listings.to || 0"
+                    :total="listings.total || 0" class="mt-8" />
             </div>
 
             <!-- Empty state — shouldn't happen due to threshold, but defensive -->
@@ -136,7 +137,7 @@
         city: { type: Object, required: true },
         region: { type: Object, default: null },
         country: { type: Object, default: null },
-        businesses: { type: Object, required: true },
+        listings: { type: Object, required: true },
         total: { type: Number, default: 0 },
         categoryTotal: { type: Number, default: 0 },
         sort: { type: String, default: 'newest' },
@@ -162,7 +163,7 @@
 
     // Schema.org ItemList JSON-LD
     const schemaJson = computed(() => {
-        const items = (props.businesses.data || []).map((b, i) => ({
+        const items = (props.listings.data || []).map((b, i) => ({
             '@type': 'ListItem',
             position: i + 1,
             url: `${window.location.origin}/business/${b.slug}`,

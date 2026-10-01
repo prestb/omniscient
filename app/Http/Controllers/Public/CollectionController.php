@@ -53,11 +53,11 @@ class CollectionController extends Controller
                 break;
         }
 
-        $businesses = $query->paginate($this->collections->perPage())->withQueryString();
+        $listings = $query->paginate($this->collections->perPage())->withQueryString();
 
-        // Transform each business via the directory resource
-        $businesses->getCollection()->transform(function ($business) {
-            return (new \App\Http\Resources\BusinessDirectoryResource($business))->resolve();
+        // PHASE 11 / WAVE 1D-1 — discovery results are LISTINGS.
+        $listings->getCollection()->transform(function ($listing) {
+            return (new \App\Http\Resources\ListingDirectoryResource($listing))->resolve();
         });
 
         // Cross-links
@@ -72,7 +72,7 @@ class CollectionController extends Controller
             'city' => $city->only(['id', 'name', 'slug']),
             'region' => $city->region?->only(['id', 'name']) ?? null,
             'country' => $city->region?->country?->only(['id', 'name']) ?? null,
-            'businesses' => $businesses,
+            'listings' => $listings,
             'total' => $total,
             'categoryTotal' => $categoryTotal,
             'sort' => $sort,

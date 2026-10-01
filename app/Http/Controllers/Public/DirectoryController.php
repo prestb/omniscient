@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\BusinessDirectoryResource;
+use App\Http\Resources\ListingDirectoryResource;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\City;
 use App\Models\Country;
+use App\Models\Listing;
 use App\Models\Region;
 use App\Services\SearchIntentParser;
 use Illuminate\Http\Request;
@@ -64,30 +65,26 @@ class DirectoryController extends Controller
             ? $intent['cleaned_query']
             : $request->input('search');
 
-        $query = Business::query()
+        // PHASE 11 / WAVE 1D-1 — public discovery queries LISTINGS.
+        // A Business is an organization; it is never the discoverable result.
+        $query = Listing::query()
             ->with([
-                'primaryLocation',
-                'locations' => function ($q) {
-                    $q->whereNull('hidden_at');   // ✅ skip hidden branches
-                },
-                'locations.city',
-                'locations.region',
-                'locations.country',
-                'locations.hours',
-                'locations.hourOverrides',   // ✅ for is_open_now override awareness
-                'logo',
-                'coverImage',
-                'galleryImages' => function ($q) {
-                    $q->whereNull('hidden_at');   // ✅ skip hidden gallery images
-                },
+                'business:id,name,slug,logo,cover_image',
+                'location.city',
+                'location.region',
+                'location.country',
+                'location.hours',
+                'location.hourOverrides',   // ✅ for is_open_now override awareness
+                'categories',
+                'services' => fn($q) => $q->whereNull('hidden_at'),
+                'images' => fn($q) => $q->whereNull('hidden_at'),
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags per owner
             ])
-            ->withCount('galleryImages')
-            ->withCount('reviews')                    // ✅ always load for the accessor
-            ->withAvg('reviews', 'rating')            // ✅ always load for the accessor
+            ->withCount(['images', 'reviews'])        // ✅ always load for the accessors
+            ->withAvg('reviews', 'rating')            // ✅ always load for the accessors
             ->where('status', 'published')
-            ->whereNull('hidden_at');   // ✅ skip hidden businesses
+            ->whereNull('hidden_at');   // ✅ skip hidden listings
 
         // ============== SEARCH (post-parse) ==============
         if (!empty($parsedSearch)) {
@@ -102,27 +99,26 @@ class DirectoryController extends Controller
         }
 
         // ============== CATEGORY (post-parse) ==============
-        // PHASE 11 / WAVE 1C — category ownership belongs to the LISTING; the
-        // organization is matched through its discoverable listings.
+        // PHASE 11 / WAVE 1D-1 — a Listing owns its discovery taxonomy.
         if (!empty($parsedCategoryId)) {
-            $query->withDiscoverableListingInCategory((int) $parsedCategoryId);
+            $query->whereHas('categories', fn($q) => $q->where('categories.id', (int) $parsedCategoryId));
         }
 
-        // ============== LOCATION ==============
+        // ============== LOCATION (0 or 1 physical place) ==============
         if ($request->filled('country_id')) {
-            $query->whereHas('locations', function ($q) use ($request) {
+            $query->whereHas('location', function ($q) use ($request) {
                 $q->where('country_id', $request->country_id);
             });
         }
 
         if ($request->filled('region_id')) {
-            $query->whereHas('locations', function ($q) use ($request) {
+            $query->whereHas('location', function ($q) use ($request) {
                 $q->where('region_id', $request->region_id);
             });
         }
 
         if (!empty($parsedCityId)) {
-            $query->whereHas('locations', function ($q) use ($parsedCityId) {
+            $query->whereHas('location', function ($q) use ($parsedCityId) {
                 $q->where('city_id', $parsedCityId);
             });
         }
@@ -133,8 +129,8 @@ class DirectoryController extends Controller
             $currentTime = now()->format('H:i:s');
             $today = today()->toDateString();
 
-            $query->whereHas('locations', function ($q) use ($currentDayOfWeek, $currentTime, $today) {
-                // Case A: branch has NO closed override today AND weekly hours say open
+            $query->whereHas('location', function ($q) use ($currentDayOfWeek, $currentTime, $today) {
+                // Case A: the place has NO closed override today AND weekly hours say open
                 $q->where(function ($sub) use ($currentDayOfWeek, $currentTime, $today) {
                     // No closed override today
                     $sub->whereDoesntHave('hourOverrides', function ($o) use ($today) {
@@ -208,19 +204,19 @@ class DirectoryController extends Controller
         if ($request->filled('min_rating')) {
             $minRating = (float) $request->min_rating;
             $query->whereRaw(
-                '(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE reviews.business_id = businesses.id AND reviews.status = ?) >= ?',
+                '(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE reviews.listing_id = listings.id AND reviews.status = ?) >= ?',
                 ['approved', $minRating]
             );
         }
 
         // ============== HAS PHOTOS (gallery only) ==============
         if ($request->filled('has_photos') && $request->has_photos == 'true') {
-            $query->whereHas('galleryImages');
+            $query->whereHas('images');
         }
 
         // ============== HAS WHATSAPP ==============
         if ($request->filled('has_whatsapp') && $request->has_whatsapp == 'true') {
-            $query->whereHas('locations', function ($q) {
+            $query->whereHas('location', function ($q) {
                 $q->whereNotNull('whatsapp')
                     ->where('whatsapp', '!=', '');
             });
@@ -259,45 +255,45 @@ class DirectoryController extends Controller
         }
 
         if ($viewMode === 'map') {
-            // MAP MODE — fetch all matching businesses with coordinates,
+            // MAP MODE — fetch all matching listings with coordinates,
             // no pagination, minimal payload.
-            $allBusinesses = $query->get();
+            $allListings = $query->get();
 
             // Post-filter: verified
             if ($request->filled('verified') && $request->verified == 'true') {
-                $allBusinesses = $allBusinesses->filter(function ($business) {
-                    return $business->hasVerifiedBadgeFeature();
+                $allListings = $allListings->filter(function ($listing) {
+                    return (bool) $listing->owner?->canUse('verified_badge');
                 })->values();
             }
 
-            // Post-filter: only businesses with at least one coordinate-bearing branch
-            $mapBusinesses = $allBusinesses
-                ->filter(function ($business) {
-                    return $business->locations->contains(function ($branch) {
-                        return $branch->latitude !== null && $branch->longitude !== null;
-                    });
+            // Post-filter: only listings whose single Location carries coordinates
+            $mapListings = $allListings
+                ->filter(function ($listing) {
+                    return $listing->location !== null
+                        && $listing->location->latitude !== null
+                        && $listing->location->longitude !== null;
                 })
                 ->values()
-                ->map(function ($business) {
-                    return $this->mapPinPayload($business);
+                ->map(function ($listing) {
+                    return $this->mapPinPayload($listing);
                 });
 
-            $businesses = [
-                'data' => $mapBusinesses,
-                'total' => $mapBusinesses->count(),
+            $listings = [
+                'data' => $mapListings,
+                'total' => $mapListings->count(),
                 // No pagination metadata for map mode
                 'from' => null,
                 'to' => null,
                 'links' => [],
             ];
         } else {
-            // LIST MODE — paginate as before
-            $businesses = $query->paginate(12)->withQueryString();
+            // LIST MODE — paginate
+            $listings = $query->paginate(12)->withQueryString();
 
             if ($request->filled('verified') && $request->verified == 'true') {
-                $businesses->setCollection(
-                    $businesses->getCollection()->filter(function ($business) {
-                        return $business->hasVerifiedBadgeFeature();
+                $listings->setCollection(
+                    $listings->getCollection()->filter(function ($listing) {
+                        return (bool) $listing->owner?->canUse('verified_badge');
                     })->values()
                 );
             }
@@ -306,13 +302,13 @@ class DirectoryController extends Controller
             $userFavoriteIds = [];
             if (auth()->check()) {
                 $userFavoriteIds = \App\Models\Favorite::where('user_id', auth()->id())
-                    ->pluck('business_id')
+                    ->pluck('listing_id')
                     ->toArray();
             }
 
-            $businesses->getCollection()->transform(function ($business) use ($userFavoriteIds) {
-                $resource = (new BusinessDirectoryResource($business))->resolve();
-                $resource['is_favorited'] = in_array($business->id, $userFavoriteIds);
+            $listings->getCollection()->transform(function ($listing) use ($userFavoriteIds) {
+                $resource = (new ListingDirectoryResource($listing))->resolve();
+                $resource['is_favorited'] = in_array($listing->id, $userFavoriteIds);
                 return $resource;
             });
         }
@@ -322,7 +318,7 @@ class DirectoryController extends Controller
         $categories = Category::active()->root()->ordered()->get();
 
         return Inertia::render('Public/Directory', [
-            'businesses' => $businesses,
+            'listings' => $listings,
             'countries' => $countries,
             'categories' => $categories,
             'filters' => array_merge(
@@ -355,38 +351,31 @@ class DirectoryController extends Controller
     /**
      * Build the minimal payload for a map pin.
      */
-    private function mapPinPayload($business): array
+    private function mapPinPayload($listing): array
     {
-        // Use the primary branch's coordinates if available,
-        // otherwise the first branch that has them.
-        $primary = $business->locations->firstWhere('is_primary', true)
-            ?? $business->locations->first();
+        // PHASE 11 / WAVE 1D-1 — a Listing has ZERO OR ONE Location.
+        $location = $listing->location;
 
-        $branchWithCoords = null;
-        if ($primary && $primary->latitude !== null && $primary->longitude !== null) {
-            $branchWithCoords = $primary;
-        } else {
-            $branchWithCoords = $business->locations->first(function ($branch) {
-                return $branch->latitude !== null && $branch->longitude !== null;
-            });
-        }
+        $cover = $listing->images->firstWhere('type', \App\Models\ListingImage::TYPE_COVER);
+        $logo = $listing->images->firstWhere('type', \App\Models\ListingImage::TYPE_LOGO);
 
         return [
-            'id' => $business->id,
-            'name' => $business->name,
-            'slug' => $business->slug,
-            'latitude' => (float) $branchWithCoords->latitude,
-            'longitude' => (float) $branchWithCoords->longitude,
-            'category' => $business->categories->first()?->name ?? 'Uncategorized',
-            'rating' => round((float) $business->average_rating, 1),
-            'reviews_count' => $business->total_reviews,
-            'cover_image_url' => $business->cover_image_url,
-            'logo_url' => $business->logo_url,
-            'is_featured' => (bool) $business->is_featured,
-            'is_verified' => $business->hasVerifiedBadgeFeature(),
-            'address' => $branchWithCoords->full_address,
+            'id' => $listing->id,
+            'type' => 'listing',
+            'listing_type' => $listing->getListingType()->value,
+            'name' => $listing->name,
+            'slug' => $listing->slug,
+            'latitude' => (float) $location->latitude,
+            'longitude' => (float) $location->longitude,
+            'category' => $listing->categories->first()?->name ?? 'Uncategorized',
+            'rating' => round((float) ($listing->reviews_avg_rating ?? 0), 1),
+            'reviews_count' => (int) ($listing->reviews_count ?? 0),
+            'cover_image_url' => $cover?->url ?? $listing->business?->cover_image_url,
+            'logo_url' => $logo?->url ?? $listing->business?->logo_url,
+            'is_featured' => (bool) $listing->is_featured,
+            'is_verified' => (bool) $listing->owner?->canUse('verified_badge'),
+            'address' => $location->full_address,
         ];
-
     }
     public function show($slug)
     {

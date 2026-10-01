@@ -102,26 +102,26 @@ class CollectionService
      */
     public function businessesQuery(Category $category, City $city)
     {
-        return Business::query()
+        // PHASE 11 / WAVE 1D-1 — a collection discovers LISTINGS.
+        return Listing::query()
             ->with([
-                'primaryLocation',
-                'locations' => fn($q) => $q->whereNull('hidden_at'),
-                'locations.city',
-                'locations.region',
-                'locations.country',
-                'locations.hours',
-                'locations.hourOverrides',
-                'logo',
-                'coverImage',
-                'galleryImages' => fn($q) => $q->whereNull('hidden_at'),
+                'business:id,name,slug,logo,cover_image',
+                'location.city',
+                'location.region',
+                'location.country',
+                'location.hours',
+                'location.hourOverrides',
+                'categories',
+                'services' => fn($q) => $q->whereNull('hidden_at'),
+                'images' => fn($q) => $q->whereNull('hidden_at'),
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',
             ])
-            ->where('status', Business::STATUS_PUBLISHED)
+            ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withDiscoverableListingInCategory($category->id)
-            ->whereHas('locations', fn($q) => $q->where('city_id', $city->id))
-            ->withCount(['reviews', 'galleryImages'])
+            ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
+            ->whereHas('location', fn($q) => $q->where('city_id', $city->id))
+            ->withCount(['reviews', 'images'])
             ->withAvg('reviews', 'rating');
     }
 
@@ -134,11 +134,11 @@ class CollectionService
         $cacheKey = "collection.count.{$category->id}.{$city->id}";
 
         return Cache::remember($cacheKey, self::CROSSLINK_CACHE_TTL, function () use ($category, $city) {
-            return Business::query()
-                ->where('status', Business::STATUS_PUBLISHED)
+            return Listing::query()
+                ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->withDiscoverableListingInCategory($category->id)
-                ->whereHas('locations', fn($q) => $q->where('city_id', $city->id))
+                ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
+                ->whereHas('location', fn($q) => $q->where('city_id', $city->id))
                 ->count();
         });
     }
@@ -240,10 +240,10 @@ class CollectionService
         $cacheKey = "collection.cat_total.{$category->id}";
 
         return Cache::remember($cacheKey, self::CROSSLINK_CACHE_TTL, function () use ($category) {
-            return Business::query()
-                ->where('status', Business::STATUS_PUBLISHED)
+            return Listing::query()
+                ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->withDiscoverableListingInCategory($category->id)
+                ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
                 ->count();
         });
     }

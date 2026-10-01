@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\City;
+use App\Models\Listing;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -82,31 +83,30 @@ class ExploreService
         $cacheKey = "explore.row.{$categoryId}." . ($cityId ?? 'all');
 
         return Cache::remember($cacheKey, self::ROW_CACHE_TTL, function () use ($categoryId, $cityId) {
-            $q = Business::query()
+            $q = Listing::query()
                 ->with([
-                    'primaryLocation',
-                    'locations' => fn($x) => $x->whereNull('hidden_at'),
-                    'locations.city',
-                    'locations.region',
-                    'locations.country',
-                    'logo',
-                    'coverImage',
+                    'business:id,name,slug,logo,cover_image',
+                    'location.city',
+                    'location.region',
+                    'location.country',
+                    'categories',
+                    'images',
                 ])
-                ->where('status', Business::STATUS_PUBLISHED)
+                ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->withDiscoverableListingInCategory($categoryId)
+                ->whereHas('categories', fn($c) => $c->where('categories.id', $categoryId))
                 ->withCount('reviews')
                 ->withAvg('reviews', 'rating');
 
             if ($cityId) {
-                $q->whereHas('locations', fn($x) => $x->where('city_id', $cityId));
+                $q->whereHas('location', fn($x) => $x->where('city_id', $cityId));
             }
 
             $q->orderByDesc('is_featured')->latest('published_at');
 
             return $q->take(self::BUSINESSES_PER_ROW)
                 ->get()
-                ->map(fn($b) => $this->cardPayload($b))
+                ->map(fn($l) => $this->cardPayload($l))
                 ->all();
         });
     }
@@ -183,11 +183,11 @@ class ExploreService
     private function countForCity(int $categoryId, int $cityId): int
     {
         return Cache::remember("explore.count.{$categoryId}.{$cityId}", self::ROW_CACHE_TTL, function () use ($categoryId, $cityId) {
-            return Business::query()
-                ->where('status', Business::STATUS_PUBLISHED)
+            return Listing::query()
+                ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->withDiscoverableListingInCategory($categoryId)
-                ->whereHas('locations', fn($q) => $q->where('city_id', $cityId))
+                ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
+                ->whereHas('location', fn($q) => $q->where('city_id', $cityId))
                 ->count();
         });
     }
@@ -195,39 +195,40 @@ class ExploreService
     private function countGlobal(int $categoryId): int
     {
         return Cache::remember("explore.count.{$categoryId}.all", self::ROW_CACHE_TTL, function () use ($categoryId) {
-            return Business::query()
-                ->where('status', Business::STATUS_PUBLISHED)
+            return Listing::query()
+                ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->withDiscoverableListingInCategory($categoryId)
+                ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
                 ->count();
         });
     }
 
     /**
-     * Slim payload for the ExploreCard (not the full BusinessDirectoryResource).
+     * Slim payload for the ExploreCard — a LISTING.
      */
-    private function cardPayload(Business $business): array
+    private function cardPayload(Listing $listing): array
     {
-        $primary = $business->primaryLocation
-            ?? $business->locations->firstWhere('is_primary', true)
-            ?? $business->locations->first();
-
-        $category = $business->categories->first();
+        $location = $listing->location;
+        $category = $listing->categories->first();
+        $logo = $listing->images->firstWhere('type', \App\Models\ListingImage::TYPE_LOGO);
+        $cover = $listing->images->firstWhere('type', \App\Models\ListingImage::TYPE_COVER);
 
         return [
-            'id' => $business->id,
-            'name' => $business->name,
-            'slug' => $business->slug,
+            'id' => $listing->id,
+            'type' => 'listing',
+            'listing_type' => $listing->getListingType()->value,
+            'name' => $listing->name,
+            'slug' => $listing->slug,
             // ✅ Raw paths for OptimizedImage (variants)
-            'cover_image' => $business->cover_image,
-            'logo' => $business->logo,
+            'cover_image' => $cover?->path ?? $listing->business?->cover_image,
+            'logo' => $logo?->path ?? $listing->business?->logo,
             // Keep URLs for backwards compatibility / fallbacks
-            'cover_image_url' => $business->cover_image_url,
-            'logo_url' => $business->logo_url,
-            'average_rating' => $business->average_rating,
-            'reviews_count' => $business->total_reviews,
+            'cover_image_url' => $cover?->url ?? $listing->business?->cover_image_url,
+            'logo_url' => $logo?->url ?? $listing->business?->logo_url,
+            'average_rating' => $listing->reviews_avg_rating,
+            'reviews_count' => (int) ($listing->reviews_count ?? 0),
             'category' => $category?->name,
-            'city' => $primary?->city?->name,
+            'city' => $location?->city?->name,
         ];
     }
 }

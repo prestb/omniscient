@@ -286,3 +286,123 @@ pages in an inconsistent state, which the 1D-1 brief explicitly forbids
    version (it is `getIndexes()`); the temporary cleanup helper was corrected.
 5. `LocationFoundationTest` already asserts Location is not a searchable
    identity; this slice adds the equivalent assertion for Business.
+
+---
+
+# CONTINUATION — DATABASE-BACKED BROWSE CONVERGENCE
+
+The database-backed public browse layer is now Listing-based too.
+
+## Directory conversion — IMPLEMENTED
+
+`DirectoryController::index()`:
+
+| Concern | Before | After |
+|---|---|---|
+| Base query | `Business::query()` | `Listing::query()` |
+| Eager load | `primaryLocation`, `locations.*`, `logo`, `coverImage`, `galleryImages`, `owner…` | `business`, `location.*`, `categories`, `services`, `images`, `owner.activeSubscription.plan` |
+| Counts | `withCount(['reviews','galleryImages'])` | `withCount(['reviews','images'])` |
+| Search filter | name / description / services | unchanged (works on Listing) |
+| Category | `withDiscoverableListingInCategory()` (a Business scope) | `whereHas('categories')` via `listing_categories` |
+| Country / region / city | `whereHas('locations', …)` | `whereHas('location', …)` — 0/1 place |
+| Open now | `whereHas('locations', …)` + hours/overrides | `whereHas('location', …)`, same override-aware logic |
+| Min rating | subquery on `reviews.business_id = businesses.id` | `reviews.listing_id = listings.id` |
+| Has photos | `whereHas('galleryImages')` | `whereHas('images')` |
+| Has whatsapp | `whereHas('locations', …)` | `whereHas('location', …)` |
+| Verified (post-filter) | `$business->hasVerifiedBadgeFeature()` | `$listing->owner?->canUse('verified_badge')` |
+| Favourites | `Favorite::pluck('business_id')` | `Favorite::pluck('listing_id')` |
+| Serialiser | `BusinessDirectoryResource` | `ListingDirectoryResource` |
+| Inertia prop | `businesses` | `listings` |
+
+`mapPinPayload()` now builds a pin from a Listing (id, `type`, `listing_type`,
+name, slug, the single Location's coordinates, category, rating, review count,
+listing media with organization-brand fallback, `is_verified` from the owner's
+plan).
+
+## Home conversion — IMPLEMENTED
+
+`HomeController::index()` featured and recent sections now query `Listing` with
+Listing eager loads; `stats.businesses` → `stats.listings`; Inertia props
+`featuredBusinesses` / `recentBusinesses` → `featuredListings` /
+`recentListings`, serialised through `ListingDirectoryResource`.
+
+## Explore conversion — IMPLEMENTED
+
+`ExploreService::fetchRowBusinesses()`, `countForCity()` and `countGlobal()` now
+query Listings; `cardPayload()` takes a `Listing` and emits `id`, `type`,
+`listing_type`, listing media (with organization-brand fallback), rating and the
+single Location's city.
+
+## Collection conversion — IMPLEMENTED
+
+`CollectionService::businessesQuery()`, `countBusinesses()` and
+`countCategoryTotal()` now query Listings filtered through
+`listing_categories` and `Listing → Location`.
+`CollectionController` serialises through `ListingDirectoryResource` and passes
+`listings`.
+
+## Resource conversion — IMPLEMENTED
+
+`ListingDirectoryResource` is the public browse resource. `BusinessDirectoryResource`
+remains **only** for the `/business/{slug}` organization page (see below).
+
+## Detail route status — DEFERRED (documented 1D-2 dependency)
+
+`DirectoryController::show($slug)` still resolves a **Business** and renders
+`Public/BusinessProfile`. This is deliberate and matches the approved target:
+
+```text
+/listing/{slug}   → canonical discoverable Listing     (1D-2)
+/business/{slug}  → Business / Organization page       (this is show())
+```
+
+Repurposing the route to a Listing would require the `/listing/{slug}` contract
+that 1D-2 introduces. Per the 1D-1 brief §12 the route contract is left
+unchanged and the dependency recorded:
+
+> **1D-2 dependency:** `DirectoryController::show()` +
+> `resolveRelatedBusinesses()` + `BusinessDirectoryResource` are the last
+> Business-based public paths. They are the **organization page**, not the
+> discovery result, and are converted when `/listing/{slug}` lands.
+
+No temporary dual detail architecture was invented.
+
+## Tests — IMPLEMENTED
+
+Added `tests/Feature/Listing/ListingBrowseConvergenceTest.php` (9 tests, 114
+assertions):
+
+1. the directory returns Listings, not Businesses
+2. a Business with no Listings is never emitted as a public result
+3. multiple Listings under one Business are returned as separate results
+4. a locationless Professional Listing is still discoverable
+5. business-associated and standalone Listings are both discoverable
+6. category filtering resolves through `listing_categories`
+7. city filtering resolves through `Listing → Location`
+8. category and location joins do not duplicate a Listing row
+9. home discovery sections are listing-backed
+
+## Frontend build — DONE
+
+`npm run build` (vite) completed successfully; `public/build` regenerated.
+
+## Remaining Business-based public discovery references
+
+| Reference | Classification |
+|---|---|
+| `DirectoryController::show()` | **DEFERRED** — the `/business/{slug}` organization page (1D-2) |
+| `DirectoryController::resolveRelatedBusinesses()` | **DEFERRED** — related list on the organization page (1D-2) |
+| `BusinessDirectoryResource` | **DEFERRED** — used only by the above |
+| `Business::query()` in owner/admin organization management | **LEGITIMATE** — not public discovery |
+| `BusinessCard.vue` prop named `business` | **NAMING DEBT** — 1D-6 |
+| `ExploreService::fetchRowBusinesses()`, `BUSINESSES_PER_ROW` | **NAMING DEBT** — behaviour is Listing-based |
+
+---
+
+```text
+PUBLIC DISCOVERY ENTITY:
+Listing
+
+BUSINESS PUBLIC DISCOVERY:
+Removed
+```
