@@ -4,8 +4,9 @@ namespace Tests\Unit\Services;
 
 use App\Models\Location;
 use App\Models\Business;
+use App\Models\Listing;
+use App\Models\ListingService;
 use App\Models\LocationHour;
-use App\Models\BusinessService;
 use App\Models\Lead;
 use App\Models\Review;
 use App\Models\User;
@@ -58,7 +59,8 @@ class MigrationReadinessTest extends TestCase
             LocationHour::factory()->forDay($day)->create(['location_id' => $limbe->id]);
         }
 
-        BusinessService::create(['business_id' => $business->id, 'name' => 'Embroidery']);
+        $listing = Listing::factory()->forBusiness($business)->create();
+        ListingService::create(['listing_id' => $listing->id, 'name' => 'Embroidery']);
 
         foreach (range(1, 2) as $i) {
             Review::create([
@@ -127,13 +129,14 @@ class MigrationReadinessTest extends TestCase
         // the branch_hours unique key).
         LocationHour::factory()->forDay(1)->create(['location_id' => $branch->id]);
         LocationHour::factory()->forDay(2)->create(['location_id' => $branch->id]);
-        BusinessService::create(['business_id' => $business->id, 'name' => 'Service']);
+        $listing = Listing::factory()->forBusiness($business)->create();
+        ListingService::create(['listing_id' => $listing->id, 'name' => 'Service']);
 
         $snapshot = fn () => [
             'businesses' => DB::table('businesses')->count(),
             'locations' => DB::table('locations')->count(),
             'location_hours' => DB::table('location_hours')->count(),
-            'business_services' => DB::table('business_services')->count(),
+            'listing_services' => DB::table('listing_services')->count(),
             'businesses_updated' => DB::table('businesses')->orderBy('id')->pluck('updated_at')->all(),
             'locations_updated' => DB::table('locations')->orderBy('id')->pluck('updated_at')->all(),
         ];

@@ -203,8 +203,8 @@ class SubscriptionService
     protected function enforcedLimits(): array
     {
         return [
-            'max_businesses',
-            'max_branches',
+            'max_listings',
+            'max_locations',
             'max_services',
             'max_images',
             'max_coupons',

@@ -189,13 +189,13 @@ class Business extends Model
         return max(0, $maxBusinesses - $businessCount);
     }
 
-        /**
+    /**
      * Check if user can add another physical Location to this organization.
      *
-     * PHASE 10: the plan column is still `max_branches` (plan-column rename is
-     * deferred), but it now caps Locations — physical places.
+     * PHASE 11 — the canonical plan column is `max_locations` and the quota key is
+     * `locations` (Entitlement::CREATE_LOCATION).
      */
-    public function canCreateBranch()
+    public function canCreateLocation()
     {
         $owner = $this->owner;
         if (!$owner)
@@ -222,7 +222,7 @@ class Business extends Model
     /**
      * Get remaining location slots for this business.
      */
-    public function getRemainingBranchSlots()
+    public function getRemainingLocationSlots()
     {
         $owner = $this->owner;
         if (!$owner)
@@ -311,8 +311,8 @@ class Business extends Model
     public function hasReachedLimit($type)
     {
         switch ($type) {
-            case 'branches':
-                return !$this->canCreateBranch();
+            case 'locations':
+                return !$this->canCreateLocation();
             case 'images':
                 return !$this->canUploadImages();
             default:

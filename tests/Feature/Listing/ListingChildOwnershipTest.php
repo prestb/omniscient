@@ -3,14 +3,14 @@
 namespace Tests\Feature\Listing;
 
 use App\Models\Business;
-use App\Models\BusinessAnalytics;
-use App\Models\BusinessContact;
-use App\Models\BusinessImage;
-use App\Models\BusinessService;
 use App\Models\Coupon;
 use App\Models\Favorite;
 use App\Models\Lead;
 use App\Models\Listing;
+use App\Models\ListingAnalytics;
+use App\Models\ListingContact;
+use App\Models\ListingImage;
+use App\Models\ListingService;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,15 +45,15 @@ class ListingChildOwnershipTest extends TestCase
     {
         [$business, $buea, $limbe] = $this->twoListings();
 
-        BusinessService::create(['business_id' => $business->id, 'listing_id' => $buea->id, 'name' => 'Graphic Design']);
-        BusinessService::create(['business_id' => $business->id, 'listing_id' => $limbe->id, 'name' => 'T-Shirt Printing']);
+        ListingService::create(['listing_id' => $buea->id, 'name' => 'Graphic Design']);
+        ListingService::create(['listing_id' => $limbe->id, 'name' => 'T-Shirt Printing']);
 
         $this->assertSame(1, $buea->services()->count());
         $this->assertSame(1, $limbe->services()->count());
         $this->assertSame('Graphic Design', $buea->services()->first()->name);
         $this->assertSame('T-Shirt Printing', $limbe->services()->first()->name);
         // No fan-out: exactly two rows.
-        $this->assertSame(2, BusinessService::count());
+        $this->assertSame(2, ListingService::count());
     }
 
     public function test_reviews_belong_to_a_listing_and_are_never_copied(): void
@@ -80,30 +80,28 @@ class ListingChildOwnershipTest extends TestCase
     {
         [$business, $buea, $limbe] = $this->twoListings();
 
-        BusinessImage::create([
-            'business_id' => $business->id,
+        ListingImage::create([
             'listing_id' => $buea->id,
             'path' => 'listings/buea/logo.png',
-            'type' => BusinessImage::TYPE_LOGO,
+            'type' => ListingImage::TYPE_LOGO,
         ]);
-        BusinessImage::create([
-            'business_id' => $business->id,
+        ListingImage::create([
             'listing_id' => $limbe->id,
             'path' => 'listings/limbe/logo.png',
-            'type' => BusinessImage::TYPE_LOGO,
+            'type' => ListingImage::TYPE_LOGO,
         ]);
 
         $this->assertSame(1, $buea->images()->count());
         $this->assertSame(1, $limbe->images()->count());
-        $this->assertSame(2, BusinessImage::count());
+        $this->assertSame(2, ListingImage::count());
     }
 
     public function test_contacts_are_listing_scoped(): void
     {
         [$business, $buea, $limbe] = $this->twoListings();
 
-        BusinessContact::create(['business_id' => $business->id, 'listing_id' => $buea->id, 'type' => 'whatsapp', 'value' => '237111']);
-        BusinessContact::create(['business_id' => $business->id, 'listing_id' => $limbe->id, 'type' => 'whatsapp', 'value' => '237222']);
+        ListingContact::create(['listing_id' => $buea->id, 'type' => 'whatsapp', 'value' => '237111']);
+        ListingContact::create(['listing_id' => $limbe->id, 'type' => 'whatsapp', 'value' => '237222']);
 
         $this->assertSame('237111', $buea->contacts()->first()->value);
         $this->assertSame('237222', $limbe->contacts()->first()->value);
@@ -161,12 +159,12 @@ class ListingChildOwnershipTest extends TestCase
     {
         [$business, $buea, $limbe] = $this->twoListings();
 
-        BusinessAnalytics::create(['business_id' => $business->id, 'listing_id' => $buea->id, 'date' => today(), 'views' => 10]);
-        BusinessAnalytics::create(['business_id' => $business->id, 'listing_id' => $limbe->id, 'date' => today(), 'views' => 4]);
+        ListingAnalytics::create(['listing_id' => $buea->id, 'date' => today(), 'views' => 10]);
+        ListingAnalytics::create(['listing_id' => $limbe->id, 'date' => today(), 'views' => 4]);
 
         $this->assertSame(10, $buea->analytics()->first()->views);
         $this->assertSame(4, $limbe->analytics()->first()->views);
-        $this->assertSame(1, BusinessAnalytics::forListing($buea->id)->count());
+        $this->assertSame(1, ListingAnalytics::forListing($buea->id)->count());
     }
 
     public function test_categories_attach_to_a_listing_via_pivot(): void

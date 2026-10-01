@@ -113,7 +113,7 @@ class ListingMigrationAnalyzerTest extends TestCase
         $derived = collect($report['classification']['derived_system'])
             ->pluck('entity')->all();
 
-        $this->assertContains('business_analytics', $derived);
+        $this->assertContains('listing_analytics', $derived);
     }
 
     public function test_analysis_does_not_mutate_the_database(): void

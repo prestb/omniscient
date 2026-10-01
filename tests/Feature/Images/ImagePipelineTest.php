@@ -1,7 +1,8 @@
 <?php
 
 use App\Models\Business;
-use App\Models\BusinessImage;
+use App\Models\Listing;
+use App\Models\ListingImage;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
@@ -15,6 +16,10 @@ beforeEach(function () {
 /**
  * Create an owner with verified email + active subscription so
  * owner-side middleware doesn't redirect.
+ *
+ * PHASE 11 / WAVE 1B — media is LISTING-owned (`listing_images.listing_id`).
+ * Owner routes still address an organization, so the organization must own a
+ * Listing for uploads to attach to via Business::primaryListing().
  */
 function createOwnerWithBusiness(): array
 {
@@ -31,8 +36,9 @@ function createOwnerWithBusiness(): array
     ]);
 
     $business = Business::factory()->published()->create(['owner_id' => $owner->id]);
+    $listing = Listing::factory()->forBusiness($business)->create();
 
-    return [$owner, $business];
+    return [$owner, $business, $listing];
 }
 
 test('uploading a logo generates all variants', function () {
@@ -60,7 +66,7 @@ test('uploading a logo generates all variants', function () {
 });
 
 test('deleting an image removes all variants from storage', function () {
-    [$owner, $business] = createOwnerWithBusiness();
+    [$owner, $business, $listing] = createOwnerWithBusiness();
 
     $file = UploadedFile::fake()->image('test.jpg', 800, 600);
 
@@ -69,7 +75,7 @@ test('deleting an image removes all variants from storage', function () {
         ['image' => $file, 'type' => 'gallery']
     );
 
-    $image = BusinessImage::where('business_id', $business->id)->first();
+    $image = ListingImage::where('listing_id', $listing->id)->first();
     expect($image)->not->toBeNull();
 
     $base = preg_replace('#\.[^/.]+$#', '', $image->path);
@@ -86,15 +92,16 @@ test('deleting an image removes all variants from storage', function () {
     Storage::disk('public')->assertMissing("{$base}_medium.jpg");
     Storage::disk('public')->assertMissing("{$base}_large.jpg");
 
-    expect(BusinessImage::find($image->id))->toBeNull();
+    expect(ListingImage::find($image->id))->toBeNull();
 });
 
-test('BusinessImage has thumbnail_url and medium_url accessors', function () {
+test('ListingImage has thumbnail_url and medium_url accessors', function () {
     $owner = User::factory()->owner()->create();
     $business = Business::factory()->published()->create(['owner_id' => $owner->id]);
+    $listing = Listing::factory()->forBusiness($business)->create();
 
-    $image = BusinessImage::create([
-        'business_id' => $business->id,
+    $image = ListingImage::create([
+        'listing_id' => $listing->id,
         'path' => 'businesses/1/images/test.jpg',
         'type' => 'gallery',
         'is_primary' => false,

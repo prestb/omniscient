@@ -95,7 +95,7 @@ final class ListingOwnership
                     . 'listing. Future services belong directly to Listings; historically ambiguous '
                     . 'services stay parent-level pending explicit per-listing assignment.',
                 'rationale' => 'Not every branch necessarily provides every service.',
-                'evidence' => 'business_services has business_id only; no branch column.',
+                'evidence' => 'listing_services is listing_id-scoped; business_id was dropped in Phase 11 Wave 1B.',
             ],
             'category' => [
                 'marker' => self::DECISION,
@@ -116,7 +116,7 @@ final class ListingOwnership
                     . 'already live on the branch and move with it. A contact belonging to one '
                     . 'location must never silently become another location\'s contact.',
                 'rationale' => 'A Buea phone must not become the Limbe phone.',
-                'evidence' => 'business_contacts has business_id only; branches carry phone + whatsapp.',
+                'evidence' => 'listing_contacts is listing_id-scoped; place-specific phone/whatsapp live on the Location.',
             ],
             'media' => [
                 'marker' => self::DECISION,
@@ -126,7 +126,7 @@ final class ListingOwnership
                     . 'location-specific. Each listing may hold its own logo/cover/gallery. '
                     . 'Physical files are not moved and public URLs are not changed in this phase.',
                 'rationale' => 'Avoid unnecessary file duplication while allowing per-listing galleries.',
-                'evidence' => 'business_images has business_id + type in {logo, cover, gallery}; paths are public URLs.',
+                'evidence' => 'listing_images is listing_id-scoped with type in {logo, cover, gallery}; paths are public URLs.',
             ],
             'lead' => [
                 'marker' => self::DECISION,
@@ -146,7 +146,7 @@ final class ListingOwnership
                     . 'at migration time. No historical per-location metrics are fabricated. Any '
                     . 'combined view must be labelled an aggregate, not known per-location data.',
                 'rationale' => 'We cannot truthfully attribute historical traffic to a location.',
-                'evidence' => 'business_analytics keyed by (business_id, date); no branch column.',
+                'evidence' => 'listing_analytics is keyed by (listing_id, date).',
             ],
             'favorite' => [
                 'marker' => self::DECISION,

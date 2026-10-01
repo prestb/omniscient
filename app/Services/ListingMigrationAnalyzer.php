@@ -186,7 +186,7 @@ class ListingMigrationAnalyzer
     protected function derivedSystemItems(Business $business): array
     {
         return [
-            ['entity' => 'business_analytics', 'reason' => 'Historic aggregates — regenerate per listing'],
+            ['entity' => 'listing_analytics', 'reason' => 'Historic aggregates — regenerate per listing'],
             ['entity' => 'business.slug', 'reason' => 'Unique key must be regenerated per listing'],
             ['entity' => 'ratings_aggregate', 'reason' => 'Derived from reviews'],
         ];

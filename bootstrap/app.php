@@ -9,7 +9,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Cache\RateLimiting\Limit;
 use App\Http\Middleware\SecurityHeaders;
-use App\Http\Middleware\CheckSubscriptionLimits;
 use App\Http\Middleware\BlockImpersonatedAdmins;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Middleware\HandleCors;
@@ -67,7 +66,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => CheckRole::class,
             'track.business' => TrackBusinessView::class,
             'throttle' => Illuminate\Routing\Middleware\ThrottleRequests::class,
-            'subscription.limits' => CheckSubscriptionLimits::class,
             'plan.feature' => \App\Http\Middleware\CheckPlanFeature::class,
             'plan.limit' => \App\Http\Middleware\CheckPlanLimit::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerifiedNotice::class,

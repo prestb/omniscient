@@ -62,8 +62,9 @@ class LocationController extends Controller
             return $redirect;
         }
 
-        // ✅ Trait-based check (plan column is still `max_branches`)
-        if (method_exists($user, 'canAdd') && !$user->canAdd('branches')) {
+        // ✅ Trait-based check — the canonical quota key is `locations`
+        //    (Entitlement::CREATE_LOCATION). `plan.limit:locations` also guards this route.
+        if (method_exists($user, 'canAdd') && !$user->canAdd('locations')) {
             return redirect()->route('owner.subscription.index')
                 ->with('error', 'You have reached the maximum number of locations allowed on your plan.');
         }
@@ -95,7 +96,7 @@ class LocationController extends Controller
             return $redirect;
         }
 
-        if (method_exists($user, 'canAdd') && !$user->canAdd('branches')) {
+        if (method_exists($user, 'canAdd') && !$user->canAdd('locations')) {
             return back()->with('error', 'You have reached the maximum number of locations.');
         }
 

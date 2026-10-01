@@ -54,17 +54,31 @@ class ListingSchemaTest extends TestCase
     {
         // No competing branch pointer on discoverable children.
         foreach ([
-            'business_services',
-            'business_images',
-            'business_contacts',
+            'listing_services',
+            'listing_images',
+            'listing_contacts',
             'reviews',
-            'business_analytics',
+            'listing_analytics',
             'coupons',
             'leads',
         ] as $table) {
             $this->assertFalse(
                 Schema::hasColumn($table, 'branch_id'),
                 "{$table}.branch_id should be removed in Phase 9"
+            );
+        }
+
+        // PHASE 11 / WAVE 1B — the legacy organization-scoped child tables are
+        // gone; child ownership is `listing_id` only.
+        foreach ([
+            'business_services',
+            'business_images',
+            'business_contacts',
+            'business_analytics',
+        ] as $legacy) {
+            $this->assertFalse(
+                Schema::hasTable($legacy),
+                "{$legacy} should have been renamed to listing_* in Phase 11 Wave 1B"
             );
         }
 

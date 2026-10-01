@@ -382,53 +382,9 @@ class Subscription extends Model
         return true;
     }
 
-    public function canCreateBranch($businessId)
-    {
-        if (!$this->isActive()) {
-            return false;
-        }
-
-                $maxBranches = $this->plan->max_locations ?? 0;
-        if ($maxBranches === -1) {
-            return true;
-        }
-
-        $business = null;
-        if ($businessId instanceof \App\Models\Business) {
-            $business = $businessId;
-        } elseif (is_numeric($businessId)) {
-            $business = \App\Models\Business::find($businessId);
-        }
-
-        if (!$business) {
-            return false;
-        }
-
-                $branchCount = $business->locations()->count();
-        return $branchCount < $maxBranches;
-    }
-
     public static function calculateEndDate($startDate, $months)
     {
         return $startDate->copy()->addMonths($months);
-    }
-
-    public function canCreateBusiness()
-    {
-        if (!$this->isActive()) {
-            return false;
-        }
-
-                $maxBusinesses = $this->plan->max_listings ?? 0;
-        if ($maxBusinesses === -1) {
-            return true;
-        }
-
-        $businessCount = Business::where('owner_id', $this->business?->owner_id)
-            ->whereNotIn('status', ['deleted', 'rejected'])
-            ->count();
-
-        return $businessCount < $maxBusinesses;
     }
 
     // ============== PRORATION METHODS ==============

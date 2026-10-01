@@ -121,7 +121,7 @@ final class DataOwnership
             ],
 
             // ── Derived / system ─────────────────────────────────────
-            'business_analytics' => [
+            'listing_analytics' => [
                 'class' => self::DERIVED_SYSTEM,
                 'ambiguity' => 'high',
                 'target' => 'regenerate; keep historical baseline',
@@ -179,7 +179,7 @@ final class DataOwnership
             'leads',
             'coupons',
             'favorites',
-            'business_analytics',
+            'listing_analytics',
         ];
     }
 
@@ -202,11 +202,11 @@ final class DataOwnership
     public static function listingScopedTables(): array
     {
         return [
-            'business_services',
-            'business_images',
-            'business_contacts',
+            'listing_services',
+            'listing_images',
+            'listing_contacts',
             'reviews',
-            'business_analytics',
+            'listing_analytics',
             'leads',
             'coupons',
             'favorites',

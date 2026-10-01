@@ -48,7 +48,7 @@ class DataOwnershipTest extends TestCase
 
     public function test_analytics_and_verification_are_derived(): void
     {
-        $this->assertSame(DataOwnership::DERIVED_SYSTEM, DataOwnership::classOf('business_analytics'));
+        $this->assertSame(DataOwnership::DERIVED_SYSTEM, DataOwnership::classOf('listing_analytics'));
         $this->assertSame(DataOwnership::DERIVED_SYSTEM, DataOwnership::classOf('verification_badge'));
     }
 
@@ -97,7 +97,7 @@ class DataOwnershipTest extends TestCase
     {
         $this->assertSame('high', DataOwnership::ambiguityOf('reviews'));
         $this->assertSame('high', DataOwnership::ambiguityOf('leads'));
-        $this->assertSame('high', DataOwnership::ambiguityOf('business_analytics'));
+        $this->assertSame('high', DataOwnership::ambiguityOf('listing_analytics'));
     }
 
     public function test_unknown_entity_returns_null(): void
