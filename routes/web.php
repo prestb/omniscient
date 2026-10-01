@@ -54,6 +54,7 @@ use App\Http\Controllers\Owner\NotificationController;
 use App\Http\Controllers\Owner\ReviewController as OwnerReviewController;
 use App\Http\Controllers\Owner\CouponController;
 use App\Http\Controllers\Owner\LeadController as OwnerLeadController;
+use App\Http\Controllers\Owner\ListingLeadController as OwnerListingLeadController;
 
 // Admin
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -479,6 +480,24 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
     // Leads — PHASE 11 / WAVE 1D: EXPLICIT Business context.
     // A Lead is Business-owned, so the Business is identified by the route,
     // never selected from the owner's Businesses.
+    // Inquiries — PHASE 12B: LISTING-attributed owner access.
+    //
+    // The authoritative relationship is Inquiry -> Listing -> Listing owner.
+    // Business is OPTIONAL context and is NOT part of authorization, so this is
+    // the only route set that can reach an inquiry belonging to a Listing with
+    // `business_id = NULL`. It reuses the existing Owner/Leads Inertia pages.
+    //
+    // No `plan.feature:lead_capture` middleware here: that gate resolves through
+    // a Business, and a Business-less Listing has none. The public submission
+    // gate in ListingLeadController remains the entitlement boundary.
+    Route::prefix('listings/{listing}/leads')->name('listings.leads.')->group(function () {
+        Route::get('/', [OwnerListingLeadController::class, 'index'])->name('index');
+        Route::get('/{lead}', [OwnerListingLeadController::class, 'show'])->name('show');
+        Route::put('/{lead}/status', [OwnerListingLeadController::class, 'updateStatus'])->name('update-status');
+        Route::put('/{lead}/notes', [OwnerListingLeadController::class, 'updateNotes'])->name('update-notes');
+        Route::delete('/{lead}', [OwnerListingLeadController::class, 'destroy'])->name('destroy');
+    });
+
     Route::prefix('businesses/{business}/leads')->name('businesses.leads.')->group(function () {
         Route::get('/', [OwnerLeadController::class, 'index'])
             ->name('index')

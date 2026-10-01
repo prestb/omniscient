@@ -194,6 +194,7 @@ class Listing extends Model
      * {@see businessReviews()} below.
      */
 
+
     /**
      * PHASE 11 — BUSINESS REVIEW AGGREGATE (Step 1 of review attribution integrity).
      *

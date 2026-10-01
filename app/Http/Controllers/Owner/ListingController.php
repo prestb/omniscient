@@ -29,7 +29,7 @@ class ListingController extends Controller
         $listings = Listing::query()
             ->where('owner_id', $request->user()->id)
             ->with(['business:id,name,slug', 'location.city'])
-            ->withCount(['businessReviews', 'images'])
+            ->withCount(['businessReviews', 'images', 'leads'])
             ->latest()
             ->paginate(15)
             ->withQueryString();

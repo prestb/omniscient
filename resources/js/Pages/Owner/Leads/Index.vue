@@ -11,7 +11,7 @@
                     d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </template>
             <template #title>Leads inbox</template>
-            <template #subtitle>{{ business.name }}</template>
+            <template #subtitle>{{ contextTitle }}</template>
             <template #actions>
                 <span
                     class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -113,7 +113,7 @@
                 </div>
 
                 <div v-if="leads.data && leads.data.length > 0" class="divide-y divide-gray-100 dark:divide-gray-700">
-                    <a v-for="lead in leads.data" :key="lead.id" :href="`/owner/businesses/${business.id}/leads/${lead.id}`"
+                    <a v-for="lead in leads.data" :key="lead.id" :href="`${basePath}/${lead.id}`"
                         class="block p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
                         :class="lead.status === 'new' ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''">
                         <div class="flex items-start gap-4">
@@ -134,6 +134,12 @@
                                             <span :class="statusClass(lead.status)"
                                                 class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full">
                                                 {{ lead.status }}
+                                            </span>
+                                            <!-- PHASE 12B — which Listing generated this inquiry.
+                                                 Leads are Listing-attributed; Business is optional context. -->
+                                            <span v-if="lead.listing"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                                                {{ lead.listing.name }}
                                             </span>
                                         </div>
                                         <div
@@ -208,7 +214,7 @@
 </template>
 
 <script setup>
-    import { reactive } from 'vue';
+    import { reactive, computed } from 'vue';
     import { router } from '@inertiajs/vue3';
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     // import Breadcrumb from '@/Components/Breadcrumb.vue';
@@ -217,10 +223,24 @@
 
     const props = defineProps({
         business: Object,
+        /*
+         * PHASE 12B — when owner inquiry access is Listing-scoped, `listing` is
+         * set and `business` is null for a Listing with no organization. The
+         * page then titles and links against the Listing.
+         */
+        listing: Object,
         leads: Object,
         stats: Object,
         filters: Object,
     });
+
+    const contextTitle = computed(() => props.listing?.name || props.business?.name || 'Inquiries');
+
+    const basePath = computed(() =>
+        props.listing
+            ? `/owner/listings/${props.listing.id}/leads`
+            : `/owner/businesses/${props.business.id}/leads`
+    );
 
     const filters = reactive({
         status: props.filters?.status || '',
@@ -255,7 +275,7 @@
     };
 
     const applyFilters = () => {
-        router.get(`/owner/businesses/${props.business.id}/leads`, filters, {
+        router.get(basePath.value, filters, {
             preserveState: true,
             preserveScroll: true,
         });
