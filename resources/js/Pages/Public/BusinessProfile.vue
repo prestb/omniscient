@@ -542,10 +542,11 @@
                     <ReviewTriggerCard @open="showReviewModal = true" />
 
                     <!-- ✅ LEAD TRIGGER (when feature enabled) -->
-                    <LeadTriggerCard v-if="business.feature_flags?.lead_capture" @open="showLeadModal = true" />
+                    <!-- PHASE 12 — no organization-level inquiry trigger. An inquiry
+                     must name the Listing that generated it; use a Listing below. -->
 
                     <!-- Locked hint for owner/admin (when lead_capture is not enabled) -->
-                    <div v-else-if="$page.props.auth?.user && ($page.props.auth.user.id === business.owner_id || $page.props.auth.user.role === 'admin' || $page.props.auth.user.role === 'super_admin')"
+                    <div v-if="$page.props.auth?.user && ($page.props.auth.user.id === business.owner_id || $page.props.auth.user.role === 'admin' || $page.props.auth.user.role === 'super_admin')"
                         class="bg-gradient-to-br from-primary-50 to-purple-50 dark:from-primary-950/20 dark:to-purple-950/20 border border-primary-200 dark:border-primary-800 rounded-2xl p-5">
                         <div class="flex items-start gap-3 mb-3">
                             <div
@@ -706,8 +707,11 @@
         <ReviewFormModal v-model:show="showReviewModal" :business-id="business.id" :business-name="business.name"
             @submitted="handleReviewSubmitted" />
 
-        <LeadCaptureFormModal v-if="business.feature_flags?.lead_capture" v-model:show="showLeadModal"
-            :business="business" :business-name="business.name" />
+        <!-- PHASE 12 — the organization page no longer hosts an inquiry form.
+             A Business may own many Listings, so an organization-level form
+             cannot attribute an inquiry to the Listing that generated it, and
+             fabricating one is forbidden. Inquiries are sent from the Listing
+             page (/listing/{slug}) via the Listings listed above. -->
 
 
         <!-- ==================== GALLERY LIGHTBOX ==================== -->

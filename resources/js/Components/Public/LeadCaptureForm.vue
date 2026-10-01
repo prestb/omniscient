@@ -129,7 +129,12 @@
     import { usePage } from '@inertiajs/vue3';
 
     const props = defineProps({
-        business: {
+        /*
+         * PHASE 12 — the inquiry is attributed to the LISTING the visitor is
+         * viewing. Business is optional context that the server derives from the
+         * Listing; it is never submitted by the client.
+         */
+        listing: {
             type: Object,
             required: true,
         },
@@ -177,7 +182,7 @@
         errorMessage.value = '';
 
         try {
-            const response = await axios.post(`/business/${props.business.slug}/contact`, form);
+            const response = await axios.post(`/listing/${props.listing.slug}/contact`, form);
 
             if (response.data.success) {
                 successMessage.value = response.data.message;

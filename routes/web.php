@@ -27,7 +27,7 @@ use App\Http\Controllers\Public\PricingController;
 use App\Http\Controllers\Public\ContactController as PublicContactController;
 use App\Http\Controllers\Public\ReviewController as PublicReviewController;
 use App\Http\Controllers\Public\CouponController as PublicCouponController;
-use App\Http\Controllers\Public\LeadController;
+use App\Http\Controllers\Public\ListingLeadController;
 use App\Http\Controllers\Public\FavoriteController;
 
 // Auth
@@ -138,10 +138,18 @@ Route::post('/api/redemption/{token}/confirm', [\App\Http\Controllers\Public\Red
     ->middleware(['auth', 'throttle:redemption-confirm'])
     ->name('coupons.redeem.confirm');
 
-// Public lead submission
-Route::post('/business/{business:slug}/contact', [LeadController::class, 'store'])
+// PHASE 12 — LISTING-ATTRIBUTED CONNECTION.
+// An inquiry belongs to the LISTING that generated it. Route model binding on
+// the slug means the visitor explicitly submits against the exact Listing they
+// viewed, so no representative Listing is ever selected. Business context is
+// derived server-side from the Listing and is never visitor-supplied.
+//
+// The former POST /business/{business:slug}/contact is RETIRED. A Business may
+// own many Listings, so it could not unambiguously attribute an inquiry; its old
+// behaviour wrote `listing_id = NULL`, which this phase makes impossible.
+Route::post('/listing/{listing:slug}/contact', [ListingLeadController::class, 'storeListing'])
     ->middleware('throttle:lead')
-    ->name('business.contact');
+    ->name('listing.contact');
 
 // Public reviews
 Route::prefix('business/{business}/reviews')->name('business.reviews.')->group(function () {

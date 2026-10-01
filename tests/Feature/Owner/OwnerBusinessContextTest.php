@@ -111,8 +111,8 @@ test('the lead index contains only the routed business leads', function () {
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
 
-    Lead::create(['business_id' => $a->id, 'name' => 'Lead A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
-    Lead::create(['business_id' => $b->id, 'name' => 'Lead B', 'message' => 'y', 'status' => Lead::STATUS_NEW]);
+    Lead::create(['business_id' => $a->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($a)->create()->id, 'name' => 'Lead A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
+    Lead::create(['business_id' => $b->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($b)->create()->id, 'name' => 'Lead B', 'message' => 'y', 'status' => Lead::STATUS_NEW]);
 
     $props = $this->actingAs($owner)->get("/owner/businesses/{$a->id}/leads")
         ->assertOk()
@@ -128,8 +128,8 @@ test('sibling business leads are isolated from each other', function () {
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
 
-    Lead::create(['business_id' => $a->id, 'name' => 'Only A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
-    Lead::create(['business_id' => $b->id, 'name' => 'Only B', 'message' => 'y', 'status' => Lead::STATUS_NEW]);
+    Lead::create(['business_id' => $a->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($a)->create()->id, 'name' => 'Only A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
+    Lead::create(['business_id' => $b->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($b)->create()->id, 'name' => 'Only B', 'message' => 'y', 'status' => Lead::STATUS_NEW]);
 
     $props = $this->actingAs($owner)->get("/owner/businesses/{$b->id}/leads")
         ->viewData('page')['props'];
@@ -142,7 +142,7 @@ test('a lead cannot be shown through a sibling business context', function () {
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
 
-    $leadA = Lead::create(['business_id' => $a->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
+    $leadA = Lead::create(['business_id' => $a->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($a)->create()->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
 
     $this->actingAs($owner)->get("/owner/businesses/{$b->id}/leads/{$leadA->id}")->assertForbidden();
 });
@@ -152,7 +152,7 @@ test('a lead status cannot be mutated through a sibling business context', funct
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
 
-    $leadA = Lead::create(['business_id' => $a->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
+    $leadA = Lead::create(['business_id' => $a->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($a)->create()->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
 
     $this->actingAs($owner)
         ->put("/owner/businesses/{$b->id}/leads/{$leadA->id}/status", ['status' => 'archived'])
@@ -166,7 +166,7 @@ test('lead notes cannot be mutated through a sibling business context', function
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
 
-    $leadA = Lead::create(['business_id' => $a->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
+    $leadA = Lead::create(['business_id' => $a->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($a)->create()->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
 
     $this->actingAs($owner)
         ->put("/owner/businesses/{$b->id}/leads/{$leadA->id}/notes", ['owner_notes' => 'Intrusion'])
@@ -180,7 +180,7 @@ test('a lead cannot be deleted through a sibling business context', function () 
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
 
-    $leadA = Lead::create(['business_id' => $a->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
+    $leadA = Lead::create(['business_id' => $a->id, 'listing_id' => App\Models\Listing::factory()->forBusiness($a)->create()->id, 'name' => 'A', 'message' => 'x', 'status' => Lead::STATUS_NEW]);
 
     $this->actingAs($owner)->delete("/owner/businesses/{$b->id}/leads/{$leadA->id}")->assertForbidden();
 
@@ -195,7 +195,9 @@ test('another owners business cannot be accessed for leads', function () {
     $this->actingAs($owner)->get("/owner/businesses/{$foreign->id}/leads")->assertForbidden();
 
     $foreignLead = Lead::create([
-        'business_id' => $foreign->id, 'name' => 'F', 'message' => 'x', 'status' => Lead::STATUS_NEW,
+        'business_id' => $foreign->id,
+        'listing_id' => App\Models\Listing::factory()->forBusiness($foreign)->create()->id,
+        'name' => 'F', 'message' => 'x', 'status' => Lead::STATUS_NEW,
     ]);
 
     $this->actingAs($owner)->get("/owner/businesses/{$foreign->id}/leads/{$foreignLead->id}")->assertForbidden();

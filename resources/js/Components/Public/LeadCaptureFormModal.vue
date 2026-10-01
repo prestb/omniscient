@@ -50,7 +50,7 @@
 
                         <!-- Body -->
                         <div class="p-5 overflow-y-auto flex-1">
-                            <LeadCaptureForm :business="business" @submitted="onLeadSubmitted" />
+                            <LeadCaptureForm :listing="listing" @submitted="onLeadSubmitted" />
                         </div>
                     </div>
                 </Transition>
@@ -69,7 +69,8 @@
             type: Boolean,
             default: false,
         },
-        business: {
+        // PHASE 12 — inquiries are attributed to a LISTING.
+        listing: {
             type: Object,
             required: true,
         },

@@ -77,6 +77,15 @@
 
             <!-- ==================== SIDEBAR ==================== -->
             <aside class="space-y-6">
+                <!-- PHASE 12 — LISTING-ATTRIBUTED CONNECTION.
+                     The inquiry is bound to THIS Listing via route model binding.
+                     Business context (if any) is derived server-side. A Listing
+                     with no Business works identically. -->
+                <section id="inquiry"
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Send an inquiry</h2>
+                    <LeadCaptureForm :listing="listing" />
+                </section>
                 <!-- Organization context: the Listing stays canonical -->
                 <section v-if="listing.business_id" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
                     <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Organization</h2>
@@ -108,6 +117,7 @@
 <script setup>
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import OptimizedImage from '@/Components/Public/OptimizedImage.vue';
+import LeadCaptureForm from '@/Components/Public/LeadCaptureForm.vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import { onMounted } from 'vue';
