@@ -30,10 +30,13 @@ return new class extends Migration
             $table->string('currency', 3)->default('XAF');
             $table->integer('trial_days')->default(0);
             
-            // ============== RESOURCE LIMITS ==============
+                        // ============== RESOURCE LIMITS ==============
             // -1 = unlimited, 0 = disabled, >0 = max count
-            $table->integer('max_businesses')->default(1);
-            $table->integer('max_branches')->default(1);
+            // PHASE 11 — canonical quota columns:
+            //   max_listings  = max Listings owned by the account
+            //   max_locations = max Locations (physical places)
+            $table->integer('max_listings')->default(1);
+            $table->integer('max_locations')->default(1);
             $table->integer('max_services')->default(3);
             $table->integer('max_images')->default(3);
             $table->integer('max_coupons')->default(0);

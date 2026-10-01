@@ -196,7 +196,7 @@
                                 {{ business.name }}
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                {{ business.primary_branch?.city?.name || 'View business' }}
+                                {{ business.primary_location?.city?.name || 'View business' }}
                             </p>
                         </div>
                     </a>

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\BusinessContact;
+use App\Models\ListingContact;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -29,27 +29,34 @@ class ContactController extends Controller
         if ($business->owner_id !== auth()->id()) {
             abort(403);
         }
-        
+
+        // PHASE 11 / WAVE 1B — contacts are listing-owned. Attach to the
+        // organization's primary listing.
+        $listing = $business->primaryListing();
+        if (!$listing) {
+            return redirect()->back()->with('error', 'No listing found to attach contacts to.');
+        }
+
         $validated = $request->validate([
             'type' => 'required|in:phone,whatsapp,facebook,instagram,tiktok,twitter,youtube,linkedin,other',
             'value' => 'required|string|max:255',
             'is_primary' => 'boolean',
         ]);
         
-        // If this is primary, unset other primary contacts
+        // If this is primary, unset other primary contacts FOR THIS LISTING
         if ($request->boolean('is_primary')) {
-            $business->contacts()->update(['is_primary' => false]);
+            ListingContact::where('listing_id', $listing->id)->update(['is_primary' => false]);
         }
         
-        $validated['business_id'] = $business->id;
+        $validated['listing_id'] = $listing->id;
         $validated['sort_order'] = $business->contacts()->count() + 1;
         
-        BusinessContact::create($validated);
+        ListingContact::create($validated);
         
         return redirect()->back()->with('success', 'Contact added successfully.');
     }
 
-    public function update(Request $request, Business $business, BusinessContact $contact)
+    public function update(Request $request, Business $business, ListingContact $contact)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
@@ -61,9 +68,11 @@ class ContactController extends Controller
             'is_primary' => 'boolean',
         ]);
         
-        // If this is primary, unset other primary contacts
+        // If this is primary, unset other primary contacts on the same listing
         if ($request->boolean('is_primary')) {
-            $business->contacts()->where('id', '!=', $contact->id)->update(['is_primary' => false]);
+            ListingContact::where('listing_id', $contact->listing_id)
+                ->where('id', '!=', $contact->id)
+                ->update(['is_primary' => false]);
         }
         
         $contact->update($validated);
@@ -71,7 +80,7 @@ class ContactController extends Controller
         return redirect()->back()->with('success', 'Contact updated successfully.');
     }
 
-    public function destroy(Business $business, BusinessContact $contact)
+    public function destroy(Business $business, ListingContact $contact)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);

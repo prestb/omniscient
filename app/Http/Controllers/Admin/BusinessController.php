@@ -90,11 +90,14 @@ class BusinessController extends Controller
             $business->restore();
 
             // ✅ Restore all related soft-deleted records
-            $business->branches()->withTrashed()->restore();
-            $business->services()->withTrashed()->restore();
-            $business->contacts()->withTrashed()->restore();  // ✅ Now works
-            $business->images()->withTrashed()->restore();
+            $business->locations()->withTrashed()->restore();
             $business->allReviews()->withTrashed()->restore();
+
+            // PHASE 11 / WAVE 1B — services/media/contacts are listing-owned.
+            $listingIds = $business->listings()->withTrashed()->pluck('id');
+            \App\Models\ListingService::withTrashed()->whereIn('listing_id', $listingIds)->restore();
+            \App\Models\ListingContact::withTrashed()->whereIn('listing_id', $listingIds)->restore();
+            \App\Models\ListingImage::withTrashed()->whereIn('listing_id', $listingIds)->restore();
 
             \App\Models\Coupon::withTrashed()
                 ->where('business_id', $business->id)
@@ -149,14 +152,17 @@ class BusinessController extends Controller
             $businessId = $business->id;
             $ownerId = $business->owner_id;
 
-            \DB::beginTransaction();
+                        \DB::beginTransaction();
 
             // ✅ Permanently delete all related records
-            $business->branches()->withTrashed()->forceDelete();
-            $business->services()->withTrashed()->forceDelete();
-            $business->contacts()->withTrashed()->forceDelete();  // ✅ Now works
-            $business->images()->withTrashed()->forceDelete();
+            $business->locations()->withTrashed()->forceDelete();
             $business->allReviews()->withTrashed()->forceDelete();
+
+            // PHASE 11 / WAVE 1B — services/media/contacts are listing-owned.
+            $listingIds = $business->listings()->withTrashed()->pluck('id');
+            \App\Models\ListingService::withTrashed()->whereIn('listing_id', $listingIds)->forceDelete();
+            \App\Models\ListingContact::withTrashed()->whereIn('listing_id', $listingIds)->forceDelete();
+            \App\Models\ListingImage::withTrashed()->whereIn('listing_id', $listingIds)->forceDelete();
 
             \App\Models\Coupon::withTrashed()
                 ->where('business_id', $business->id)
@@ -167,8 +173,8 @@ class BusinessController extends Controller
                 ->forceDelete();
 
             // ✅ Delete image files from storage
-            $images = \App\Models\BusinessImage::withTrashed()
-                ->where('business_id', $business->id)
+            $images = \App\Models\ListingImage::withTrashed()
+                ->whereIn('listing_id', $listingIds)
                 ->pluck('path');
 
             foreach ($images as $path) {
@@ -210,8 +216,8 @@ class BusinessController extends Controller
         $business->load([
             'owner' => fn($q) => $q->withCount('businesses'),
             'categories',
-            'primaryBranch',
-            'branches' => fn($q) => $q->with(['country', 'region', 'city', 'area'])->ordered(),
+            'primaryLocation',
+            'locations' => fn($q) => $q->with(['country', 'region', 'city', 'area'])->ordered(),
             'logo',
             'coverImage',
             'galleryImages',
@@ -379,7 +385,7 @@ class BusinessController extends Controller
             ->whereIn('status', ['published', 'approved'])
             ->count();
 
-        $maxBusinesses = $activeSubscription->plan->max_businesses ?? 1;
+        $maxBusinesses = $activeSubscription->plan->max_listings ?? 1;
         $isUnlimited = $maxBusinesses === -1 || $maxBusinesses === 999;
 
         if ($isUnlimited || ($otherBusinesses + 1) <= $maxBusinesses) {

@@ -9,9 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('leads', function (Blueprint $table) {
-            $table->id();
+                        $table->id();
             $table->foreignId('business_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('branch_id')->nullable()->constrained()->nullOnDelete();
+            // PHASE 9/10 — a lead is attributed to a LISTING (added in the
+            // listings migration); there is no `branch_id` any more.
+
             
             // Lead source
             $table->string('source')->default('contact_form'); // contact_form, whatsapp, phone, booking

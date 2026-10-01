@@ -1,7 +1,7 @@
 <!-- resources/js/Components/Public/BranchesSection.vue -->
 <template>
-    <!-- No branches: hide section entirely -->
-    <div v-if="!branches || branches.length === 0" class="hidden"></div>
+    <!-- No locations: hide section entirely -->
+    <div v-if="!locations || locations.length === 0" class="hidden"></div>
 
     <!-- Unlocked: full details -->
     <div v-else-if="hasAccess"
@@ -24,10 +24,10 @@
                     </div>
                     <div>
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
-                            Branches & Hours
+                            Locations & Hours
                         </h2>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {{ branches.length }} {{ branches.length === 1 ? 'location' : 'locations' }}
+                            {{ locations.length }} {{ locations.length === 1 ? 'location' : 'locations' }}
                         </p>
                     </div>
                 </div>
@@ -44,15 +44,15 @@
 
         <!-- List -->
         <div class="p-6 space-y-4">
-            <div v-for="branch in sortedBranches" :key="branch.id"
+            <div v-for="location in sortedLocations" :key="location.id"
                 class="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
 
-                <!-- Branch header -->
-                <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" :class="branch.is_open_now
+                <!-- location header -->
+                <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" :class="location.is_open_now
                     ? 'bg-emerald-50/60 dark:bg-emerald-950/20'
                     : 'bg-gray-50 dark:bg-gray-900/50'">
                     <div class="flex items-start gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" :class="branch.is_open_now
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" :class="location.is_open_now
                             ? 'bg-emerald-100 dark:bg-emerald-900/40'
                             : 'bg-gray-200 dark:bg-gray-700'">
                             <span class="text-base">🏪</span>
@@ -60,63 +60,63 @@
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-bold text-gray-900 dark:text-white truncate tracking-tight">
-                                    {{ branch.name || 'Main Branch' }}
+                                    {{ location.name || 'Main location' }}
                                 </h3>
-                                <span v-if="branch.is_primary"
+                                <span v-if="location.is_primary"
                                     class="text-[10px] font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
                                     Primary
                                 </span>
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                                {{ getBranchAddress(branch) }}
+                                {{ getLocationAddress(location) }}
                             </p>
                         </div>
                     </div>
 
                     <span
                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex-shrink-0 self-start sm:self-center"
-                        :class="branch.is_open_now
+                        :class="location.is_open_now
                             ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
-                            : (branch.is_special_hours
+                            : (location.is_special_hours
                                 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
                                 : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400')">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <!-- Special hours override -->
-                            <span v-if="branch.is_special_hours"
+                            <span v-if="location.is_special_hours"
                                 class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full"
-                                :title="branch.override_note || 'Special hours today'">
+                                :title="location.override_note || 'Special hours today'">
                                 <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                                Special hours · {{ formatOverrideTime(branch) }}
+                                Special hours · {{ formatOverrideTime(location) }}
                             </span>
                             <!-- Closed override -->
-                            <span v-else-if="branch.has_override_today"
+                            <span v-else-if="location.has_override_today"
                                 class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full"
-                                :title="branch.override_note || 'Closed today'">
+                                :title="location.override_note || 'Closed today'">
                                 <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
                                 Closed today
                             </span>
                             <!-- Default -->
                             <span v-else class="text-[10px] font-bold uppercase tracking-wide"
-                                :class="branch.is_open_now ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
-                                {{ branch.is_open_now ? "Open" : "Closed" }}
+                                :class="location.is_open_now ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
+                                {{ location.is_open_now ? "Open" : "Closed" }}
                             </span>
                         </div>
                     </span>
                 </div>
 
-                <!-- Branch details -->
+                <!-- location details -->
                 <div class="p-4 space-y-4">
                     <!-- Contact chips -->
-                    <div v-if="branch.phone || branch.whatsapp" class="flex flex-wrap gap-2">
-                        <a v-if="branch.phone" :href="`tel:${branch.phone}`"
+                    <div v-if="location.phone || location.whatsapp" class="flex flex-wrap gap-2">
+                        <a v-if="location.phone" :href="`tel:${location.phone}`"
                             class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                             </svg>
-                            {{ branch.phone }}
+                            {{ location.phone }}
                         </a>
-                        <a v-if="branch.whatsapp" :href="`https://wa.me/${branch.whatsapp.replace(/[^0-9]/g, '')}`"
+                        <a v-if="location.whatsapp" :href="`https://wa.me/${location.whatsapp.replace(/[^0-9]/g, '')}`"
                             target="_blank"
                             class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-xl text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -128,24 +128,24 @@
                     </div>
 
                     <!-- Hours -->
-                    <div v-if="branch.hours && branch.hours.length > 0">
-                        <button @click="toggleHours(branch.id)"
+                    <div v-if="location.hours && location.hours.length > 0">
+                        <button @click="toggleHours(location.id)"
                             class="flex items-center justify-between w-full text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
                             <span>Weekly hours</span>
                             <svg class="w-3.5 h-3.5 transition-transform"
-                                :class="expandedBranches.includes(branch.id) ? 'rotate-180' : ''" fill="none"
+                                :class="expandedLocations.includes(location.id) ? 'rotate-180' : ''" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
 
-                        <div v-show="expandedBranches.includes(branch.id)"
+                        <div v-show="expandedLocations.includes(location.id)"
                             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            <div v-for="hour in sortedHours(branch.hours)" :key="hour.id"
+                            <div v-for="hour in sortedHours(location.hours)" :key="hour.id"
                                 class="flex items-center justify-between px-3 py-2 rounded-xl border transition-colors"
-                                :class="isTodayWithOverride(hour.day_of_week, branch)
-                                    ? (branch.is_special_hours
+                                :class="isTodayWithOverride(hour.day_of_week, location)
+                                    ? (location.is_special_hours
                                         ? 'border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/20'
                                         : 'border-red-300 dark:border-red-700 bg-red-50/50 dark:bg-red-950/20')
                                     : (isToday(hour.day_of_week)
@@ -158,21 +158,21 @@
                                     <span v-if="isToday(hour.day_of_week)"
                                         class="text-[10px] ml-1 text-primary-500">Today</span>
                                 </span>
-                                <span class="text-xs font-semibold" :class="isTodayWithOverride(hour.day_of_week, branch)
-                                    ? (branch.is_special_hours
+                                <span class="text-xs font-semibold" :class="isTodayWithOverride(hour.day_of_week, location)
+                                    ? (location.is_special_hours
                                         ? 'text-amber-700 dark:text-amber-400'
                                         : 'text-red-500 dark:text-red-400')
                                     : (hour.is_closed
                                         ? 'text-red-500 dark:text-red-400'
                                         : 'text-gray-900 dark:text-white')">
-                                    {{ getEffectiveHourDisplay(hour, branch) }}
+                                    {{ getEffectiveHourDisplay(hour, location) }}
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Directions — render when EITHER a text address OR coordinates exist -->
-                    <a v-if="branch.address || (branch.latitude && branch.longitude)" :href="getDirectionsUrl(branch)"
+                    <a v-if="location.address || (location.latitude && location.longitude)" :href="getDirectionsUrl(location)"
                         target="_blank" rel="noopener"
                         class="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-semibold transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,10 +204,10 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
-                        Branches & Hours
+                        Locations & Hours
                     </h2>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {{ branches.length }} {{ branches.length === 1 ? 'location' : 'locations' }}
+                        {{ locations.length }} {{ locations.length === 1 ? 'location' : 'locations' }}
                     </p>
                 </div>
             </div>
@@ -217,11 +217,11 @@
             <div class="relative">
                 <!-- Blurred preview -->
                 <div class="space-y-3 blur-sm select-none pointer-events-none">
-                    <div v-for="branch in branches.slice(0, 2)" :key="'preview-' + branch.id"
+                    <div v-for="location in locations.slice(0, 2)" :key="'preview-' + location.id"
                         class="border border-gray-200 dark:border-gray-700 rounded-2xl p-4">
                         <div class="flex items-center justify-between mb-2">
                             <span class="font-bold text-gray-900 dark:text-white">
-                                {{ branch.name || 'Main Branch' }}
+                                {{ location.name || 'Main location' }}
                             </span>
                             <span
                                 class="text-xs px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 font-bold">
@@ -229,7 +229,7 @@
                             </span>
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ getBranchAddress(branch) }}
+                            {{ getLocationAddress(location) }}
                         </p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
                             <div v-for="i in 6" :key="i"
@@ -252,7 +252,7 @@
                             </svg>
                         </div>
                         <h3 class="text-base font-bold text-gray-900 dark:text-white tracking-tight mb-1">
-                            Unlock Branches & Hours
+                            Unlock Locations & Hours
                         </h3>
                         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-xs mx-auto leading-relaxed">
                             Upgrade to Starter to display all your locations, opening hours, and contact details.
@@ -278,7 +278,7 @@
     import { ref, computed } from 'vue';
 
     const props = defineProps({
-        branches: {
+        locations: {
             type: Array,
             default: () => [],
         },
@@ -288,26 +288,26 @@
         },
     });
 
-    const expandedBranches = ref([]);
+    const expandedLocations = ref([]);
 
-    if (props.hasAccess && props.branches.length > 0) {
-        const primary = props.branches.find(b => b.is_primary);
+    if (props.hasAccess && props.locations.length > 0) {
+        const primary = props.locations.find(b => b.is_primary);
         if (primary) {
-            expandedBranches.value.push(primary.id);
+            expandedLocations.value.push(primary.id);
         }
     }
 
-    const toggleHours = (branchId) => {
-        const idx = expandedBranches.value.indexOf(branchId);
+    const toggleHours = (locationId) => {
+        const idx = expandedLocations.value.indexOf(locationId);
         if (idx === -1) {
-            expandedBranches.value.push(branchId);
+            expandedLocations.value.push(locationId);
         } else {
-            expandedBranches.value.splice(idx, 1);
+            expandedLocations.value.splice(idx, 1);
         }
     };
 
-    const sortedBranches = computed(() => {
-        return [...props.branches].sort((a, b) => {
+    const sortedLocations = computed(() => {
+        return [...props.locations].sort((a, b) => {
             if (a.is_primary && !b.is_primary) return -1;
             if (!a.is_primary && b.is_primary) return 1;
             return (a.sort_order || 0) - (b.sort_order || 0);
@@ -315,7 +315,7 @@
     });
 
     const openCount = computed(() => {
-        return props.branches.filter(b => b.is_open_now).length;
+        return props.locations.filter(b => b.is_open_now).length;
     });
 
     const isToday = (dayOfWeek) => {
@@ -332,13 +332,13 @@
         return [...hours].sort((a, b) => a.day_of_week - b.day_of_week);
     };
 
-    const getBranchAddress = (branch) => {
-        if (!branch) return 'Address not set';
+    const getLocationAddress = (location) => {
+        if (!location) return 'Address not set';
         const parts = [];
-        if (branch.address) parts.push(branch.address);
-        if (branch.city?.name) parts.push(branch.city.name);
-        if (branch.region?.name) parts.push(branch.region.name);
-        if (branch.country?.name) parts.push(branch.country.name);
+        if (location.address) parts.push(location.address);
+        if (location.city?.name) parts.push(location.city.name);
+        if (location.region?.name) parts.push(location.region.name);
+        if (location.country?.name) parts.push(location.country.name);
         return parts.join(', ') || 'Address not set';
     };
 
@@ -351,16 +351,16 @@
      *    - Uses the universal https://maps.google.com/... format that
      *      iOS and Android both auto-detect and offer to open in the app
      */
-    const getDirectionsUrl = (branch) => {
-        if (!branch) return '#';
+    const getDirectionsUrl = (location) => {
+        if (!location) return '#';
 
-        const lat = branch.latitude;
-        const lng = branch.longitude;
+        const lat = location.latitude;
+        const lng = location.longitude;
 
         // Prefer coordinates (pin lands exactly where the owner placed it)
         const destination = (lat && lng)
             ? `${lat},${lng}`
-            : encodeURIComponent(getBranchAddress(branch));
+            : encodeURIComponent(getLocationAddress(location));
 
         return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
     };
@@ -385,41 +385,41 @@
     };
 
     /**
- * ✅ Is the current day the branch's today AND does the branch have an override?
+ * ✅ Is the current day the location's today AND does the location have an override?
  */
-    const isTodayWithOverride = (dayOfWeek, branch) => {
+    const isTodayWithOverride = (dayOfWeek, location) => {
         if (!isToday(dayOfWeek)) return false;
-        return !!(branch.has_override_today || branch.is_special_hours);
+        return !!(location.has_override_today || location.is_special_hours);
     };
 
     /**
      * ✅ Return the effective hour text for a day, respecting today's override.
      */
-    const getEffectiveHourDisplay = (hour, branch) => {
-        if (isToday(hour.day_of_week) && branch.is_special_hours) {
-            return formatOverrideTime(branch);
+    const getEffectiveHourDisplay = (hour, location) => {
+        if (isToday(hour.day_of_week) && location.is_special_hours) {
+            return formatOverrideTime(location);
         }
-        if (isToday(hour.day_of_week) && branch.has_override_today) {
+        if (isToday(hour.day_of_week) && location.has_override_today) {
             return 'Closed';
         }
         return getHourDisplay(hour);
     };
 
     /**
-     * ✅ "10 AM–2 PM" from branch.override_opens_at / override_closes_at.
+     * ✅ "10 AM–2 PM" from location.override_opens_at / override_closes_at.
      */
-    const formatOverrideTime = (branch) => {
-        if (!branch.override_opens_at || !branch.override_closes_at) return '';
+    const formatOverrideTime = (location) => {
+        if (!location.override_opens_at || !location.override_closes_at) return '';
         try {
-            const open = new Date('2000-01-01T' + branch.override_opens_at).toLocaleTimeString('en-US', {
+            const open = new Date('2000-01-01T' + location.override_opens_at).toLocaleTimeString('en-US', {
                 hour: 'numeric', minute: '2-digit', hour12: true
             }).replace(':00', '');
-            const close = new Date('2000-01-01T' + branch.override_closes_at).toLocaleTimeString('en-US', {
+            const close = new Date('2000-01-01T' + location.override_closes_at).toLocaleTimeString('en-US', {
                 hour: 'numeric', minute: '2-digit', hour12: true
             }).replace(':00', '');
             return `${open}–${close}`;
         } catch (e) {
-            return `${branch.override_opens_at}–${branch.override_closes_at}`;
+            return `${location.override_opens_at}–${location.override_closes_at}`;
         }
     };
 </script>

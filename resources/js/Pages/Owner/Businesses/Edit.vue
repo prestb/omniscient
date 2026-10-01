@@ -52,8 +52,8 @@
             <!-- QUICK STATS -->
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold">Branches</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mt-1">{{ business.branches?.length || 0 }}
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold">Locations</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mt-1">{{ business.locations?.length || 0 }}
                     </p>
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
@@ -314,8 +314,8 @@
                 </div>
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                    <!-- Branches -->
-                    <a :href="`/owner/businesses/${business.id}/branches`"
+                    <!-- Locations -->
+                    <a :href="`/owner/businesses/${business.id}/locations`"
                         class="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-5 sm:p-6">
                         <div
                             class="absolute -top-8 -right-8 w-24 h-24 bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/30 dark:to-indigo-900/10 rounded-full blur-2xl opacity-60 group-hover:opacity-100 transition-opacity">
@@ -330,10 +330,10 @@
                                         d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                             </div>
-                            <h3 class="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">Branches</h3>
+                                                        <h3 class="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">Locations</h3>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                <span class="font-semibold text-gray-700 dark:text-gray-300">{{ business.branches?.length || 0 }}</span>
-                                location{{ (business.branches?.length || 0) === 1 ? '' : 's' }}
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">{{ business.locations?.length || 0 }}</span>
+                                location{{ (business.locations?.length || 0) === 1 ? '' : 's' }}
                             </p>
                             <div
                                 class="flex items-center gap-1 mt-3 text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">

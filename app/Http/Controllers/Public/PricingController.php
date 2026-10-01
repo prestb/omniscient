@@ -33,9 +33,9 @@ class PricingController extends Controller
                     'is_popular' => (bool) $plan->is_popular,
                     'feature_list' => $plan->feature_list ?? [],
                     'features' => $plan->features ?? [],
-                    'limits' => [
-                        'businesses' => $plan->max_businesses,
-                        'branches' => $plan->max_branches,
+                                        'limits' => [
+                        'listings' => $plan->max_listings,
+                        'locations' => $plan->max_locations,
                         'services' => $plan->max_services,
                         'images' => $plan->max_images,
                         'coupons' => $plan->max_coupons,

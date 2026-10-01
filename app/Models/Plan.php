@@ -13,7 +13,7 @@ class Plan extends Model
     protected $fillable = [
         'name', 'slug', 'tier', 'description', 'tagline',
         'price_monthly', 'price_yearly', 'yearly_discount_percentage',
-        'max_businesses', 'max_branches', 'max_services', 'max_images',
+        'max_listings', 'max_locations', 'max_services', 'max_images',
         'max_coupons', 'max_staff',
         'features', 'feature_list',
         'is_active', 'is_featured', 'is_popular',
@@ -177,9 +177,9 @@ class Plan extends Model
      */
     public function getLimit(string $resource): int
     {
-        $map = [
-            'businesses' => 'max_businesses',
-            'branches' => 'max_branches',
+                $map = [
+            'listings' => 'max_listings',
+            'locations' => 'max_locations',
             'services' => 'max_services',
             'images' => 'max_images',
             'coupons' => 'max_coupons',

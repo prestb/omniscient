@@ -98,7 +98,7 @@ class DashboardController extends Controller
         $subscriptionStatusData = $this->getSubscriptionStatusData();
 
         // Recent Businesses
-        $recentBusinesses = Business::with(['owner', 'primaryBranch'])
+        $recentBusinesses = Business::with(['owner', 'primaryLocation'])
             ->latest()
             ->take(10)
             ->get();

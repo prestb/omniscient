@@ -338,14 +338,14 @@ class SearchIntentParser
         $cacheKey = "search_intent.top_cities.{$categoryId}." . ($excludeCityId ?? 'none') . ".{$limit}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($categoryId, $excludeCityId, $limit) {
-            $rows = \DB::table('business_categories')
+                        $rows = \DB::table('business_categories')
                 ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('branches', 'branches.business_id', '=', 'businesses.id')
-                ->join('cities', 'cities.id', '=', 'branches.city_id')
+                ->join('locations', 'locations.business_id', '=', 'businesses.id')
+                ->join('cities', 'cities.id', '=', 'locations.city_id')
                 ->where('businesses.status', 'published')
                 ->whereNull('businesses.hidden_at')
                 ->whereNull('businesses.deleted_at')
-                ->whereNull('branches.hidden_at')
+                ->whereNull('locations.hidden_at')
                 ->where('business_categories.category_id', $categoryId)
                 ->when($excludeCityId, fn($q) => $q->where('cities.id', '!=', $excludeCityId))
                 ->groupBy('cities.id', 'cities.name')

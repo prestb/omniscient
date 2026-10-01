@@ -40,15 +40,15 @@ return new class extends Migration
             }
         });
 
-        // Branches table indexes
-        Schema::table('branches', function (Blueprint $table) {
-            if (!Schema::hasIndex('branches', ['business_id', 'is_primary'])) {
+        // Locations table indexes
+        Schema::table('locations', function (Blueprint $table) {
+            if (!Schema::hasIndex('locations', ['business_id', 'is_primary'])) {
                 $table->index(['business_id', 'is_primary']);
             }
-            if (!Schema::hasIndex('branches', ['country_id', 'region_id', 'city_id', 'area_id'])) {
+            if (!Schema::hasIndex('locations', ['country_id', 'region_id', 'city_id', 'area_id'])) {
                 $table->index(['country_id', 'region_id', 'city_id', 'area_id']);
             }
-            if (!Schema::hasIndex('branches', ['status'])) {
+            if (!Schema::hasIndex('locations', ['status'])) {
                 $table->index('status');
             }
         });
@@ -108,10 +108,10 @@ return new class extends Migration
             }
         });
 
-        // Business hours table indexes
-        Schema::table('business_hours', function (Blueprint $table) {
-            if (!Schema::hasIndex('business_hours', ['branch_id', 'day_of_week'])) {
-                $table->index(['branch_id', 'day_of_week']);
+        // Location hours table indexes
+        Schema::table('location_hours', function (Blueprint $table) {
+            if (!Schema::hasIndex('location_hours', ['location_id', 'day_of_week'])) {
+                $table->index(['location_id', 'day_of_week']);
             }
         });
 

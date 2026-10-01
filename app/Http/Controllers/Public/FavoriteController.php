@@ -24,9 +24,9 @@ class FavoriteController extends Controller
         $favorites = $user->favoriteBusinesses()
             ->with([
                 'categories',
-                'primaryBranch',
-                'primaryBranch.city',
-                'primaryBranch.country',
+                'primaryLocation',
+                'primaryLocation.city',
+                'primaryLocation.country',
                 'logo',
                 'coverImage',
             ])

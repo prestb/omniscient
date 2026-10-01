@@ -1,57 +1,57 @@
 <?php
 
-use App\Models\Branch;
-use App\Models\BranchHourOverride;
+use App\Models\Location;
+use App\Models\LocationHourOverride;
 use App\Models\Business;
-use App\Models\BusinessHour;
+use App\Models\LocationHour;
 
-test('branch is open when weekly hours cover now', function () {
+test('location is open when weekly hours cover now', function () {
     $business = Business::factory()->published()->create();
-    $branch = Branch::factory()->forBusiness($business)->primary()->create();
+    $branch = Location::factory()->forBusiness($business)->primary()->create();
 
-    BusinessHour::factory()
+    LocationHour::factory()
         ->forDay(now()->dayOfWeek)
         ->openBetween('00:00', '23:59')
-        ->create(['branch_id' => $branch->id]);
+        ->create(['location_id' => $branch->id]);
 
     expect($branch->fresh()->is_open_now)->toBeTrue();
 });
 
-test('branch is closed when today has a closed override', function () {
+test('location is closed when today has a closed override', function () {
     $business = Business::factory()->published()->create();
-    $branch = Branch::factory()->forBusiness($business)->primary()->create();
+    $branch = Location::factory()->forBusiness($business)->primary()->create();
 
     // Weekly hours say open all day
-    BusinessHour::factory()
+    LocationHour::factory()
         ->forDay(now()->dayOfWeek)
         ->openBetween('00:00', '23:59')
-        ->create(['branch_id' => $branch->id]);
+        ->create(['location_id' => $branch->id]);
 
     // But today has a closed override
-    BranchHourOverride::factory()
+    LocationHourOverride::factory()
         ->onDate(today())
         ->closed()
-        ->create(['branch_id' => $branch->id]);
+        ->create(['location_id' => $branch->id]);
 
     expect($branch->fresh()->is_open_now)->toBeFalse();
 });
 
-test('branch uses special hours override when now is inside the window', function () {
+test('location uses special hours override when now is inside the window', function () {
     $business = Business::factory()->published()->create();
-    $branch = Branch::factory()->forBusiness($business)->primary()->create();
+    $branch = Location::factory()->forBusiness($business)->primary()->create();
 
     $today = today();
 
     // Weekly hours say open 9-17
-    BusinessHour::factory()
+    LocationHour::factory()
         ->forDay($today->dayOfWeek)
         ->openBetween('09:00', '17:00')
-        ->create(['branch_id' => $branch->id]);
+        ->create(['location_id' => $branch->id]);
 
     // Override for THIS SPECIFIC DATE — open 10-14 only
-    BranchHourOverride::factory()
+    LocationHourOverride::factory()
         ->create([
-            'branch_id' => $branch->id,
+            'location_id' => $branch->id,
             'date' => $today,
             'is_closed' => false,
             'opens_at' => '10:00',
@@ -69,14 +69,14 @@ test('branch uses special hours override when now is inside the window', functio
     \Carbon\Carbon::setTestNow(); // Reset
 });
 
-test('branch today_special_hours accessor returns the override when applicable', function () {
+test('location today_special_hours accessor returns the override when applicable', function () {
     $business = Business::factory()->published()->create();
-    $branch = Branch::factory()->forBusiness($business)->primary()->create();
+    $branch = Location::factory()->forBusiness($business)->primary()->create();
 
     $today = today();
 
-    BranchHourOverride::factory()->create([
-        'branch_id' => $branch->id,
+    LocationHourOverride::factory()->create([
+        'location_id' => $branch->id,
         'date' => $today,
         'is_closed' => false,
         'opens_at' => '10:00',
@@ -89,14 +89,14 @@ test('branch today_special_hours accessor returns the override when applicable',
     // ...
 });
 
-test('branch today_special_hours is null when override is closed', function () {
+test('location today_special_hours is null when override is closed', function () {
     $business = Business::factory()->published()->create();
-    $branch = Branch::factory()->forBusiness($business)->primary()->create();
+    $branch = Location::factory()->forBusiness($business)->primary()->create();
 
-    BranchHourOverride::factory()
+    LocationHourOverride::factory()
         ->onDate(today())
         ->closed()
-        ->create(['branch_id' => $branch->id]);
+        ->create(['location_id' => $branch->id]);
 
     $fresh = $branch->fresh();
     expect($fresh->today_special_hours)->toBeNull()

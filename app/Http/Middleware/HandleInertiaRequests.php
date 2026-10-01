@@ -22,8 +22,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'plan' => $request->user()?->getCurrentPlan(),
                 'usage' => $request->user() ? [
-                    'businesses' => $request->user()->getCurrentUsage('businesses'),
-                    'branches' => $request->user()->getCurrentUsage('branches'),
+                    'listings' => $request->user()->getCurrentUsage('listings'),
+                    'locations' => $request->user()->getCurrentUsage('locations'),
                     'services' => $request->user()->getCurrentUsage('services'),
                     'images' => $request->user()->getCurrentUsage('images'),
                     'coupons' => $request->user()->getCurrentUsage('coupons'),

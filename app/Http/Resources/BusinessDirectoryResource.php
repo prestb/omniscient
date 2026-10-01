@@ -9,7 +9,7 @@ class BusinessDirectoryResource extends JsonResource
 {
     public function toArray($request)
     {
-        $branches = $this->branches->map(function ($branch) {
+        $branches = $this->locations->map(function ($branch) {
             return [
                 'id' => $branch->id,
                 'name' => $branch->name,
@@ -57,10 +57,13 @@ class BusinessDirectoryResource extends JsonResource
             'logo_url' => $this->logo_url,
             'cover_image_url' => $this->cover_image_url,
 
-            'categories' => $this->categories,
-            'primary_branch' => $this->primaryBranch,
+                        'categories' => $this->categories,
+            'primary_branch' => $this->primaryLocation,
+            'primary_location' => $this->primaryLocation,
             // ✅ Map integration — top-level coordinates shortcut
             'coordinates' => $this->resolvePrimaryCoordinates(),
+            'locations' => $branches,
+            // ✅ Back-compat alias — older components read `branches`
             'branches' => $branches,
             'is_open_now' => $openBranches->count() > 0,
             'open_branches_count' => $openBranches->count(),
@@ -89,8 +92,8 @@ class BusinessDirectoryResource extends JsonResource
      */
     private function resolvePrimaryCoordinates(): ?array
     {
-        $primary = $this->branches->firstWhere('is_primary', true)
-            ?? $this->branches->first();
+        $primary = $this->locations->firstWhere('is_primary', true)
+            ?? $this->locations->first();
 
         if ($primary && $primary->latitude !== null && $primary->longitude !== null) {
             return [
@@ -100,7 +103,7 @@ class BusinessDirectoryResource extends JsonResource
         }
 
         // Fall back to the first branch that has coordinates
-        $withCoords = $this->branches
+        $withCoords = $this->locations
             ->first(fn($b) => $b->latitude !== null && $b->longitude !== null);
 
         if ($withCoords) {

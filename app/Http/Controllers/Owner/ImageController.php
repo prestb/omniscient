@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\BusinessImage;
+use App\Models\ListingImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -49,9 +49,16 @@ class ImageController extends Controller
             abort(403);
         }
 
-        // ✅ Server-side lock: can't upload images to a hidden business
+                // ✅ Server-side lock: can't upload images to a hidden business
         if ($redirect = $this->guardNotHidden($business, 'business')) {
             return $redirect;
+        }
+
+        // PHASE 11 / WAVE 1B — media is listing-owned. Attach to the
+        // organization's primary listing.
+        $listing = $business->primaryListing();
+        if (!$listing) {
+            return redirect()->back()->with('error', 'No listing found to attach images to.');
         }
 
         // Handle single image upload (logo or cover)
@@ -120,7 +127,7 @@ class ImageController extends Controller
                     }
                 }
 
-                // Also check if there's a logo record in BusinessImage table
+                // Also check if there's a logo record in ListingImage table
                 $existingLogoRecord = $business->logo()->first();
                 if ($existingLogoRecord) {
                     if (Storage::disk('public')->exists($existingLogoRecord->path)) {
@@ -142,7 +149,7 @@ class ImageController extends Controller
                     }
                 }
 
-                // Also check if there's a cover record in BusinessImage table
+                // Also check if there's a cover record in ListingImage table
                 $existingCoverRecord = $business->coverImage()->first();
                 if ($existingCoverRecord) {
                     if (Storage::disk('public')->exists($existingCoverRecord->path)) {
@@ -155,9 +162,9 @@ class ImageController extends Controller
                 $business->update(['cover_image' => $path]);
             }
 
-            // Create the image record
-            $image = BusinessImage::create([
-                'business_id' => $business->id,
+                        // Create the image record
+            $image = ListingImage::create([
+                'listing_id' => $listing->id,
                 'path' => $path,
                 'caption' => $validated['caption'] ?? null,
                 'type' => $validated['type'],
@@ -203,8 +210,8 @@ class ImageController extends Controller
                     ]);
                 }
 
-                BusinessImage::create([
-                    'business_id' => $business->id,
+                                ListingImage::create([
+                    'listing_id' => $listing->id,
                     'path' => $path,
                     'caption' => null,
                     'type' => 'gallery',
@@ -223,7 +230,7 @@ class ImageController extends Controller
         return redirect()->back()->with('error', 'No image file found.');
     }
 
-    // public function setPrimary(Business $business, BusinessImage $image)
+    // public function setPrimary(Business $business, ListingImage $image)
     // {
     //     if ($business->owner_id !== auth()->id()) {
     //         abort(403);
@@ -250,7 +257,7 @@ class ImageController extends Controller
     //     return redirect()->back();
     // }
 
-    public function destroy(Business $business, BusinessImage $image)
+        public function destroy(Business $business, ListingImage $image)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);

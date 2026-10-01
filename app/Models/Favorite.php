@@ -12,6 +12,7 @@ class Favorite extends Model
     protected $fillable = [
         'user_id',
         'business_id',
+        'listing_id',
     ];
 
     public function user()
@@ -22,5 +23,15 @@ class Favorite extends Model
     public function business()
     {
         return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * PHASE 9 — a favorite targets a LISTING (e.g. "ABC — Buea"), not an
+     * abstract organization. `business_id` is retained as the organization
+     * pointer during the transition.
+     */
+    public function listing()
+    {
+        return $this->belongsTo(Listing::class);
     }
 }

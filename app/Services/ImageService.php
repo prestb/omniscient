@@ -229,7 +229,7 @@ class ImageService
     /**
      * ✅ Backfill: process every image missing variants.
      *
-     * @param  callable|null  $onProgress  Called with each processed BusinessImage
+          * @param  callable|null  $onProgress  Called with each processed ListingImage
      * @return int  Number of images processed
      */
     public function backfill(?callable $onProgress = null): int
@@ -237,7 +237,7 @@ class ImageService
         $count = 0;
         $disk = Storage::disk('public');
 
-        $images = \App\Models\BusinessImage::query()
+        $images = \App\Models\ListingImage::query()
             ->whereNull('hidden_at')
             ->get();
 
@@ -271,14 +271,18 @@ class ImageService
                 continue;
             }
 
-            // ✅ Sync the DB record if the path changed
+                        // ✅ Sync the DB record if the path changed
             if ($newPath !== $oldPath) {
                 $image->update(['path' => $newPath]);
 
-                // Also sync the parent business if this is a logo or cover
-                if (in_array($image->type, ['logo', 'cover']) && $image->business) {
-                    $column = $image->type === 'logo' ? 'logo' : 'cover_image';
-                    $image->business->update([$column => $newPath]);
+                // PHASE 11 / WAVE 1B — media is listing-owned. Mirror logo/cover
+                // paths onto the parent organization for fast brand rendering.
+                if (in_array($image->type, ['logo', 'cover'])) {
+                    $business = $image->listing?->business;
+                    if ($business) {
+                        $column = $image->type === 'logo' ? 'logo' : 'cover_image';
+                        $business->update([$column => $newPath]);
+                    }
                 }
             }
 

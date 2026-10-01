@@ -388,7 +388,7 @@ class Subscription extends Model
             return false;
         }
 
-        $maxBranches = $this->plan->max_branches ?? 0;
+                $maxBranches = $this->plan->max_locations ?? 0;
         if ($maxBranches === -1) {
             return true;
         }
@@ -404,7 +404,7 @@ class Subscription extends Model
             return false;
         }
 
-        $branchCount = $business->branches()->count();
+                $branchCount = $business->locations()->count();
         return $branchCount < $maxBranches;
     }
 
@@ -419,7 +419,7 @@ class Subscription extends Model
             return false;
         }
 
-        $maxBusinesses = $this->plan->max_businesses ?? 0;
+                $maxBusinesses = $this->plan->max_listings ?? 0;
         if ($maxBusinesses === -1) {
             return true;
         }

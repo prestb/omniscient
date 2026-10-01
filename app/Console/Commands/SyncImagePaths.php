@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Business;
-use App\Models\BusinessImage;
+use App\Models\ListingImage;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,9 +22,9 @@ class SyncImagePaths extends Command
         $this->info($dryRun ? '🔍 DRY RUN' : '🔧 Syncing image paths...');
         $this->newLine();
 
-        // ============== BusinessImage.path ==============
+                // ============== ListingImage.path ==============
         $fixedImages = 0;
-        $images = BusinessImage::query()->get();
+        $images = ListingImage::query()->get();
 
         foreach ($images as $image) {
             if (!$image->path) continue;
@@ -43,7 +43,7 @@ class SyncImagePaths extends Command
             }
         }
 
-        $this->info("BusinessImage paths fixed: {$fixedImages}");
+        $this->info("ListingImage paths fixed: {$fixedImages}");
         $this->newLine();
 
         // ============== Business.logo + Business.cover_image ==============

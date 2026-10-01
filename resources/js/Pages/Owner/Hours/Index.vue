@@ -5,8 +5,8 @@
         <PageHeader color="sky" :breadcrumb="[
             { label: 'Dashboard', href: '/owner/dashboard' },
             { label: business.name, href: `/owner/businesses/${business.id}/edit` },
-            { label: 'Branches', href: `/owner/businesses/${business.id}/branches` },
-            { label: branch.name || 'Branch', href: `/owner/businesses/${business.id}/branches/${branch.id}/edit` },
+            { label: 'Locations', href: `/owner/businesses/${business.id}/locations` },
+            { label: location.name || 'Location', href: `/owner/businesses/${business.id}/locations/${location.id}/edit` },
             { label: 'Hours' }
         ]">
             <template #icon>
@@ -14,7 +14,7 @@
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </template>
             <template #title>Operating hours</template>
-            <template #subtitle>{{ business.name }} · {{ branch.name || 'Branch' }}</template>
+            <template #subtitle>{{ business.name }} · {{ location.name || 'Location' }}</template>
             <template #actions>
                 <span class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold border"
                     :class="isOpen
@@ -144,7 +144,7 @@
                         <!-- Buttons -->
                         <div
                             class="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-                            <a :href="`/owner/businesses/${business.id}/branches`"
+                            <a :href="`/owner/businesses/${business.id}/locations`"
                                 class="inline-flex items-center justify-center px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm">
                                 Cancel
                             </a>
@@ -359,7 +359,7 @@
             type: Object,
             required: true
         },
-        branch: {
+                location: {
             type: Object,
             required: true
         },
@@ -417,7 +417,7 @@
         overrideProcessing.value = true;
 
         router.post(
-            `/owner/businesses/${props.business.id}/branches/${props.branch.id}/hours/overrides`,
+            `/owner/businesses/${props.business.id}/locations/${props.location.id}/hours/overrides`,
             {
                 date: overrideForm.date,
                 mode: overrideForm.mode,
@@ -460,7 +460,7 @@
         if (!confirmed) return;
 
         router.delete(
-            `/owner/businesses/${props.business.id}/branches/${props.branch.id}/hours/overrides/${override.id}`,
+            `/owner/businesses/${props.business.id}/locations/${props.location.id}/hours/overrides/${override.id}`,
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -570,7 +570,7 @@
 
     const checkOpenStatus = async () => {
         try {
-            const url = `/owner/businesses/${props.business.id}/branches/${props.branch.id}/hours/status`;
+            const url = `/owner/businesses/${props.business.id}/locations/${props.location.id}/hours/status`;
             const response = await axios.get(url);
             isOpen.value = response.data.is_open;
         } catch (err) {
@@ -615,7 +615,7 @@
             sort_order: hourData[v].sort_order || 0,
         }));
 
-        const url = `/owner/businesses/${props.business.id}/branches/${props.branch.id}/hours/batch`;
+        const url = `/owner/businesses/${props.business.id}/locations/${props.location.id}/hours/batch`;
 
         router.post(url, { hours: hoursToSave }, {
             preserveScroll: true,

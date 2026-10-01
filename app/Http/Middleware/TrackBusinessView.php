@@ -3,7 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Business;
-use App\Models\BusinessAnalytics;
+use App\Models\ListingAnalytics;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -23,13 +23,17 @@ class TrackBusinessView
                     $business = Business::where('slug', $slug)->first();
                     
                     if ($business) {
+                        // PHASE 11 / WAVE 1B — analytics are listing-owned.
+                        $listing = $business->primaryListing();
+                        $listingId = $listing?->id ?? $business->id;
+
                         // Track view
-                        BusinessAnalytics::trackView($business->id);
+                        ListingAnalytics::trackView($listingId);
                         
                         // Track unique visitor (using session)
                         $sessionKey = 'visited_business_' . $business->id;
                         if (!$request->session()->has($sessionKey)) {
-                            BusinessAnalytics::trackUniqueVisitor($business->id);
+                            ListingAnalytics::trackUniqueVisitor($listingId);
                             $request->session()->put($sessionKey, true);
                         }
                     }

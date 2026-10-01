@@ -91,16 +91,16 @@
                             </div>
                         </div>
 
-                        <!-- Branch selector (only if multiple) -->
-                        <div v-if="branches.length > 1">
+                                                <!-- Location selector (only if multiple) -->
+                        <div v-if="locations.length > 1">
                             <label class="block text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-2">
-                                Which branch?
+                                Which location?
                             </label>
-                            <select v-model="form.branch_id"
+                            <select v-model="form.location_id"
                                     class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors text-sm">
                                 <option :value="null">Not specified</option>
-                                <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                                    {{ branch.name || 'Unnamed Branch' }}{{ branch.is_primary ? ' (Primary)' : '' }}
+                                <option v-for="location in locations" :key="location.id" :value="location.id">
+                                    {{ location.name || 'Unnamed Location' }}{{ location.is_primary ? ' (Primary)' : '' }}
                                 </option>
                             </select>
                         </div>
@@ -258,7 +258,7 @@ const props = defineProps({
         type: Object,
         default: null,
     },
-    branches: {
+        locations: {
         type: Array,
         default: () => [],
     },
@@ -286,13 +286,13 @@ const internalState = ref(props.state);
 const state = computed(() => internalState.value);
 
 const form = reactive({
-    branch_id: null,
+    location_id: null,
     notes: '',
 });
 
-// If there's exactly one branch, preselect it
-if (props.branches && props.branches.length === 1) {
-    form.branch_id = props.branches[0].id;
+// If there's exactly one location, preselect it
+if (props.locations && props.locations.length === 1) {
+    form.location_id = props.locations[0].id;
 }
 
 // ============== HELPERS ==============
@@ -378,8 +378,8 @@ const confirmRedemption = async () => {
     try {
         const response = await axios.post(
             `/api/redemption/${props.token}/confirm`,
-            {
-                branch_id: form.branch_id,
+                        {
+                location_id: form.location_id,
                 notes: form.notes || null,
             }
         );

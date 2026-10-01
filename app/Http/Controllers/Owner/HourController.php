@@ -3,22 +3,22 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\BranchHourOverride;
+use App\Models\Location;
+use App\Models\LocationHour;
+use App\Models\LocationHourOverride;
 use App\Models\Business;
-use App\Models\BusinessHour;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class HourController extends Controller
 {
-    public function index(Business $business, Branch $branch)
+    public function index(Business $business, Location $location)
     {
         try {
             Log::info('Hours index accessed', [
                 'business_id' => $business->id,
-                'branch_id' => $branch->id,
+                'location_id' => $location->id,
                 'user_id' => auth()->id()
             ]);
 
@@ -30,11 +30,11 @@ class HourController extends Controller
                 abort(403);
             }
 
-            $hours = $branch->hours()->orderBy('day_of_week')->orderBy('sort_order')->get();
-            $days = BusinessHour::getDays();
+            $hours = $location->hours()->orderBy('day_of_week')->orderBy('sort_order')->get();
+            $days = LocationHour::getDays();
 
             // ✅ Upcoming date overrides (today or later, not expired)
-            $overrides = $branch->hourOverrides()
+            $overrides = $location->hourOverrides()
                 ->whereDate('date', '>=', today())
                 ->orderBy('date')
                 ->get()
@@ -56,7 +56,9 @@ class HourController extends Controller
 
             return Inertia::render('Owner/Hours/Index', [
                 'business' => $business,
-                'branch' => $branch,
+                'location' => $location,
+                // Back-compat prop for the existing page component.
+                'branch' => $location,
                 'hours' => $hours,
                 'days' => $days,
                 'overrides' => $overrides,   // ✅ new
@@ -81,7 +83,7 @@ class HourController extends Controller
      *
      * ✅ Replaces the old per-day `store()` which fired one request per day.
      */
-    public function storeBatch(Request $request, Business $business, Branch $branch)
+    public function storeBatch(Request $request, Business $business, Location $location)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
@@ -98,7 +100,7 @@ class HourController extends Controller
         ]);
 
         try {
-            \DB::transaction(function () use ($validated, $branch) {
+            \DB::transaction(function () use ($validated, $location) {
                 foreach ($validated['hours'] as $day) {
                     $payload = [
                         'day_of_week' => $day['day_of_week'],
@@ -107,7 +109,7 @@ class HourController extends Controller
                         'is_closed' => $day['is_closed'] ?? false,
                         'is_24h' => $day['is_24h'] ?? false,
                         'sort_order' => $day['sort_order'] ?? 0,
-                        'branch_id' => $branch->id,
+                        'location_id' => $location->id,
                     ];
 
                     // If 24/7, clear the time fields
@@ -125,11 +127,11 @@ class HourController extends Controller
                     }
 
                     // Replace the existing row(s) for this day
-                    $branch->hours()
+                    $location->hours()
                         ->where('day_of_week', $payload['day_of_week'])
                         ->delete();
 
-                    BusinessHour::create($payload);
+                    LocationHour::create($payload);
                 }
             });
 
@@ -138,7 +140,7 @@ class HourController extends Controller
         } catch (\Throwable $e) {
             Log::error('Error saving hours batch:', [
                 'business_id' => $business->id,
-                'branch_id' => $branch->id,
+                'location_id' => $location->id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -147,7 +149,7 @@ class HourController extends Controller
         }
     }
 
-    public function destroy(Business $business, Branch $branch, BusinessHour $hour)
+    public function destroy(Business $business, Location $location, LocationHour $hour)
     {
         try {
             if ($business->owner_id !== auth()->id()) {
@@ -168,7 +170,7 @@ class HourController extends Controller
     }
     // ============== DATE OVERRIDES ==============
 
-    public function storeOverride(Request $request, Business $business, Branch $branch)
+    public function storeOverride(Request $request, Business $business, Location $location)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
@@ -193,9 +195,9 @@ class HourController extends Controller
                 'created_by' => auth()->id(),
             ];
 
-            BranchHourOverride::updateOrCreate(
+            LocationHourOverride::updateOrCreate(
                 [
-                    'branch_id' => $branch->id,
+                    'location_id' => $location->id,
                     'date' => $validated['date'],
                 ],
                 $payload
@@ -205,7 +207,7 @@ class HourController extends Controller
         } catch (\Throwable $e) {
             Log::error('Failed to create hour override', [
                 'business_id' => $business->id,
-                'branch_id' => $branch->id,
+                'location_id' => $location->id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -213,13 +215,13 @@ class HourController extends Controller
         }
     }
 
-    public function destroyOverride(Business $business, Branch $branch, BranchHourOverride $override)
+    public function destroyOverride(Business $business, Location $location, LocationHourOverride $override)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
         }
 
-        if ($override->branch_id !== $branch->id) {
+        if ($override->location_id !== $location->id) {
             abort(404);
         }
 
@@ -228,15 +230,15 @@ class HourController extends Controller
         return redirect()->back();
     }
 
-    public function status(Business $business, Branch $branch)
+    public function status(Business $business, Location $location)
     {
         try {
             if ($business->owner_id !== auth()->id()) {
                 abort(403);
             }
 
-            $isOpen = $branch->is_open_now;
-            $hours = $branch->hours_summary;
+            $isOpen = $location->is_open_now;
+            $hours = $location->hours_summary;
 
             return response()->json([
                 'is_open' => $isOpen,

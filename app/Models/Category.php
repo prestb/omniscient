@@ -61,6 +61,16 @@ class Category extends Model
         return $this->belongsToMany(Business::class, 'business_categories');
     }
 
+    /**
+     * PHASE 9 — the canonical discoverable entities in this category.
+     */
+    public function listings()
+    {
+        return $this->belongsToMany(Listing::class, 'listing_categories')
+            ->withPivot(['is_primary', 'sort_order'])
+            ->withTimestamps();
+    }
+
     // Scopes
     public function scopeActive($query)
     {
@@ -92,12 +102,12 @@ class Category extends Model
     {
         $path = [$this->name];
         $parent = $this->parent;
-        
+
         while ($parent) {
             array_unshift($path, $parent->name);
             $parent = $parent->parent;
         }
-        
+
         return implode(' → ', $path);
     }
 
@@ -111,16 +121,16 @@ class Category extends Model
         return $this->businesses()->count();
     }
 
-        // app/Models/Category.php
-public function toSearchableArray()
-{
-    return [
-        'id' => $this->id,
-        'name' => $this->name,
-        'slug' => $this->slug,
-        'description' => $this->description,
-        'parent_id' => $this->parent_id,
-        'is_active' => $this->is_active,
-    ];
-}
+    // app/Models/Category.php
+    public function toSearchableArray()
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'description' => $this->description,
+            'parent_id' => $this->parent_id,
+            'is_active' => $this->is_active,
+        ];
+    }
 }

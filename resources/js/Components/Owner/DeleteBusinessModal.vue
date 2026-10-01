@@ -37,9 +37,8 @@
                                     What will be deleted:
                                 </p>
                                 <ul class="text-xs text-red-700 dark:text-red-400 space-y-1 ml-4 list-disc">
-                                    <li v-if="business.branches_count > 0">
-                                        <strong>{{ business.branches_count }}</strong> branch{{ business.branches_count
-                                            > 1 ? 'es' : '' }}
+                                                                        <li v-if="locationCount > 0">
+                                        <strong>{{ locationCount }}</strong> location{{ locationCount > 1 ? 's' : '' }}
                                     </li>
                                     <li v-if="business.services_count > 0">
                                         <strong>{{ business.services_count }}</strong> service{{ business.services_count
@@ -127,6 +126,12 @@
     const processing = ref(false);
 
     const canDelete = computed(() => confirmText.value.trim() === props.business.name);
+
+    // Backend may pass `locations_count` (withCount) or the `locations`
+    // relation; fall back to either.
+    const locationCount = computed(
+        () => props.business.locations_count ?? props.business.locations?.length ?? 0
+    );
 
     // Reset confirmText when modal opens
     watch(() => props.isOpen, (open) => {

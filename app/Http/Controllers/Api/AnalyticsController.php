@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\BusinessAnalytics;
+use App\Models\ListingAnalytics;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +15,16 @@ class AnalyticsController extends Controller
         try {
             Log::info('Tracking view for business: ' . $businessId);
             $business = Business::findOrFail($businessId);
-            BusinessAnalytics::trackView($business->id);
-            
+
+            // PHASE 11 / WAVE 1B — analytics are listing-owned. Attribute to the
+            // organization's primary listing.
+            $listing = $business->primaryListing();
+            if (!$listing) {
+                return response()->json(['success' => false, 'error' => 'No listing for business'], 422);
+            }
+
+            ListingAnalytics::trackView($listing->id);
+
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             Log::error('Error tracking view: ' . $e->getMessage());
@@ -37,8 +45,14 @@ class AnalyticsController extends Controller
                 Log::warning('Invalid click type: ' . $type);
                 return response()->json(['error' => 'Invalid click type'], 400);
             }
-            
-            $result = BusinessAnalytics::trackClick($business->id, $type);
+
+            // PHASE 11 / WAVE 1B — analytics are listing-owned.
+            $listing = $business->primaryListing();
+            if (!$listing) {
+                return response()->json(['success' => false, 'error' => 'No listing for business'], 422);
+            }
+
+            $result = ListingAnalytics::trackClick($listing->id, $type);
             
             if ($result) {
                 Log::info('Click tracked successfully for: ' . $businessId . ' type: ' . $type);

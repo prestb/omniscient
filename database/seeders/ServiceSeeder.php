@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Business;
-use App\Models\BusinessService;
+use App\Models\ListingService;
 use Illuminate\Database\Seeder;
 
 class ServiceSeeder extends Seeder
@@ -13,6 +13,13 @@ class ServiceSeeder extends Seeder
         $business = Business::where('name', 'ABC Pharmacy')->first();
         
         if ($business) {
+            // PHASE 11 / WAVE 1B — services are listing-owned.
+            $listing = $business->primaryListing();
+
+            if (!$listing) {
+                return;
+            }
+
             $services = [
                 'Prescription Medicines',
                 'Over-the-counter Medicines',
@@ -23,8 +30,8 @@ class ServiceSeeder extends Seeder
             ];
             
             foreach ($services as $index => $service) {
-                BusinessService::create([
-                    'business_id' => $business->id,
+                ListingService::create([
+                    'listing_id' => $listing->id,
                     'name' => $service,
                     'description' => "Professional {$service}",
                     'sort_order' => $index + 1,

@@ -112,7 +112,7 @@ class SearchController extends Controller
                 ->take(5)
                 ->get()
                 ->map(function ($business) {
-                    $branch = $business->primaryBranch ?? $business->branches->first();
+                    $branch = $business->primaryLocation ?? $business->locations->first();
                     $category = $business->categories->first();
 
                     return [
@@ -138,15 +138,17 @@ class SearchController extends Controller
                       ->orWhere('name', 'like', "% {$query}%");       // word boundary
                 })
                 ->active()
-                ->whereHas('businesses', function ($q) {
+                // PHASE 9 — discovery is Listing-centric. A category is only
+                // suggested when it has at least one PUBLISHED, VISIBLE listing.
+                ->whereHas('listings', function ($q) {
                     $q->where('status', 'published')
                       ->whereNull('hidden_at');
                 })
-                ->withCount(['businesses' => function ($q) {
+                ->withCount(['listings' => function ($q) {
                     $q->where('status', 'published')
                       ->whereNull('hidden_at');
                 }])
-                ->orderByDesc('businesses_count')
+                ->orderByDesc('listings_count')
                 ->take(5)
                 ->get()
                 ->map(function ($category) {
@@ -155,7 +157,7 @@ class SearchController extends Controller
                         'name' => $category->name,
                         'type' => 'category',
                         'icon' => $category->icon,
-                        'businesses_count' => $category->businesses_count,
+                        'businesses_count' => $category->listings_count,
                     ];
                 });
 

@@ -12,6 +12,7 @@ class Coupon extends Model
 
     protected $fillable = [
         'business_id',
+        'listing_id',
         'user_id',
         'title',
         'description',
@@ -44,6 +45,17 @@ class Coupon extends Model
     public function business()
     {
         return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * PHASE 9 — a coupon is offered on a LISTING (the discoverable entity).
+     * `business_id` is retained as the organization pointer. Organization-wide
+     * promotions are a FUTURE, explicit concept — not represented by a
+     * nullable listing_id.
+     */
+    public function listing()
+    {
+        return $this->belongsTo(Listing::class);
     }
 
     public function user()

@@ -40,7 +40,7 @@ use App\Http\Controllers\User\DashboardController as UserDashboardController;
 // Owner
 use App\Http\Controllers\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Owner\BusinessController as OwnerBusinessController;
-use App\Http\Controllers\Owner\BranchController as OwnerBranchController;
+use App\Http\Controllers\Owner\LocationController as OwnerLocationController;
 use App\Http\Controllers\Owner\ServiceController;
 use App\Http\Controllers\Owner\ContactController;
 use App\Http\Controllers\Owner\ImageController;
@@ -256,10 +256,10 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
         // Business CRUD
         Route::get('/create', [OwnerBusinessController::class, 'create'])
             ->name('create')
-            ->middleware('plan.limit:businesses');
+            ->middleware('plan.limit:listings');
         Route::post('/', [OwnerBusinessController::class, 'store'])
             ->name('store')
-            ->middleware('plan.limit:businesses');
+            ->middleware('plan.limit:listings');
         Route::get('/{business}/edit', [OwnerBusinessController::class, 'edit'])->name('edit');
         Route::put('/{business}', [OwnerBusinessController::class, 'update'])->name('update');
         Route::post('/{business}/submit', [OwnerBusinessController::class, 'submit'])
@@ -269,16 +269,16 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
             ->name('toggle-active');
         Route::delete('/{business}', [OwnerBusinessController::class, 'destroy'])->name('destroy');
 
-        // ✅ Branches (needed for setup)
-        Route::prefix('{business}/branches')->name('branches.')->group(function () {
-            Route::get('/', [OwnerBranchController::class, 'index'])->name('index');
-            Route::get('/create', [OwnerBranchController::class, 'create'])->name('create');
-            Route::post('/', [OwnerBranchController::class, 'store'])
+        // ✅ Locations (physical places — needed for setup)
+        Route::prefix('{business}/locations')->name('locations.')->group(function () {
+            Route::get('/', [OwnerLocationController::class, 'index'])->name('index');
+            Route::get('/create', [OwnerLocationController::class, 'create'])->name('create');
+            Route::post('/', [OwnerLocationController::class, 'store'])
                 ->name('store')
-                ->middleware('plan.limit:branches');
-            Route::get('/{branch}/edit', [OwnerBranchController::class, 'edit'])->name('edit');
-            Route::put('/{branch}', [OwnerBranchController::class, 'update'])->name('update');
-            Route::delete('/{branch}', [OwnerBranchController::class, 'destroy'])->name('destroy');
+                ->middleware('plan.limit:locations');
+            Route::get('/{location}/edit', [OwnerLocationController::class, 'edit'])->name('edit');
+            Route::put('/{location}', [OwnerLocationController::class, 'update'])->name('update');
+            Route::delete('/{location}', [OwnerLocationController::class, 'destroy'])->name('destroy');
         });
 
         // ✅ Services (needed for setup)
@@ -308,8 +308,8 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
             Route::delete('/{image}', [ImageController::class, 'destroy'])->name('destroy');
         });
 
-        // ✅ Hours (needed for setup)
-        Route::prefix('{business}/branches/{branch}/hours')->name('hours.')->group(function () {
+        // ✅ Hours (of a physical Location — needed for setup)
+        Route::prefix('{business}/locations/{location}/hours')->name('hours.')->group(function () {
             Route::get('/', [HourController::class, 'index'])->name('index');
             Route::post('/batch', [HourController::class, 'storeBatch'])->name('batch');
             Route::get('/status', [HourController::class, 'status'])->name('status');

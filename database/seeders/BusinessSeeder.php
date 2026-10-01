@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Business;
-use App\Models\Branch;
+use App\Models\Location;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -80,7 +80,7 @@ class BusinessSeeder extends Seeder
                     ->first();
             }
 
-            Branch::create([
+                        Location::create([
                 'business_id' => $pharmacy->id,
                 'name' => $branchData['name'],
                 'is_primary' => $branchData['is_primary'],
@@ -115,7 +115,7 @@ class BusinessSeeder extends Seeder
         $buea = \App\Models\City::where('name', 'Buea')->first();
         $molyko = \App\Models\Area::where('name', 'Molyko')->first();
 
-        Branch::create([
+                Location::create([
             'business_id' => $hospital->id,
             'name' => 'Main Hospital',
             'is_primary' => true,
@@ -147,7 +147,7 @@ class BusinessSeeder extends Seeder
         $buea = \App\Models\City::where('name', 'Buea')->first();
         $greatSoppo = \App\Models\Area::where('name', 'Great Soppo')->first();
 
-        Branch::create([
+                Location::create([
             'business_id' => $restaurant->id,
             'name' => 'Buea Branch',
             'is_primary' => true,

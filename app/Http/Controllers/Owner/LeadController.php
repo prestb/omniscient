@@ -27,7 +27,7 @@ class LeadController extends Controller
         }
 
         $query = Lead::where('business_id', $business->id)
-            ->with(['branch:id,name']);
+            ->with(['listing:id,name']);
 
         // Filters
         if ($request->filled('status')) {
@@ -81,7 +81,7 @@ class LeadController extends Controller
         // Auto-mark as read
         $lead->markAsRead();
 
-        $lead->load(['business:id,name', 'branch:id,name']);
+        $lead->load(['business:id,name', 'listing:id,name']);
 
         return Inertia::render('Owner/Leads/Show', [
             'business' => $business,

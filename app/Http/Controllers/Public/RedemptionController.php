@@ -80,7 +80,7 @@ class RedemptionController extends Controller
 
         // ============== READY TO CONFIRM ==============
 
-        $branches = $business->branches()
+        $branches = $business->locations()
             ->whereNull('hidden_at')
             ->get(['id', 'name', 'is_primary']);
 
@@ -109,7 +109,7 @@ class RedemptionController extends Controller
                 'id' => $business->id,
                 'name' => $business->name,
             ],
-            'branches' => $branches,
+            'locations' => $branches,
             'expires_at' => $redemptionToken->expires_at->toIso8601String(),
         ]);
     }
@@ -128,8 +128,8 @@ class RedemptionController extends Controller
             ], 401);
         }
 
-        $validated = $request->validate([
-            'branch_id' => 'nullable|exists:branches,id',
+                $validated = $request->validate([
+            'location_id' => 'nullable|exists:locations,id',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -162,11 +162,11 @@ class RedemptionController extends Controller
             return response()->json(['success' => false, 'message' => 'This coupon is no longer valid.'], 400);
         }
 
-        // Branch must belong to this business if provided
-        if (!empty($validated['branch_id'])) {
-            $belongs = $business->branches()->where('id', $validated['branch_id'])->exists();
+                // Location must belong to this business if provided
+        if (!empty($validated['location_id'])) {
+            $belongs = $business->locations()->where('id', $validated['location_id'])->exists();
             if (!$belongs) {
-                return response()->json(['success' => false, 'message' => 'Invalid branch.'], 400);
+                return response()->json(['success' => false, 'message' => 'Invalid location.'], 400);
             }
         }
 
@@ -184,9 +184,9 @@ class RedemptionController extends Controller
                     'final_amount' => null,
                     'ip_address' => request()->ip(),
                     'user_agent' => request()->userAgent(),
-                    'metadata' => [
+                                        'metadata' => [
                         'method' => 'qr_scan',
-                        'branch_id' => $validated['branch_id'] ?? null,
+                        'location_id' => $validated['location_id'] ?? null,
                         'notes' => $validated['notes'] ?? null,
                         'redeemed_by' => $user->id,
                         'token_id' => $redemptionToken->id,

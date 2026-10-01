@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Branch;
+use App\Models\Location;
 use App\Models\Business;
 use App\Models\Category;
 use Illuminate\Database\Seeder;
@@ -62,7 +62,7 @@ class DirectoryTestSeeder extends Seeder
                     'description' => $this->description($category->name, $city['name']),
                     'email' => 'seed-' . Str::random(8) . '@example.test',
                     'website' => null,
-                    // ✅ phone lives on branches, not businesses
+                    // ✅ phone lives on locations, not businesses
                     'status' => Business::STATUS_PUBLISHED,
                     'published_at' => now()->subDays(random_int(1, 60)),
                     'is_featured' => $i === 1 && random_int(0, 3) === 0,
@@ -71,8 +71,8 @@ class DirectoryTestSeeder extends Seeder
                 // ✅ Attach category as primary
                 $business->categories()->attach($category->id, ['is_primary' => true]);
 
-                // ✅ Create a primary branch in the target city
-                Branch::create([
+                                // ✅ Create a primary location in the target city
+                Location::create([
                     'business_id' => $business->id,
                     'name' => $city['name'] . ' Branch',
                     'is_primary' => true,
@@ -84,7 +84,7 @@ class DirectoryTestSeeder extends Seeder
                     'longitude' => null,
                     'phone' => '+237' . random_int(600000000, 699999999),
                     'whatsapp' => null,
-                    'status' => Branch::STATUS_ACTIVE,
+                    'status' => Location::STATUS_ACTIVE,
                     'sort_order' => 0,
                 ]);
 

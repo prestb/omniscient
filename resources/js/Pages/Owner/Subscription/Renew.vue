@@ -212,7 +212,7 @@
                                     </svg>
                                     <span>
                                         <span class="font-semibold text-gray-900 dark:text-white">{{ formatLimit(plan.max_branches) }}</span>
-                                        {{ isUnlimited(plan.max_branches) ? 'unlimited branches' : (Number(plan.max_branches) === 1 ? 'branch' : 'branches') }}
+                                        {{ isUnlimited(plan.max_branches) ? 'unlimited locations' : (Number(plan.max_branches) === 1 ? 'location' : 'locations') }}
                                     </span>
                                 </li>
                                 <li class="flex items-center gap-2 text-gray-600 dark:text-gray-400">

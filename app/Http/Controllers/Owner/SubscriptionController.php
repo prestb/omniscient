@@ -11,9 +11,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Helpers\NotificationHelper;
+use App\Services\SubscriptionService;
 
 class SubscriptionController extends Controller
 {
+    /**
+     * Phase 1: subscription domain logic (proration, credit carry-over,
+     * downgrade detection, grace windows) is delegated to SubscriptionService.
+     * The controller keeps only HTTP coordination + the payment hand-off.
+     */
+    public function __construct(
+        private readonly SubscriptionService $subscriptions
+    ) {
+    }
+
     public function index()
     {
         $user = auth()->user();
@@ -148,6 +159,7 @@ class SubscriptionController extends Controller
 
         // ============================================================
         // ✅ PRORATION — upgrade, downgrade, or renew while active
+        //    Phase 1: computation delegated to SubscriptionService.
         // ============================================================
         $creditApplied = 0.0;
         $amountDue = $totalPrice;
@@ -158,25 +170,16 @@ class SubscriptionController extends Controller
 
         if (in_array($actionType, ['upgrade', 'renew']) && $isActiveExisting) {
 
-            // (1) Unused value of current plan
-            $prorationCredit = $existingSubscription->calculateUpgradeCredit();
+            $proration = $this->subscriptions->prorationForChange(
+                $existingSubscription,
+                $plan,
+                $totalPrice,
+                $user
+            );
 
-            // (2) Any banked credit already sitting on the current sub
-            $bankedCredit = (float) ($existingSubscription->credit_balance ?? 0);
-
-            // (3) Any banked credit on OTHER subs for this user
-            $otherBankedCredit = (float) Subscription::where('user_id', $user->id)
-                ->whereNull('deleted_at')
-                ->where('id', '!=', $existingSubscription->id)
-                ->sum('credit_balance');
-
-            $availableCredit = $prorationCredit + $bankedCredit + $otherBankedCredit;
-
-            $creditApplied = min($availableCredit, $totalPrice);
-            $leftoverCredit = max(0, $availableCredit - $totalPrice);
-
-            // Fapshi requires a positive integer; min 100 FCFA
-            $amountDue = max(100, (int) round($totalPrice - $creditApplied));
+            $creditApplied = $proration['credit_applied'];
+            $leftoverCredit = $proration['leftover_credit'];
+            $amountDue = $proration['amount_due'];
 
             // Only record the "upgraded from" link when the user was on an active sub
             $upgradedFromId = $existingSubscription->id;
@@ -217,17 +220,24 @@ class SubscriptionController extends Controller
 
         // ✅ Detect downgrade — fires whenever the user moves to a DIFFERENT plan.
         //    The frontend may send 'upgrade' | 'renew' | 'new' — we don't rely on it.
-        //    `isPlanDowngrade` compares limits and returns true only if any
-        //    enforced limit is strictly smaller on the new plan.
+        //    `SubscriptionService::isDowngrade()` compares limits and returns true
+        //    only if any enforced limit is strictly smaller on the new plan.
         if (
             $existingSubscription &&
             $existingSubscription->plan &&
             (int) $existingSubscription->plan_id !== (int) $plan->id
         ) {
-            $isDowngrade = $this->isPlanDowngrade($existingSubscription->plan, $plan);
+            $isDowngrade = $this->subscriptions->isDowngrade($existingSubscription->plan, $plan);
 
-            if ($isDowngrade) {
-                $graceDate = now()->addDays(7)->toDateString();
+            // Phase 3 — leaving unlimited capacity is ALSO treated as a
+            // capacity reduction for PROTECTION purposes: it arms the same
+            // grace window so the account enters a reversible over-quota
+            // state instead of losing data. isDowngrade() itself is left
+            // unchanged for backward compatibility.
+            $leavesUnlimited = $this->subscriptions->leavesUnlimited($existingSubscription->plan, $plan);
+
+            if ($isDowngrade || $leavesUnlimited) {
+                $graceDate = $this->subscriptions->downgradeGraceDate()->toDateString();
 
                 $saved = $subscription->update([
                     'downgrade_grace_ends_at' => $graceDate,
@@ -236,7 +246,8 @@ class SubscriptionController extends Controller
                 // Refresh to read the actual persisted value
                 $subscription->refresh();
 
-                \Log::info('Downgrade detected — grace period started', [
+                \Log::info('Plan capacity reduction detected — grace period started', [
+                    'reason' => $isDowngrade ? 'downgrade' : 'leaving_unlimited',
                     'old_plan' => $existingSubscription->plan->name,
                     'new_plan' => $plan->name,
                     'subscription_id' => $subscription->id,
@@ -433,43 +444,6 @@ class SubscriptionController extends Controller
         return $now->diffInDays($end, false);
     }
 
-    /**
-     * Determine if moving from $oldPlan to $newPlan reduces any enforced limit.
-     *
-     * A "downgrade" for enforcement purposes means: any of the enforced limits
-     * (businesses, branches, services, images, coupons) is strictly smaller
-     * on the new plan compared to the old plan.
-     *
-     * Unlimited limits (-1 / 999) are ignored: going from limited → unlimited
-     * is an upgrade, and going from unlimited → any number is a downgrade.
-     */
-    private function isPlanDowngrade($oldPlan, $newPlan): bool
-    {
-        if (!$oldPlan || !$newPlan) {
-            return false;
-        }
-
-        $limits = ['max_businesses', 'max_branches', 'max_services', 'max_images', 'max_coupons'];
-
-        foreach ($limits as $limit) {
-            $old = (int) ($oldPlan->{$limit} ?? 0);
-            $new = (int) ($newPlan->{$limit} ?? 0);
-
-            $oldUnlimited = ($old === -1 || $old === 999);
-            $newUnlimited = ($new === -1 || $new === 999);
-
-            // Unlimited → anything (or) anything → unlimited = not a downgrade on this axis
-            if ($oldUnlimited)
-                continue;
-            if ($newUnlimited)
-                continue;
-
-            if ($new < $old) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
+    // NOTE (Phase 1): `isPlanDowngrade()` was moved to SubscriptionService
+    // so the enforcement rule lives in one place and is unit-testable.
 }

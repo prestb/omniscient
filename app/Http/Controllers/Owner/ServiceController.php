@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\BusinessService;
+use App\Models\ListingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -38,14 +38,20 @@ class ServiceController extends Controller
             return $redirect;
         }
 
+        // PHASE 11 / WAVE 1B — services are listing-owned. Attach to the
+        // organization's primary listing.
+        $listing = $business->primaryListing();
+        if (!$listing) {
+            return redirect()->back()->with('error', 'No listing found to attach services to.');
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:50',
             'description' => 'nullable|string|max:75',
         ]);
 
-        $service = BusinessService::create([
-            'business_id' => $business->id,
+        $service = ListingService::create([
+            'listing_id' => $listing->id,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'sort_order' => $business->services()->count() + 1,
@@ -58,7 +64,7 @@ class ServiceController extends Controller
         return redirect()->back()->with('success', 'Service added successfully.');
     }
 
-    public function update(Request $request, Business $business, BusinessService $service)
+    public function update(Request $request, Business $business, ListingService $service)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
@@ -86,7 +92,7 @@ class ServiceController extends Controller
         return redirect()->back()->with('success', 'Service updated successfully.');
     }
 
-    public function destroy(Business $business, BusinessService $service)
+        public function destroy(Business $business, ListingService $service)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);

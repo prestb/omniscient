@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Business;
-use App\Models\BusinessContact;
+use App\Models\ListingContact;
 use Illuminate\Database\Seeder;
 
 class ContactSeeder extends Seeder
@@ -13,6 +13,13 @@ class ContactSeeder extends Seeder
         $business = Business::where('name', 'ABC Pharmacy')->first();
         
         if ($business) {
+            // PHASE 11 / WAVE 1B — contacts are listing-owned.
+            $listing = $business->primaryListing();
+
+            if (!$listing) {
+                return;
+            }
+
             $contacts = [
                 ['type' => 'phone', 'value' => '+237 699 123 456', 'is_primary' => true],
                 ['type' => 'whatsapp', 'value' => '+237 699 123 456', 'is_primary' => false],
@@ -21,8 +28,8 @@ class ContactSeeder extends Seeder
             ];
             
             foreach ($contacts as $index => $contact) {
-                BusinessContact::create([
-                    'business_id' => $business->id,
+                ListingContact::create([
+                    'listing_id' => $listing->id,
                     'type' => $contact['type'],
                     'value' => $contact['value'],
                     'is_primary' => $contact['is_primary'],

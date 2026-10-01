@@ -17,18 +17,18 @@ class HomeController extends Controller
     {
         $featuredBusinesses = Business::with([
             'categories',
-            'primaryBranch',
-            'primaryBranch.country',
-            'primaryBranch.region',
-            'primaryBranch.city',
-            'branches' => function ($q) {
+            'primaryLocation',
+            'primaryLocation.country',
+            'primaryLocation.region',
+            'primaryLocation.city',
+            'locations' => function ($q) {
                 $q->whereNull('hidden_at');
             },
-            'branches.city',
-            'branches.region',
-            'branches.country',
-            'branches.hours',
-            'branches.hourOverrides',   // ✅ for is_open_now override awareness
+            'locations.city',
+            'locations.region',
+            'locations.country',
+            'locations.hours',
+            'locations.hourOverrides',   // ✅ for is_open_now override awareness
             'logo',
             'coverImage',
             'galleryImages' => function ($q) {
@@ -48,18 +48,18 @@ class HomeController extends Controller
 
         $recentBusinesses = Business::with([
             'categories',
-            'primaryBranch',
-            'primaryBranch.country',
-            'primaryBranch.region',
-            'primaryBranch.city',
-            'branches' => function ($q) {
+            'primaryLocation',
+            'primaryLocation.country',
+            'primaryLocation.region',
+            'primaryLocation.city',
+            'locations' => function ($q) {
                 $q->whereNull('hidden_at');
             },
-            'branches.city',
-            'branches.region',
-            'branches.country',
-            'branches.hours',
-            'branches.hourOverrides',   // ✅ for is_open_now override awareness
+            'locations.city',
+            'locations.region',
+            'locations.country',
+            'locations.hours',
+            'locations.hourOverrides',   // ✅ for is_open_now override awareness
             'logo',
             'coverImage',
             'galleryImages' => function ($q) {

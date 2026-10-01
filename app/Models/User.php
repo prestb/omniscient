@@ -160,6 +160,30 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Business::class, 'owner_id');
     }
 
+    /**
+     * PHASE 9 — canonical Account → Listings relationship.
+     *
+     * A Listing is the discoverable entity owned by this account
+     * ({@see \App\Models\Listing}). This is now genuinely DISTINCT from
+     * {@see businesses()} (organizations): an account may own several
+     * organizations and several standalone listings.
+     *
+     * Entitlements are account-scoped (subscription → plan → limits), NOT
+     * per-listing.
+     */
+    public function listings()
+    {
+        return $this->hasMany(Listing::class, 'owner_id');
+    }
+
+    /**
+     * Count of listings owned by this account (the quota metric).
+     */
+    public function listingsCount(): int
+    {
+        return $this->listings()->count();
+    }
+
     public function hasBusiness()
     {
         return $this->businesses()->count() > 0;
@@ -359,7 +383,7 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         // Get plan limits
-        $maxBusinesses = $subscription->plan->max_businesses ?? 0;
+        $maxBusinesses = $subscription->plan->max_listings ?? 0;
 
         // Unlimited
         if ($maxBusinesses === -1) {
@@ -388,7 +412,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return 0;
         }
 
-        $maxBusinesses = $subscription->plan->max_businesses ?? 0;
+        $maxBusinesses = $subscription->plan->max_listings ?? 0;
         if ($maxBusinesses === -1) {
             return PHP_INT_MAX;
         }
@@ -424,7 +448,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return 0;
         }
 
-        return $subscription->plan->max_businesses ?? 0;
+        return $subscription->plan->max_listings ?? 0;
     }
 
     /**
@@ -439,8 +463,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return [
             'plan_name' => $subscription->plan->name,
-            'max_businesses' => $subscription->plan->max_businesses,
-            'max_branches' => $subscription->plan->max_branches,
+            'max_listings' => $subscription->plan->max_listings,
+            'max_locations' => $subscription->plan->max_locations,
             'max_images' => $subscription->plan->max_images,
             'status' => $subscription->status,
             'status_label' => $subscription->status_label,

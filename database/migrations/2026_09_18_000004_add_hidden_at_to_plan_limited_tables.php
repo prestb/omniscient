@@ -15,9 +15,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $tables = [
+                $tables = [
             'businesses',
-            'branches',
+            'locations',
             'business_services',
             'business_images',
             'coupons',
@@ -37,7 +37,7 @@ return new class extends Migration
     {
         $tables = [
             'businesses',
-            'branches',
+            'locations',
             'business_services',
             'business_images',
             'coupons',

@@ -91,7 +91,7 @@ class BusinessCompletenessService
         $maxScore = 0;
 
         // Preload relationships once
-        $business->loadMissing(['branches.hours', 'services', 'categories', 'images', 'logo', 'coverImage', 'galleryImages']);
+        $business->loadMissing(['locations.hours', 'services', 'categories', 'images', 'logo', 'coverImage', 'galleryImages']);
 
         foreach (self::CHECKLIST as $item) {
             $complete = $this->isComplete($item['key'], $business);
@@ -147,9 +147,9 @@ class BusinessCompletenessService
 
             'gallery_min_3' => $business->galleryImages()->count() >= 3,
 
-            'has_branch' => $business->branches()->count() >= 1,
+            'has_branch' => $business->locations()->count() >= 1,
 
-            'branch_contact' => $business->branches()
+            'branch_contact' => $business->locations()
                 ->whereNotNull('address')
                 ->where('address', '!=', '')
                 ->where(function ($q) {
@@ -163,7 +163,7 @@ class BusinessCompletenessService
 
             'email_or_website' => filled($business->email) || filled($business->website),
 
-            'business_hours' => $business->branches()
+            'business_hours' => $business->locations()
                 ->whereHas('hours', function ($q) {
                     $q->where('is_closed', false);
                 })

@@ -130,7 +130,8 @@ const getCategory = (biz) => {
 };
 
 const getCity = (biz) => {
-    const primary = (biz.branches || []).find(b => b.is_primary) || (biz.branches || [])[0];
+    const locs = biz.locations || biz.branches || [];
+    const primary = locs.find(b => b.is_primary) || locs[0];
     return primary?.city || null;
 };
 </script>

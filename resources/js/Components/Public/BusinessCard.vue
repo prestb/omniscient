@@ -135,43 +135,47 @@
     const isFavorited = ref(props.business.is_favorited || false);
     const processing = ref(false);
 
-    const isLoggedIn = computed(() => !!page.props.auth?.user);
+        const isLoggedIn = computed(() => !!page.props.auth?.user);
+
+    // ✅ Unified location list — accepts either `locations` or the
+    //    legacy `branches` key so this card works with every resource.
+    const locations = computed(() => props.business.locations || props.business.branches || []);
 
     // ============== Open Status ==============
 
     const hasOpenBranch = computed(() => {
-        if (!props.business.branches || props.business.branches.length === 0) {
+        if (!locations.value || locations.value.length === 0) {
             return props.business.is_open_now || false;
         }
-        return props.business.branches.some(b => b.is_open_now);
+        return locations.value.some(b => b.is_open_now);
     });
 
 
     // ✅ Override today — business-wide (any branch with an override today)
     const hasOverrideToday = computed(() => {
-        if (!props.business.branches || props.business.branches.length === 0) {
+        if (!locations.value || locations.value.length === 0) {
             return false;
         }
-        return props.business.branches.some(b => b.has_override_today);
+        return locations.value.some(b => b.has_override_today);
     });
 
     // First override note we find, for the tooltip
     const overrideNote = computed(() => {
-        const branch = (props.business.branches || []).find(b => b.has_override_today);
+        const branch = locations.value.find(b => b.has_override_today);
         return branch?.override_note || null;
     });
 
     // ✅ Special hours override today — business-wide (any branch)
     const hasSpecialHoursToday = computed(() => {
-        if (!props.business.branches || props.business.branches.length === 0) {
+        if (!locations.value || locations.value.length === 0) {
             return false;
         }
-        return props.business.branches.some(b => b.is_special_hours);
+        return locations.value.some(b => b.is_special_hours);
     });
 
     // ✅ "10 AM–2 PM" from the first branch with special hours today
     const specialHoursText = computed(() => {
-        const branch = (props.business.branches || []).find(b => b.is_special_hours);
+        const branch = locations.value.find(b => b.is_special_hours);
         if (!branch?.override_opens_at || !branch?.override_closes_at) return null;
 
         try {
@@ -188,11 +192,11 @@
     });
 
     const branchStatusCounts = computed(() => {
-        if (!props.business.branches || props.business.branches.length === 0) {
+        if (!locations.value || locations.value.length === 0) {
             return { open: 0, closed: 0 };
         }
-        const open = props.business.branches.filter(b => b.is_open_now).length;
-        const closed = props.business.branches.filter(b => !b.is_open_now).length;
+        const open = locations.value.filter(b => b.is_open_now).length;
+        const closed = locations.value.filter(b => !b.is_open_now).length;
         return { open, closed };
     });
 

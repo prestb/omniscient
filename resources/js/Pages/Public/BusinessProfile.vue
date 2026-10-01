@@ -221,9 +221,9 @@
                         </div>
                     </div>
 
-                    <!-- BRANCHES SECTION (child component) -->
-                    <BranchesSection v-if="business.branches && business.branches.length > 0"
-                        :branches="business.branches" :has-access="hasFeature('branch_hours')" />
+                    <!-- LOCATIONS SECTION (child component) -->
+                    <BranchesSection v-if="business.locations && business.locations.length > 0"
+                        :locations="business.locations" :has-access="hasFeature('branch_hours')" />
 
 
 
@@ -752,7 +752,7 @@
             type: Array,
             default: () => [],
         },
-        primaryBranch: {
+        primaryLocation: {
             type: Object,
             default: null,
         },
@@ -954,8 +954,8 @@
     };
 
     const branchHours = computed(() => {
-        if (!props.primaryBranch?.hours) return [];
-        const hours = props.primaryBranch.hours;
+        if (!props.primaryLocation?.hours) return [];
+        const hours = props.primaryLocation.hours;
         const result = [];
 
         for (let i = 0; i < 7; i++) {
@@ -1123,8 +1123,8 @@
         document.body.style.overflow = "";
     });
 
-    // ============== Branch Helpers ==============
-    const getBranchAddress = (branch) => {
+    // ============== Location Helpers ==============
+    const getLocationAddress = (branch) => {
         if (!branch) return "Address not set";
         const parts = [];
         if (branch.address) parts.push(branch.address);
@@ -1144,7 +1144,7 @@
         const lng = branch.longitude;
         const destination = (lat && lng)
             ? `${lat},${lng}`
-            : encodeURIComponent(getBranchAddress(branch));
+            : encodeURIComponent(getLocationAddress(branch));
         return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
     };
 
@@ -1210,30 +1210,30 @@
         return hour ? getHourDisplay(hour) : null;
     };
 
-    // ============== Branch Computed ==============
-    const showAllBranches = ref(false);
+    // ============== Location Computed ==============
+    const showAllLocations = ref(false);
 
-    const otherBranches = computed(() => {
-        if (!props.business.branches) return [];
-        return props.business.branches.filter((b) => !b.is_primary);
+    const otherLocations = computed(() => {
+        if (!props.business.locations) return [];
+        return props.business.locations.filter((b) => !b.is_primary);
     });
 
-    const openBranchesCount = computed(() => {
-        if (!props.business.branches) return 0;
-        return props.business.branches.filter((b) => b.is_open_now).length;
+    const openLocationsCount = computed(() => {
+        if (!props.business.locations) return 0;
+        return props.business.locations.filter((b) => b.is_open_now).length;
     });
 
     // ============== Contact Helpers ==============
-    // Phone: prefer primary branch, fall back to a `phone`-type contact
+    // Phone: prefer primary location, fall back to a `phone`-type contact
     const contactPhone = computed(() => {
-        if (props.primaryBranch?.phone) return props.primaryBranch.phone;
+        if (props.primaryLocation?.phone) return props.primaryLocation.phone;
         const c = (props.business.contacts || []).find((x) => x.type === 'phone');
         return c?.value || null;
     });
 
     // WhatsApp: same logic
     const contactWhatsApp = computed(() => {
-        if (props.primaryBranch?.whatsapp) return props.primaryBranch.whatsapp;
+        if (props.primaryLocation?.whatsapp) return props.primaryLocation.whatsapp;
         const c = (props.business.contacts || []).find((x) => x.type === 'whatsapp');
         return c?.value || null;
     });
@@ -1246,9 +1246,9 @@
     });
 
     const collectionCrossLink = computed(() => {
-        // Business must have a primary category + a primary branch city
+        // Business must have a primary category + a primary location city
         const category = props.business.categories?.[0];
-        const branch = props.primaryBranch;
+        const branch = props.primaryLocation;
         if (!category?.slug || !branch?.city?.slug) return null;
         return {
             href: `/${category.slug}-in-${branch.city.slug}`,

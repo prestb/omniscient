@@ -85,11 +85,11 @@ class ExploreService
             $q = Business::query()
                 ->with([
                     'categories',
-                    'primaryBranch',
-                    'branches' => fn($x) => $x->whereNull('hidden_at'),
-                    'branches.city',
-                    'branches.region',
-                    'branches.country',
+                    'primaryLocation',
+                    'locations' => fn($x) => $x->whereNull('hidden_at'),
+                    'locations.city',
+                    'locations.region',
+                    'locations.country',
                     'logo',
                     'coverImage',
                 ])
@@ -100,7 +100,7 @@ class ExploreService
                 ->withAvg('reviews', 'rating');
 
             if ($cityId) {
-                $q->whereHas('branches', fn($x) => $x->where('city_id', $cityId));
+                $q->whereHas('locations', fn($x) => $x->where('city_id', $cityId));
             }
 
             $q->orderByDesc('is_featured')->latest('published_at');
@@ -188,7 +188,7 @@ class ExploreService
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
                 ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
-                ->whereHas('branches', fn($q) => $q->where('city_id', $cityId))
+                ->whereHas('locations', fn($q) => $q->where('city_id', $cityId))
                 ->count();
         });
     }
@@ -209,9 +209,9 @@ class ExploreService
      */
     private function cardPayload(Business $business): array
     {
-        $primary = $business->primaryBranch
-            ?? $business->branches->firstWhere('is_primary', true)
-            ?? $business->branches->first();
+        $primary = $business->primaryLocation
+            ?? $business->locations->firstWhere('is_primary', true)
+            ?? $business->locations->first();
 
         $category = $business->categories->first();
 

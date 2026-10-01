@@ -29,15 +29,13 @@ class SubscriptionHelper
             'status_label' => $subscription->status_label,
             'days_remaining' => $subscription->days_remaining,
             'end_date' => $subscription->end_date,
-            'limits' => [
-                'max_businesses' => $subscription->plan->max_businesses,
-                'max_branches' => $subscription->plan->max_branches,
+                        'limits' => [
+                'max_listings' => $subscription->plan->max_listings,
+                'max_locations' => $subscription->plan->max_locations,
                 'max_images' => $subscription->plan->max_images,
             ],
             'usage' => [
-                'businesses' => Business::where('owner_id', $user->id)
-                    ->whereNotIn('status', ['deleted', 'rejected'])
-                    ->count(),
+                'listings' => \App\Models\Listing::countFor($user),
             ],
         ];
     }
@@ -50,18 +48,16 @@ class SubscriptionHelper
         $subscription = $user->activeSubscription;
         if (!$subscription) return true;
 
-        $limits = [
-            'businesses' => $subscription->plan->max_businesses ?? 0,
-            'branches' => $subscription->plan->max_branches ?? 0,
+                $limits = [
+            'listings' => $subscription->plan->max_listings ?? 0,
+            'locations' => $subscription->plan->max_locations ?? 0,
             'images' => $subscription->plan->max_images ?? 0,
         ];
 
         if ($limits[$type] === -1) return false;
 
         $counts = [
-            'businesses' => Business::where('owner_id', $user->id)
-                ->whereNotIn('status', ['deleted', 'rejected'])
-                ->count(),
+            'listings' => \App\Models\Listing::countFor($user),
         ];
 
         return ($counts[$type] ?? 0) >= $limits[$type];

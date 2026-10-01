@@ -278,12 +278,12 @@ class LocationController extends Controller
 
     public function destroyArea(Area $area)
     {
-        // ✅ Prevent deletion when branches reference this area.
-        //    Branches have `area_id` FK; deleting would cascade or 500.
-        if (\App\Models\Branch::where('area_id', $area->id)->exists()) {
+                        // ✅ Prevent deletion when locations reference this area.
+        //    Locations have an `area_id` FK; deleting would cascade or 500.
+        if (\App\Models\Location::where('area_id', $area->id)->exists()) {
             return redirect()->back()->with(
                 'error',
-                "Cannot delete {$area->name} — it's used by one or more branches. Reassign those branches first."
+                "Cannot delete {$area->name} — it's used by one or more locations. Reassign those locations first."
             );
         }
 

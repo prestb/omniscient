@@ -8,6 +8,25 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 
+/**
+ * Business
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * PHASE 9 — BUSINESS IS AN ORGANIZATION (not a discoverable entity)
+ * ─────────────────────────────────────────────────────────────────────────
+  * A Business is an organization / brand / aggregate owned by an Account.
+ * It is NOT the canonical discoverable entity — {@see \App\Models\Listing}
+ * is. A Business may own MANY Listings (e.g. a multi-location brand), each
+ * of which may have its own Location.
+ *
+ *   Account → Business (org) → Listing* → Location?
+ *
+ * There is NO `listing_type` column on `businesses`: listing type lives solely
+ * on `listings.type` (App\Support\ListingType) — one source of truth.
+ * See docs/PHASE_9_LISTING_CORE_IMPLEMENTATION.md.
+ *
+ * Ownership: `owner_id → User` remains the Account edge for the organization.
+ */
 class Business extends Model
 {
     use HasFactory, SoftDeletes, Searchable;
@@ -120,8 +139,10 @@ class Business extends Model
             return false;
         }
 
-        // Get plan limits
-        $maxBusinesses = $subscription->plan->max_businesses ?? 0;
+                // Get plan limits
+        // PHASE 11 — reads the renamed `max_listings` quota column (identifier
+        // convergence; the Business→Listing enforcement flip is Wave 1D).
+        $maxBusinesses = $subscription->plan->max_listings ?? 0;
 
         // Unlimited
         if ($maxBusinesses === -1 || $maxBusinesses === 999) {
@@ -156,7 +177,7 @@ class Business extends Model
             return 0;
         }
 
-        $maxBusinesses = $subscription->plan->max_businesses ?? 0;
+                $maxBusinesses = $subscription->plan->max_listings ?? 0;
         if ($maxBusinesses === -1 || $maxBusinesses === 999) {
             return PHP_INT_MAX;
         }
@@ -168,8 +189,11 @@ class Business extends Model
         return max(0, $maxBusinesses - $businessCount);
     }
 
-    /**
-     * Check if user can create a new branch for a business
+        /**
+     * Check if user can add another physical Location to this organization.
+     *
+     * PHASE 10: the plan column is still `max_branches` (plan-column rename is
+     * deferred), but it now caps Locations — physical places.
      */
     public function canCreateBranch()
     {
@@ -186,17 +210,17 @@ class Business extends Model
             return false;
         }
 
-        $maxBranches = $subscription->plan->max_branches ?? 0;
+                $maxBranches = $subscription->plan->max_locations ?? 0;
         if ($maxBranches === -1 || $maxBranches === 999) {
             return true;
         }
 
-        $branchCount = $this->branches()->count();
+        $branchCount = $this->locations()->count();
         return $branchCount < $maxBranches;
     }
 
     /**
-     * Get remaining branch slots for this business
+     * Get remaining location slots for this business.
      */
     public function getRemainingBranchSlots()
     {
@@ -213,12 +237,12 @@ class Business extends Model
             return 0;
         }
 
-        $maxBranches = $subscription->plan->max_branches ?? 0;
+                $maxBranches = $subscription->plan->max_locations ?? 0;
         if ($maxBranches === -1 || $maxBranches === 999) {
             return PHP_INT_MAX;
         }
 
-        $branchCount = $this->branches()->count();
+        $branchCount = $this->locations()->count();
         return max(0, $maxBranches - $branchCount);
     }
 
@@ -268,7 +292,12 @@ class Business extends Model
         }
 
         $maxImages = $subscription->plan->max_images ?? 0;
-        if ($maxImages === -1 || $maxImages === 99 - 19) {
+
+        // ✅ FIX (Phase 1): was `$maxImages === 99 - 19` (= 80), an inconsistent
+        //    magic value that did not match the unlimited sentinels (-1 / 999)
+        //    used by every sibling method. Unlimited plans now report remaining
+        //    image slots correctly.
+        if ($maxImages === -1 || $maxImages === 999) {
             return PHP_INT_MAX;
         }
 
@@ -298,15 +327,51 @@ class Business extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
-    public function branches()
+    /**
+     * PHASE 9 — the organization's Listings (its discoverable entities).
+     *
+     * A multi-location brand owns one Listing per location; a single-location
+     * business owns a single Listing. Listings are the canonical discoverable
+     * entity — Business is the organization that groups them.
+     */
+        public function listings()
     {
-        return $this->hasMany(Branch::class);
+        return $this->hasMany(Listing::class);
     }
 
-    public function primaryBranch()
+    /**
+     * PHASE 11 / WAVE 1B — resolve the listing that owner-facing child
+     * management (services/media/contacts/analytics) attaches to.
+     *
+     * Listing-owned children require a `listing_id`. The owner UI still
+     * addresses an organization (`{business}`), so we deterministically pick
+     * the organization's PRIMARY listing — the oldest published listing, or
+     * else the oldest listing. Multi-listing addressing is a Wave 1D concern.
+     */
+    public function primaryListing(): ?Listing
     {
-        return $this->hasOne(Branch::class)->where('is_primary', true);
+        return $this->listings()
+            ->orderByRaw("CASE WHEN status = 'published' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->first();
     }
+
+        /**
+         * PHASE 10 — the organization's physical Locations (places).
+         *
+         * A Location is a universal physical place; `business_id` on `locations`
+         * is OPTIONAL, so this relation may be empty even when the organization
+         * has Listings (standalone-location listings).
+         */
+        public function locations()
+        {
+            return $this->hasMany(Location::class);
+        }
+
+        public function primaryLocation()
+        {
+            return $this->hasOne(Location::class)->where('is_primary', true);
+        }
 
     public function categories()
     {
@@ -315,34 +380,92 @@ class Business extends Model
             ->withTimestamps();
     }
 
+        /**
+     * PHASE 11 / WAVE 1B — organization-level media is an AGGREGATE across the
+     * organization's listings. Media rows are listing-owned (`listing_id`);
+     * they are read here through the Listing so organization dashboards keep
+     * working. There is no `business_id` on `listing_images`.
+     */
     public function images()
     {
-        return $this->hasMany(BusinessImage::class)->orderBy('sort_order');
+        return $this->hasManyThrough(
+            ListingImage::class,
+            Listing::class,
+            'business_id', // FK on listings
+            'listing_id',  // FK on listing_images
+            'id',          // local key on businesses
+            'id'           // local key on listings
+        )->orderBy('listing_images.sort_order');
     }
 
     public function logo()
     {
-        return $this->hasOne(BusinessImage::class)->where('type', BusinessImage::TYPE_LOGO);
+        return $this->hasOneThrough(
+            ListingImage::class,
+            Listing::class,
+            'business_id',
+            'listing_id',
+            'id',
+            'id'
+        )->where('listing_images.type', ListingImage::TYPE_LOGO);
     }
 
     public function coverImage()
     {
-        return $this->hasOne(BusinessImage::class)->where('type', BusinessImage::TYPE_COVER);
+        return $this->hasOneThrough(
+            ListingImage::class,
+            Listing::class,
+            'business_id',
+            'listing_id',
+            'id',
+            'id'
+        )->where('listing_images.type', ListingImage::TYPE_COVER);
     }
 
     public function galleryImages()
     {
-        return $this->hasMany(BusinessImage::class)->where('type', BusinessImage::TYPE_GALLERY)->orderBy('sort_order');
+        return $this->hasManyThrough(
+            ListingImage::class,
+            Listing::class,
+            'business_id',
+            'listing_id',
+            'id',
+            'id'
+        )
+            ->where('listing_images.type', ListingImage::TYPE_GALLERY)
+            ->orderBy('listing_images.sort_order');
     }
 
+    /**
+     * PHASE 11 / WAVE 1B — organization-level services are an AGGREGATE across
+     * the organization's listings. Services are listing-owned (`listing_id`).
+     */
     public function services()
     {
-        return $this->hasMany(BusinessService::class)->orderBy('sort_order');
+        return $this->hasManyThrough(
+            ListingService::class,
+            Listing::class,
+            'business_id',
+            'listing_id',
+            'id',
+            'id'
+        )->orderBy('listing_services.sort_order');
     }
 
+    /**
+     * PHASE 11 / WAVE 1B — organization-level contacts are an AGGREGATE across
+     * the organization's listings. Contacts are listing-owned (`listing_id`).
+     */
     public function contacts()
     {
-        return $this->hasMany(BusinessContact::class)->orderBy('sort_order');
+        return $this->hasManyThrough(
+            ListingContact::class,
+            Listing::class,
+            'business_id',
+            'listing_id',
+            'id',
+            'id'
+        )->orderBy('listing_contacts.sort_order');
     }
 
     public function subscriptions()
@@ -406,6 +529,24 @@ class Business extends Model
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
+    }
+
+    /**
+     * PHASE 9 — the authoritative LISTING COUNT for an account now lives on
+     * {@see \App\Models\Listing::countFor()}. Businesses are organizations,
+     * not discoverable listings, so counting them is no longer meaningful
+     * for quota. This method is retained as a thin, clearly-named alias for
+     * ORGANIZATION counting (used by organization-level dashboards), NOT for
+     * listing quota.
+     */
+    public static function organizationsCountFor(User|int $account): int
+    {
+        $ownerId = $account instanceof User ? $account->id : $account;
+
+        return self::query()
+            ->where('owner_id', $ownerId)
+            ->whereNotIn('status', ['deleted', 'rejected'])
+            ->count();
     }
 
     // ✅ NEW — Plan-enforcement visibility scopes
@@ -570,35 +711,40 @@ class Business extends Model
     {
         return $this->status === self::STATUS_PUBLISHED;
     }
+
+        // ============== LISTING RELATIONSHIP (Phase 9) ==============
+    //
+    // Business is an ORGANIZATION. Its discoverable entities are Listings
+    // ({@see listings()}). Listing-specific actions (type, lifecycle,
+    // ownership-in-listing-terms) live on the Listing model.
+
     // ============== SEARCHABLE ==============
 
-    /**
+        /**
      * ✅ Meilisearch searchable payload.
      *
      *    Singular city_id / region_id / country_id and city / region strings
-     *    refer to the PRIMARY branch — kept for backwards compatibility.
-     *
-     *    Plural city_ids / region_ids / country_ids are the UNION of all
-     *    branches' values — used for multi-branch filtering (so a business
-     *    with a branch in Yaoundé matches a Yaounde search even if its
-     *    primary branch is in Buea).
+     *    refer to the PRIMARY location. Plural city_ids / region_ids /
+     *    country_ids are the UNION of all locations' values — used for
+     *    multi-location filtering (so a business with a place in Yaoundé
+     *    matches a Yaounde search even if its primary place is in Buea).
      */
-    public function toSearchableArray()
+        public function toSearchableArray()
     {
-        // Ensure branches + their locations are loaded (avoids N+1 during index)
+        // Ensure locations + their geography are loaded (avoids N+1 during index)
         $this->loadMissing([
-            'branches',
-            'branches.city',
-            'branches.region',
-            'branches.country',
+            'locations',
+            'locations.city',
+            'locations.region',
+            'locations.country',
             'categories',
             'services',
             'owner',
             'owner.activeSubscription',
         ]);
 
-        $primaryBranch = $this->branches->firstWhere('is_primary', true)
-            ?? $this->branches->first();
+        $primaryLocation = $this->locations->firstWhere('is_primary', true)
+            ?? $this->locations->first();
 
         $categoryIds = $this->categories->pluck('id')->values()->all();
         $categoryNames = $this->categories->pluck('name')->values()->all();
@@ -624,22 +770,22 @@ class Business extends Model
             'categories_names' => $categoryNames,
             'services_names' => $serviceNames,
 
-            // ============== PRIMARY BRANCH (singular, unchanged) ==============
-            'city_id' => $primaryBranch?->city_id,
-            'region_id' => $primaryBranch?->region_id,
-            'country_id' => $primaryBranch?->country_id,
-            'city' => $primaryBranch?->city?->name,
-            'region' => $primaryBranch?->region?->name,
-            'country' => $primaryBranch?->country?->name,
-            'address' => $primaryBranch?->address,
-            'phone' => $primaryBranch?->phone,
+            // ============== PRIMARY LOCATION (singular) ==============
+            'city_id' => $primaryLocation?->city_id,
+            'region_id' => $primaryLocation?->region_id,
+            'country_id' => $primaryLocation?->country_id,
+            'city' => $primaryLocation?->city?->name,
+            'region' => $primaryLocation?->region?->name,
+            'country' => $primaryLocation?->country?->name,
+            'address' => $primaryLocation?->address,
+            'phone' => $primaryLocation?->phone,
             'email' => $this->email,
             'website' => $this->website,
 
-            // ============== ALL BRANCHES (plural, new) ==============
-            'city_ids' => $this->branches->pluck('city_id')->filter()->unique()->values()->all(),
-            'region_ids' => $this->branches->pluck('region_id')->filter()->unique()->values()->all(),
-            'country_ids' => $this->branches->pluck('country_id')->filter()->unique()->values()->all(),
+            // ============== ALL LOCATIONS (plural) ==============
+            'city_ids' => $this->locations->pluck('city_id')->filter()->unique()->values()->all(),
+            'region_ids' => $this->locations->pluck('region_id')->filter()->unique()->values()->all(),
+            'country_ids' => $this->locations->pluck('country_id')->filter()->unique()->values()->all(),
         ];
     }
 

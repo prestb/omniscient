@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessAnalytics;
 use App\Models\Business;
 use App\Models\Subscription;
 use Illuminate\Http\Request;      // ✅ ADD THIS
@@ -49,10 +48,10 @@ class DashboardController extends Controller
         $business->status_badge = $this->getStatusBadge($business->status);
         $business->status_label = ucfirst(str_replace('_', ' ', $business->status));
 
-        // Get primary branch
-        if ($business->primaryBranch) {
-            $business->primary_branch = $business->primaryBranch;
-            $business->primary_branch->full_address = $business->primaryBranch->full_address;
+                // Get primary location
+        if ($business->primaryLocation) {
+            $business->primary_location = $business->primaryLocation;
+            $business->primary_location->full_address = $business->primaryLocation->full_address;
         }
 
         // Get active subscription
@@ -63,10 +62,30 @@ class DashboardController extends Controller
             $activeSubscription->days_remaining = $activeSubscription->days_remaining;
         }
 
-        // ============== ANALYTICS ==============
-        $analyticsStats = BusinessAnalytics::getTotalStats($business->id);
-        $analyticsTrend = BusinessAnalytics::getStats($business->id, 30);
-        $comparison = BusinessAnalytics::getPeriodComparison($business->id, 30);
+                // ============== ANALYTICS ==============
+        // PHASE 11 / WAVE 1B — analytics are listing-owned. Aggregate across the
+        // organization's listings for the organization-level dashboard.
+        $listingIds = $business->listings()->pluck('id');
+
+        $analyticsStats = \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->selectRaw('
+                COALESCE(SUM(views), 0) as total_views,
+                COALESCE(SUM(unique_visitors), 0) as total_unique_visitors,
+                COALESCE(SUM(phone_clicks), 0) as total_phone_clicks,
+                COALESCE(SUM(whatsapp_clicks), 0) as total_whatsapp_clicks,
+                COALESCE(SUM(website_clicks), 0) as total_website_clicks,
+                COALESCE(SUM(direction_clicks), 0) as total_direction_clicks,
+                COALESCE(SUM(social_clicks), 0) as total_social_clicks
+            ')
+            ->first();
+
+        // Daily trend — group the aggregated rows by date.
+        $analyticsTrend = \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->where('date', '>=', now()->subDays(30))
+            ->orderBy('date')
+            ->get();
+
+        $comparison = $this->analyticsComparison($listingIds, 30);
 
         $chartData = [
             'labels' => $analyticsTrend->pluck('date')->map(function ($date) {
@@ -171,8 +190,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // ============== PLAN USAGE ==============
-// ============== PLAN USAGE ==============
+                // ============== PLAN USAGE ==============
         $plan = null;
         $usage = null;
 
@@ -190,19 +208,24 @@ class DashboardController extends Controller
         }
 
         if ($plan) {
-            // Usage counts are user-based
-            $businessCount = $user->businesses()->count();
-            $branchCount = \App\Models\Branch::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count();
-            $serviceCount = \App\Models\BusinessService::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count();
-            $imageCount = \App\Models\BusinessImage::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count();
+            // Usage counts are user-based. PHASE 11 / WAVE 1B — services and
+            // media are listing-owned, so count through the account's listings.
+            $listingIdsForUser = \App\Models\Listing::whereIn(
+                'business_id',
+                $user->businesses()->pluck('id')
+            )->pluck('id');
+
+            $branchCount = \App\Models\Location::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count();
+            $serviceCount = \App\Models\ListingService::whereIn('listing_id', $listingIdsForUser)->count();
+            $imageCount = \App\Models\ListingImage::whereIn('listing_id', $listingIdsForUser)->count();
             $couponCount = \App\Models\Coupon::where('user_id', $user->id)->count();
 
             $usage = [
                 'plan_name' => $plan->name ?? 'Free',
                 'plan_tier' => $plan->tier ?? 'free',
                 'plan_price' => (float) ($plan->price_monthly ?? 0),
-                'businesses' => ['current' => $businessCount, 'limit' => $plan->max_businesses ?? 1],
-                'branches' => ['current' => $branchCount, 'limit' => $plan->max_branches ?? 1],
+                'listings' => ['current' => \App\Models\Listing::countFor($user), 'limit' => $plan->max_listings ?? 1],
+                'locations' => ['current' => $branchCount, 'limit' => $plan->max_locations ?? 1],
                 'services' => ['current' => $serviceCount, 'limit' => $plan->max_services ?? 3],
                 'images' => ['current' => $imageCount, 'limit' => $plan->max_images ?? 3],
                 'coupons' => ['current' => $couponCount, 'limit' => $plan->max_coupons ?? 0],
@@ -228,7 +251,8 @@ class DashboardController extends Controller
             'business' => $business,
             'hasBusiness' => true,
             'completeness' => $completeness,
-            'branchesCount' => $business->branches_count,
+            'branchesCount' => $business->locations_count,
+            'locationsCount' => $business->locations_count,
             'activeSubscription' => $activeSubscription,
             'analytics' => [
                 'stats' => [
@@ -277,8 +301,8 @@ class DashboardController extends Controller
     {
         $activities = [];
 
-        // Recent branches added
-        $recentBranches = $business->branches()
+                // Recent locations added
+        $recentBranches = $business->locations()
             ->latest()
             ->take(3)
             ->get();
@@ -286,15 +310,15 @@ class DashboardController extends Controller
         foreach ($recentBranches as $branch) {
             $activities[] = [
                 'type' => 'branch',
-                'message' => "Added branch: {$branch->name}",
+                'message' => "Added location: {$branch->name}",
                 'time' => $branch->created_at->diffForHumans(),
                 'icon' => '📍',
             ];
         }
 
-        // Recent services added
+                // Recent services added
         $recentServices = $business->services()
-            ->latest()
+            ->orderBy('listing_services.created_at', 'desc')
             ->take(3)
             ->get();
 
@@ -315,6 +339,31 @@ class DashboardController extends Controller
         return array_slice($activities, 0, 10);
     }
 
+    /**
+     * PHASE 11 / WAVE 1B — period-over-period view comparison aggregated across
+     * the organization's listings.
+     *
+     * @param  \Illuminate\Support\Collection<int,int>  $listingIds
+     * @return array{current:int, previous:int, growth:float}
+     */
+    private function analyticsComparison($listingIds, int $days): array
+    {
+        $currentPeriod = now()->subDays($days);
+        $previousPeriod = now()->subDays($days * 2);
+
+        $current = (int) \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->where('date', '>=', $currentPeriod)
+            ->sum('views');
+
+        $previous = (int) \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->whereBetween('date', [$previousPeriod, $currentPeriod])
+            ->sum('views');
+
+        $growth = $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : 0;
+
+        return ['current' => $current, 'previous' => $previous, 'growth' => $growth];
+    }
+
     public function usage()
     {
         $user = auth()->user();
@@ -325,18 +374,18 @@ class DashboardController extends Controller
                 ->with('error', 'No active plan found.');
         }
 
-        $usage = [
-            'businesses' => [
-                'label' => 'Businesses',
+                $usage = [
+            'listings' => [
+                'label' => 'Listings',
                 'icon' => '🏢',
-                'current' => $user->getCurrentUsage('businesses'),
-                'limit' => $plan->max_businesses,
+                'current' => $user->getCurrentUsage('listings'),
+                'limit' => $plan->max_listings,
             ],
-            'branches' => [
-                'label' => 'Branches',
+            'locations' => [
+                'label' => 'Locations',
                 'icon' => '📍',
-                'current' => $user->getCurrentUsage('branches'),
-                'limit' => $plan->max_branches,
+                'current' => $user->getCurrentUsage('locations'),
+                'limit' => $plan->max_locations,
             ],
             'services' => [
                 'label' => 'Services',
@@ -402,17 +451,24 @@ class DashboardController extends Controller
         $graceEndsAt = $activeSubscription?->downgrade_grace_ends_at;
         $graceActive = $graceEndsAt && \Carbon\Carbon::parse($graceEndsAt)->isFuture();
 
+                        // PHASE 11 / WAVE 1B — services and media are listing-owned; count them
+        // across the account's listings.
+        $listingIdsForUser = \App\Models\Listing::whereIn(
+            'business_id',
+            $user->businesses()->pluck('id')
+        )->pluck('id');
+
         $counts = [
-            'businesses' => $user->businesses()->whereNotIn('status', ['deleted', 'rejected'])->count(),
-            'branches' => \App\Models\Branch::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count(),
-            'services' => \App\Models\BusinessService::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count(),
-            'images' => \App\Models\BusinessImage::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count(),
+            'listings' => \App\Models\Listing::countFor($user),
+            'locations' => \App\Models\Location::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count(),
+            'services' => \App\Models\ListingService::whereIn('listing_id', $listingIdsForUser)->count(),
+            'images' => \App\Models\ListingImage::whereIn('listing_id', $listingIdsForUser)->count(),
             'coupons' => \App\Models\Coupon::where('user_id', $user->id)->count(),
         ];
 
         $limits = [
-            'businesses' => $plan->max_businesses ?? 0,
-            'branches' => $plan->max_branches ?? 0,
+            'listings' => $plan->max_listings ?? 0,
+            'locations' => $plan->max_locations ?? 0,
             'services' => $plan->max_services ?? 0,
             'images' => $plan->max_images ?? 0,
             'coupons' => $plan->max_coupons ?? 0,

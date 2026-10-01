@@ -12,7 +12,7 @@ class Lead extends Model
 
     protected $fillable = [
         'business_id',
-        'branch_id',
+        'listing_id',
         'source',
         'name',
         'email',
@@ -47,9 +47,14 @@ class Lead extends Model
         return $this->belongsTo(Business::class);
     }
 
-    public function branch()
+    /**
+     * PHASE 9 — a lead is attributed to a LISTING. The competing Phase 5
+     * `branch_id` pointer has been removed in favour of a single clean
+     * listing attribution.
+     */
+    public function listing()
     {
-        return $this->belongsTo(Branch::class);
+        return $this->belongsTo(Listing::class);
     }
 
     // Scopes

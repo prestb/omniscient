@@ -59,9 +59,9 @@ class OwnerController extends Controller
         }
 
         $owner->load([
-            'businesses' => function ($q) {
+                        'businesses' => function ($q) {
                 $q->with([
-                    'branches',
+                    'locations',
                     'categories',
                     'subscriptions' => function ($q2) {
                         $q2->with(['plan'])->latest();

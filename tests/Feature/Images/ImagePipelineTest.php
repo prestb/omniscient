@@ -18,7 +18,7 @@ beforeEach(function () {
  */
 function createOwnerWithBusiness(): array
 {
-    $plan = Plan::factory()->create(['max_businesses' => 10]);
+    $plan = Plan::factory()->create(['max_listings' => 10]);
 
     $owner = User::factory()->owner()->create([
         'email_verified_at' => now(),

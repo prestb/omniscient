@@ -503,9 +503,9 @@
                               </div>
 
                               <div class="p-6 space-y-4">
-                                   <div v-for="key in [
+                                                                      <div v-for="key in [
                                         'businesses',
-                                        'branches',
+                                        'locations',
                                         'services',
                                         'images',
                                         'coupons',
@@ -778,7 +778,7 @@
                                    </svg>
                                    Edit Business
                               </a>
-                              <a :href="`/owner/businesses/${business.id}/branches`"
+                              <a :href="`/owner/businesses/${business.id}/locations`"
                                    class="flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-xs font-semibold border border-gray-100 dark:border-gray-600 hover:border-primary-200 dark:hover:border-primary-700">
                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -786,7 +786,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                    </svg>
-                                   Branches
+                                                                      Locations
                               </a>
                               <a href="/owner/subscription"
                                    class="flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-xs font-semibold border border-gray-100 dark:border-gray-600 hover:border-primary-200 dark:hover:border-primary-700">

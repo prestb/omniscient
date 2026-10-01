@@ -392,7 +392,7 @@
 
     const limitFields = [
         { key: 'max_businesses', label: 'Businesses' },
-        { key: 'max_branches', label: 'Branches' },
+        { key: 'max_branches', label: 'Locations' },
         { key: 'max_services', label: 'Services' },
         { key: 'max_images', label: 'Images' },
         { key: 'max_coupons', label: 'Coupons' },

@@ -104,13 +104,13 @@ class CollectionService
         return Business::query()
             ->with([
                 'categories',
-                'primaryBranch',
-                'branches' => fn($q) => $q->whereNull('hidden_at'),
-                'branches.city',
-                'branches.region',
-                'branches.country',
-                'branches.hours',
-                'branches.hourOverrides',
+                'primaryLocation',
+                'locations' => fn($q) => $q->whereNull('hidden_at'),
+                'locations.city',
+                'locations.region',
+                'locations.country',
+                'locations.hours',
+                'locations.hourOverrides',
                 'logo',
                 'coverImage',
                 'galleryImages' => fn($q) => $q->whereNull('hidden_at'),
@@ -120,7 +120,7 @@ class CollectionService
             ->where('status', Business::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
             ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
-            ->whereHas('branches', fn($q) => $q->where('city_id', $city->id))
+            ->whereHas('locations', fn($q) => $q->where('city_id', $city->id))
             ->withCount(['reviews', 'galleryImages'])
             ->withAvg('reviews', 'rating');
     }
@@ -138,7 +138,7 @@ class CollectionService
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
                 ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
-                ->whereHas('branches', fn($q) => $q->where('city_id', $city->id))
+                ->whereHas('locations', fn($q) => $q->where('city_id', $city->id))
                 ->count();
         });
     }
@@ -164,13 +164,13 @@ class CollectionService
         return Cache::remember($cacheKey, self::CROSSLINK_CACHE_TTL, function () use ($city, $excludeCategoryId, $limit) {
             $rows = \DB::table('business_categories')
                 ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('branches', 'branches.business_id', '=', 'businesses.id')
+                ->join('locations', 'branches.business_id', '=', 'businesses.id')
                 ->join('categories', 'categories.id', '=', 'business_categories.category_id')
                 ->where('businesses.status', Business::STATUS_PUBLISHED)
                 ->whereNull('businesses.hidden_at')
                 ->whereNull('businesses.deleted_at')
                 ->whereNull('branches.hidden_at')
-                ->where('branches.city_id', $city->id)
+                ->where('locations.city_id', $city->id)
                 ->when($excludeCategoryId, fn($q) => $q->where('categories.id', '!=', $excludeCategoryId))
                 ->groupBy('categories.id', 'categories.name', 'categories.slug')
                 ->havingRaw('COUNT(DISTINCT businesses.id) >= ?', [self::MIN_BUSINESSES])
@@ -204,8 +204,8 @@ class CollectionService
         return Cache::remember($cacheKey, self::CROSSLINK_CACHE_TTL, function () use ($category, $excludeCityId, $limit) {
             $rows = \DB::table('business_categories')
                 ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('branches', 'branches.business_id', '=', 'businesses.id')
-                ->join('cities', 'cities.id', '=', 'branches.city_id')
+                ->join('locations', 'branches.business_id', '=', 'businesses.id')
+                ->join('cities', 'cities.id', '=', 'locations.city_id')
                 ->where('businesses.status', Business::STATUS_PUBLISHED)
                 ->whereNull('businesses.hidden_at')
                 ->whereNull('businesses.deleted_at')

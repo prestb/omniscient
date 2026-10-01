@@ -27,28 +27,42 @@
 
             <!-- STATS -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
-                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total plans</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mt-1">{{ getStatusCount('total') }}</p>
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total
+                        plans</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mt-1">{{
+                        getStatusCount('total')
+                        }}</p>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
-                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Active</p>
-                    <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight mt-1">{{ getStatusCount('active') }}
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Active
+                    </p>
+                    <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight mt-1">{{
+                        getStatusCount('active') }}
                     </p>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
-                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Featured</p>
-                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 tracking-tight mt-1">{{ getStatusCount('featured') }}
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Featured
+                    </p>
+                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 tracking-tight mt-1">{{
+                        getStatusCount('featured') }}
                     </p>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
-                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Inactive</p>
-                    <p class="text-2xl font-bold text-gray-500 dark:text-gray-400 tracking-tight mt-1">{{ getStatusCount('inactive') }}</p>
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Inactive
+                    </p>
+                    <p class="text-2xl font-bold text-gray-500 dark:text-gray-400 tracking-tight mt-1">{{
+                        getStatusCount('inactive') }}</p>
                 </div>
             </div>
 
             <!-- TABLE -->
-            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div
+                class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
@@ -89,8 +103,10 @@
                                         </div>
                                         <div class="min-w-0">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <p class="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">{{
-                                                    plan.name
+                                                <p
+                                                    class="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">
+                                                    {{
+                                                        plan.name
                                                     }}</p>
                                                 <span v-if="plan.is_featured"
                                                     class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-800">
@@ -101,8 +117,9 @@
                                                     Featured
                                                 </span>
                                             </div>
-                                            <p v-if="plan.description" class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{{
-                                                plan.description }}</p>
+                                            <p v-if="plan.description"
+                                                class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{{
+                                                    plan.description }}</p>
                                         </div>
                                     </div>
                                 </td>
@@ -125,34 +142,41 @@
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col gap-1 text-xs">
                                         <span class="text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
-                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
-                                            <span class="font-semibold text-gray-900 dark:text-white">{{ plan.max_branches === 999 ? '∞'
-                                                :
+                                            <span class="font-semibold text-gray-900 dark:text-white">{{
+                                                plan.max_branches ===
+                                                    999 ? '∞'
+                                                    :
+
+
                                                 plan.max_branches }}</span>
-                                            branches
+                                            locations
                                         </span>
                                         <span class="text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
-                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
-                                            <span class="font-semibold text-gray-900 dark:text-white">{{ plan.max_businesses === 999 ?
+                                            <span class="font-semibold text-gray-900 dark:text-white">{{
+                                                plan.max_businesses ===
+                                                    999 ?
                                                 '∞' :
                                                 plan.max_businesses }}</span>
                                             businesses
                                         </span>
                                         <span class="text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
-                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
-                                            <span class="font-semibold text-gray-900 dark:text-white">{{ plan.max_images }}</span>
+                                            <span class="font-semibold text-gray-900 dark:text-white">{{ plan.max_images
+                                                }}</span>
                                             images
                                         </span>
                                     </div>
@@ -201,14 +225,18 @@
                                 <td colspan="6" class="px-6 py-16 text-center">
                                     <div
                                         class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center shadow-sm">
-                                        <svg class="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
+                                        <svg class="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                     </div>
-                                    <p class="text-gray-600 dark:text-gray-300 font-bold tracking-tight">No plans created yet</p>
-                                    <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Click "Add Plan" to create your first
+                                    <p class="text-gray-600 dark:text-gray-300 font-bold tracking-tight">No plans
+                                        created yet
+                                    </p>
+                                    <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Click "Add Plan" to create
+                                        your
+                                        first
                                         subscription
                                         plan</p>
                                 </td>
@@ -216,7 +244,8 @@
                         </tbody>
                     </table>
                 </div>
-                <div v-if="plans.links && plans.links.length > 3" class="px-6 py-4 border-t border-gray-100 dark:border-gray-700">
+                <div v-if="plans.links && plans.links.length > 3"
+                    class="px-6 py-4 border-t border-gray-100 dark:border-gray-700">
                     <Pagination :links="plans.links" />
                 </div>
             </div>

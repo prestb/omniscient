@@ -137,9 +137,10 @@ export function useStatusBadge() {
 
 
     
-    return {
+        return {
         business,
         branch,
+        location: branch,
         user,
         role,           
         subscription,

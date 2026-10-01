@@ -80,7 +80,7 @@
             <p>Here's what you can do now:</p>
             <ul>
                 <li>✅ Complete your business profile</li>
-                <li>✅ Add your business branches</li>
+                <li>✅ Add your business locations</li>
                 <li>✅ Set your operating hours</li>
                 <li>✅ Upload business images</li>
                 <li>✅ Submit your profile for publication</li>

@@ -27,7 +27,7 @@ test('autocomplete returns search_suggestions for a matching category', function
     // Attach a published business so the category qualifies
     $business = Business::factory()->published()->create();
     $business->categories()->attach($category->id, ['is_primary' => true]);
-    \App\Models\Branch::factory()
+    \App\Models\Location::factory()
         ->forBusiness($business)
         ->inCity($buea)
         ->primary()
@@ -90,7 +90,7 @@ test('search_suggestions has "near me" first when category matches', function ()
 
     $business = Business::factory()->published()->create();
     $business->categories()->attach($category->id, ['is_primary' => true]);
-    \App\Models\Branch::factory()->forBusiness($business)->inCity($city)->primary()->create();
+    \App\Models\Location::factory()->forBusiness($business)->inCity($city)->primary()->create();
 
     $response = $this->getJson('/search/autocomplete?q=restaurants');
 

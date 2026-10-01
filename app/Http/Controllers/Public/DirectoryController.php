@@ -67,15 +67,15 @@ class DirectoryController extends Controller
         $query = Business::query()
             ->with([
                 'categories',
-                'primaryBranch',
-                'branches' => function ($q) {
+                'primaryLocation',
+                'locations' => function ($q) {
                     $q->whereNull('hidden_at');   // ✅ skip hidden branches
                 },
-                'branches.city',
-                'branches.region',
-                'branches.country',
-                'branches.hours',
-                'branches.hourOverrides',   // ✅ for is_open_now override awareness
+                'locations.city',
+                'locations.region',
+                'locations.country',
+                'locations.hours',
+                'locations.hourOverrides',   // ✅ for is_open_now override awareness
                 'logo',
                 'coverImage',
                 'galleryImages' => function ($q) {
@@ -111,19 +111,19 @@ class DirectoryController extends Controller
 
         // ============== LOCATION ==============
         if ($request->filled('country_id')) {
-            $query->whereHas('branches', function ($q) use ($request) {
+            $query->whereHas('locations', function ($q) use ($request) {
                 $q->where('country_id', $request->country_id);
             });
         }
 
         if ($request->filled('region_id')) {
-            $query->whereHas('branches', function ($q) use ($request) {
+            $query->whereHas('locations', function ($q) use ($request) {
                 $q->where('region_id', $request->region_id);
             });
         }
 
         if (!empty($parsedCityId)) {
-            $query->whereHas('branches', function ($q) use ($parsedCityId) {
+            $query->whereHas('locations', function ($q) use ($parsedCityId) {
                 $q->where('city_id', $parsedCityId);
             });
         }
@@ -134,7 +134,7 @@ class DirectoryController extends Controller
             $currentTime = now()->format('H:i:s');
             $today = today()->toDateString();
 
-            $query->whereHas('branches', function ($q) use ($currentDayOfWeek, $currentTime, $today) {
+            $query->whereHas('locations', function ($q) use ($currentDayOfWeek, $currentTime, $today) {
                 // Case A: branch has NO closed override today AND weekly hours say open
                 $q->where(function ($sub) use ($currentDayOfWeek, $currentTime, $today) {
                     // No closed override today
@@ -221,7 +221,7 @@ class DirectoryController extends Controller
 
         // ============== HAS WHATSAPP ==============
         if ($request->filled('has_whatsapp') && $request->has_whatsapp == 'true') {
-            $query->whereHas('branches', function ($q) {
+            $query->whereHas('locations', function ($q) {
                 $q->whereNotNull('whatsapp')
                     ->where('whatsapp', '!=', '');
             });
@@ -274,7 +274,7 @@ class DirectoryController extends Controller
             // Post-filter: only businesses with at least one coordinate-bearing branch
             $mapBusinesses = $allBusinesses
                 ->filter(function ($business) {
-                    return $business->branches->contains(function ($branch) {
+                    return $business->locations->contains(function ($branch) {
                         return $branch->latitude !== null && $branch->longitude !== null;
                     });
                 })
@@ -360,14 +360,14 @@ class DirectoryController extends Controller
     {
         // Use the primary branch's coordinates if available,
         // otherwise the first branch that has them.
-        $primary = $business->branches->firstWhere('is_primary', true)
-            ?? $business->branches->first();
+        $primary = $business->locations->firstWhere('is_primary', true)
+            ?? $business->locations->first();
 
         $branchWithCoords = null;
         if ($primary && $primary->latitude !== null && $primary->longitude !== null) {
             $branchWithCoords = $primary;
         } else {
-            $branchWithCoords = $business->branches->first(function ($branch) {
+            $branchWithCoords = $business->locations->first(function ($branch) {
                 return $branch->latitude !== null && $branch->longitude !== null;
             });
         }
@@ -394,11 +394,11 @@ class DirectoryController extends Controller
         $business = Business::query()
             ->with([
                 'categories',
-                'branches' => function ($query) {
+                'locations' => function ($query) {
                     $query->whereNull('hidden_at')   // ✅ skip hidden branches
                         ->with(['country', 'region', 'city', 'area', 'hours']);
                 },
-                'branches.hours',
+                'locations.hours',
                 'services' => function ($query) {
                     $query->whereNull('hidden_at');  // ✅ skip hidden services
                 },
@@ -410,7 +410,7 @@ class DirectoryController extends Controller
                 },
                 'owner',
                 'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags
-                'branches.hourOverrides',           // ✅ needed for is_open_now
+                'locations.hourOverrides',           // ✅ needed for is_open_now
                 'reviews' => function ($query) {
                     $query->where('status', 'approved')
                         ->with(['user', 'replies.user'])
@@ -435,7 +435,7 @@ class DirectoryController extends Controller
         }
 
         // ✅ Override-aware state — delegate entirely to Branch accessors
-        $business->branches->each(function ($branch) {
+        $business->locations->each(function ($branch) {
             $override = $branch->today_override;
             $special = $branch->today_special_hours;
 
@@ -448,7 +448,7 @@ class DirectoryController extends Controller
         });
 
         // ✅ Calculate overall open status
-        $isOpen = $business->branches->contains('is_open_now', true);
+        $isOpen = $business->locations->contains('is_open_now', true);
 
         // Check if business has active subscription
         $owner = $business->owner;
@@ -458,7 +458,7 @@ class DirectoryController extends Controller
             abort(404);
         }
         // Get primary branch
-        $primaryBranch = $business->branches->firstWhere('is_primary', true) ?? $business->branches->first();
+        $primaryLocation = $business->locations->firstWhere('is_primary', true) ?? $business->locations->first();
 
         // Get rating breakdown
         $ratingBreakdown = [
@@ -514,14 +514,10 @@ class DirectoryController extends Controller
                 ];
             });
 
-        // 🐛 DEBUG: Log what we found
-        \Log::info('Business Profile - Coupons loaded', [
-            'business_id' => $business->id,
-            'business_name' => $business->name,
-            'coupon_count' => $coupons->count(),
-            'coupons' => $coupons->toArray(),
-        ]);
-
+        // ✅ FIX (Phase 1): Removed production debug logging that fired an
+        //    `info`-level log (including the full coupon payload) on EVERY
+        //    business-profile view. This was audit-identified log spam and a
+        //    minor PII / performance concern on a high-traffic public route.
 
         $businessData = $business->toArray();
         $businessData['feature_flags'] = $business->feature_flags;
@@ -536,8 +532,8 @@ class DirectoryController extends Controller
         return Inertia::render('Public/BusinessProfile', [
             'business' => $business,
             'coupons' => $coupons,
-            'primaryBranch' => $primaryBranch,
-            'isOpen' => $primaryBranch ? $primaryBranch->is_open_now : false,
+            'primaryLocation' => $primaryLocation,
+            'isOpen' => $primaryLocation ? $primaryLocation->is_open_now : false,
             'ratingBreakdown' => $ratingBreakdown,
             'coordinates' => $businessData['coordinates'],   // ✅ top-level for convenience
             'relatedBusinesses' => $relatedBusinesses,
@@ -647,17 +643,17 @@ class DirectoryController extends Controller
     }
 
 
-    /**
-     * Return [lat, lng, branch_id, address] for the primary branch,
-     * or the first branch that has coordinates, or null.
+        /**
+     * Return [lat, lng, location_id, address] for the primary location,
+     * or the first location that has coordinates, or null.
      */
     private function resolveBusinessCoordinates($business): ?array
     {
-        $primary = $business->branches->firstWhere('is_primary', true)
-            ?? $business->branches->first();
+        $primary = $business->locations->firstWhere('is_primary', true)
+            ?? $business->locations->first();
 
         $candidates = collect([$primary])
-            ->merge($business->branches)
+            ->merge($business->locations)
             ->filter()
             ->unique('id');
 
@@ -666,7 +662,7 @@ class DirectoryController extends Controller
                 return [
                     'latitude' => (float) $branch->latitude,
                     'longitude' => (float) $branch->longitude,
-                    'branch_id' => $branch->id,
+                    'location_id' => $branch->id,
                     'branch_name' => $branch->name,
                     'full_address' => $branch->full_address,
                 ];
@@ -702,7 +698,7 @@ class DirectoryController extends Controller
         return !empty($parts) ? implode(', ', $parts) : 'Address not set';
     }
 
-        /**
+    /**
      * ✅ Tiered related-business resolver.
      *
      *    Tier 1: same primary category + same primary-branch city
@@ -717,8 +713,8 @@ class DirectoryController extends Controller
         $categoryId = $business->categories->firstWhere('pivot.is_primary', true)?->id
             ?? $business->categories->first()?->id;
 
-        $cityId = $business->branches->firstWhere('is_primary', true)?->city_id
-            ?? $business->branches->first()?->city_id;
+        $cityId = $business->locations->firstWhere('is_primary', true)?->city_id
+            ?? $business->locations->first()?->city_id;
 
         if (!$categoryId && !$cityId) {
             return [];
@@ -727,13 +723,13 @@ class DirectoryController extends Controller
         $baseQuery = Business::query()
             ->with([
                 'categories',
-                'primaryBranch',
-                'branches' => fn($q) => $q->whereNull('hidden_at'),
-                'branches.city',
-                'branches.region',
-                'branches.country',
-                'branches.hours',
-                'branches.hourOverrides',
+                'primaryLocation',
+                'locations' => fn($q) => $q->whereNull('hidden_at'),
+                'locations.city',
+                'locations.region',
+                'locations.country',
+                'locations.hours',
+                'locations.hourOverrides',
                 'logo',
                 'coverImage',
                 'galleryImages' => fn($q) => $q->whereNull('hidden_at'),
@@ -752,7 +748,7 @@ class DirectoryController extends Controller
         if ($categoryId && $cityId) {
             $tier1 = (clone $baseQuery)
                 ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
-                ->whereHas('branches', fn($q) => $q->where('city_id', $cityId))
+                ->whereHas('locations', fn($q) => $q->where('city_id', $cityId))
                 ->orderByDesc('is_featured')
                 ->latest('published_at')
                 ->take($limit)
@@ -778,7 +774,7 @@ class DirectoryController extends Controller
         if ($cityId && $collected->count() < 4) {
             $tier3 = (clone $baseQuery)
                 ->whereNotIn('id', $collected->pluck('id'))
-                ->whereHas('branches', fn($q) => $q->where('city_id', $cityId))
+                ->whereHas('locations', fn($q) => $q->where('city_id', $cityId))
                 ->orderByDesc('is_featured')
                 ->latest('published_at')
                 ->take($limit - $collected->count())
@@ -792,5 +788,5 @@ class DirectoryController extends Controller
             $collected->take($limit)->values()
         )->resolve();
     }
-    
+
 }

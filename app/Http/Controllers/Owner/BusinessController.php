@@ -20,15 +20,15 @@ class BusinessController extends Controller
         $user = auth()->user();
 
         // Get businesses with relationships
-        $businesses = Business::with(['categories', 'branches'])
+        $businesses = Business::with(['categories', 'locations'])
             ->where('owner_id', $user->id)
             ->get();
 
         // Get subscription details
         $subscription = $user->activeSubscription;
 
-        // Calculate limits
-        $maxBusinesses = $subscription ? ($subscription->plan->max_businesses ?? 0) : 0;
+                // Calculate limits
+        $maxBusinesses = $subscription ? ($subscription->plan->max_listings ?? 0) : 0;
         $currentBusinesses = $businesses->count();
         $canCreate = Business::canCreateBusiness($user->id);
 
@@ -61,8 +61,8 @@ class BusinessController extends Controller
     {
         $user = auth()->user();
 
-        // ✅ Use the trait method (from HasPlanFeatures) — handles users without subscriptions
-        if (method_exists($user, 'canAdd') && !$user->canAdd('businesses')) {
+                // ✅ Use the trait method (from HasPlanFeatures) — handles users without subscriptions
+        if (method_exists($user, 'canAdd') && !$user->canAdd('listings')) {
             return redirect()->route('owner.subscription.index')
                 ->with('error', 'You have reached the maximum number of businesses allowed on your plan.');
         }
@@ -81,9 +81,9 @@ class BusinessController extends Controller
     {
         $user = auth()->user();
 
-        // Check if user can create a business
-        if (!auth()->user()->canAdd('businesses')) {
-            return back()->with('error', 'You have reached the maximum number of businesses.');
+                // Check if user can create a business
+        if (!auth()->user()->canAdd('listings')) {
+            return back()->with('error', 'You have reached the maximum number of listings.');
         }
 
         $validated = $request->validate([
@@ -162,8 +162,8 @@ class BusinessController extends Controller
 
         // Load all relationships with proper eager loading
         $business->load([
-            'categories',
-            'branches' => function ($query) {
+                        'categories',
+            'locations' => function ($query) {
                 $query->with(['country', 'region', 'city', 'area'])->ordered();
             },
             'services',
@@ -176,12 +176,13 @@ class BusinessController extends Controller
         // Get all active categories
         $categories = Category::active()->ordered()->get();
 
-        // Get branches count
-        $branchesCount = $business->branches()->count();
+        // Get locations count
+        $branchesCount = $business->locations()->count();
 
         return Inertia::render('Owner/Businesses/Edit', [
             'business' => $business,
             'categories' => $categories,
+            'locationsCount' => $branchesCount,
             'branchesCount' => $branchesCount,
         ]);
     }
@@ -293,8 +294,8 @@ class BusinessController extends Controller
             'owner_id' => $user->id,
         ]);
 
-        // ✅ Soft-delete all related records
-        $business->branches()->delete();
+                // ✅ Soft-delete all related records
+        $business->locations()->delete();
         $business->services()->delete();
         $business->contacts()->delete();       // ✅ Now works with SoftDeletes
         $business->images()->delete();

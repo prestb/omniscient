@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessAnalytics;
+use App\Models\ListingAnalytics;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
@@ -13,6 +13,18 @@ use SplTempFileObject;
 
 class AnalyticsController extends Controller
 {
+    /**
+     * PHASE 11 / WAVE 1B — analytics are listing-owned. The owner dashboard is
+     * still addressed by organization, so we AGGREGATE across the
+     * organization's listings for display. This is a derived view, never stored.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function listingIdsFor($business)
+    {
+        return $business->listings()->pluck('id');
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -40,14 +52,26 @@ class AnalyticsController extends Controller
         $days = request('days', 30);
         $startDate = now()->subDays($days);
 
-        // Get analytics data
-        $analyticsData = BusinessAnalytics::where('business_id', $business->id)
+                // Get analytics data — aggregate across the organization's listings.
+        $listingIds = $this->listingIdsFor($business);
+
+        $analyticsData = ListingAnalytics::whereIn('listing_id', $listingIds)
             ->where('date', '>=', $startDate)
             ->orderBy('date')
             ->get();
 
-        // Get totals
-        $totals = BusinessAnalytics::getTotalStats($business->id);
+        // Get totals (aggregate across listings)
+        $totals = ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->selectRaw('
+                COALESCE(SUM(views), 0) as total_views,
+                COALESCE(SUM(unique_visitors), 0) as total_unique_visitors,
+                COALESCE(SUM(phone_clicks), 0) as total_phone_clicks,
+                COALESCE(SUM(whatsapp_clicks), 0) as total_whatsapp_clicks,
+                COALESCE(SUM(website_clicks), 0) as total_website_clicks,
+                COALESCE(SUM(direction_clicks), 0) as total_direction_clicks,
+                COALESCE(SUM(social_clicks), 0) as total_social_clicks
+            ')
+            ->first();
 
         // Prepare chart data
         $chartData = [
@@ -89,15 +113,25 @@ class AnalyticsController extends Controller
         ]);
     }
 
-    public function trackView($businessId)
+        public function trackView($businessId)
     {
-        $analytics = BusinessAnalytics::trackView($businessId);
+        // PHASE 11 / WAVE 1B — attribute to the organization's primary listing.
+        $business = \App\Models\Business::find($businessId);
+        $listing = $business?->primaryListing();
+        if ($listing) {
+            ListingAnalytics::trackView($listing->id);
+        }
         return response()->json(['success' => true]);
     }
 
     public function trackClick($businessId, $type)
     {
-        $analytics = BusinessAnalytics::trackClick($businessId, $type);
+        // PHASE 11 / WAVE 1B — attribute to the organization's primary listing.
+        $business = \App\Models\Business::find($businessId);
+        $listing = $business?->primaryListing();
+        if ($listing) {
+            ListingAnalytics::trackClick($listing->id, $type);
+        }
         return response()->json(['success' => true]);
     }
 
@@ -236,7 +270,7 @@ class AnalyticsController extends Controller
         $startDate = now()->subDays($days);
         $endDate = now();
 
-        $analyticsData = BusinessAnalytics::where('business_id', $business->id)
+                $analyticsData = ListingAnalytics::whereIn('listing_id', $this->listingIdsFor($business))
             ->where('date', '>=', $startDate)
             ->orderBy('date')
             ->get();

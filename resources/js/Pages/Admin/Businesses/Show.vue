@@ -60,7 +60,7 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- ============ LEFT: Business details + Owner + Branches ============ -->
+                <!-- ============ LEFT: Business details + Owner + Locations ============ -->
                 <div class="lg:col-span-2 space-y-6">
 
                     <!-- BUSINESS OVERVIEW -->
@@ -270,7 +270,7 @@
                         </div>
                     </div>
 
-                    <!-- BRANCHES -->
+                    <!-- Locations -->
                     <div
                         class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div
@@ -287,32 +287,32 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <h3 class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">Branches
+                                    <h3 class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">Locations
                                     </h3>
                                     <p class="text-xs text-gray-400">
-                                        {{ business.branches?.length || 0 }}
-                                        location{{ (business.branches?.length || 0) === 1 ? '' : 's' }}
+                                        {{ business.locations?.length || 0 }}
+                                        location{{ (business.locations?.length || 0) === 1 ? '' : 's' }}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        <div v-if="business.branches && business.branches.length > 0"
+                        <div v-if="business.locations && business.locations.length > 0"
                             class="divide-y divide-gray-100 dark:divide-gray-700">
-                            <div v-for="branch in business.branches" :key="branch.id" class="p-6">
+                            <div v-for="location in business.locations" :key="location.id" class="p-6">
                                 <div class="flex items-start justify-between gap-3 mb-4">
                                     <div class="flex items-center gap-2 min-w-0">
                                         <h4
                                             class="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">
-                                            {{ branch.name || 'Unnamed Branch' }}
+                                            {{ location.name || 'Unnamed Location' }}
                                         </h4>
-                                        <span v-if="branch.is_primary"
+                                        <span v-if="location.is_primary"
                                             class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded-full">
                                             Primary
                                         </span>
                                     </div>
-                                    <span :class="statusClass(branch.status)">
-                                        {{ formatStatus(branch.status) }}
+                                    <span :class="statusClass(location.status)">
+                                        {{ formatStatus(location.status) }}
                                     </span>
                                 </div>
 
@@ -324,11 +324,11 @@
                                             address</dt>
                                         <dd class="text-sm text-gray-900 dark:text-white">
                                             <template
-                                                v-if="branch.address || branch.city?.name || branch.region?.name || branch.country?.name">
-                                                <p v-if="branch.address" class="font-medium">{{ branch.address }}</p>
+                                                v-if="location.address || location.city?.name || location.region?.name || location.country?.name">
+                                                <p v-if="location.address" class="font-medium">{{ location.address }}</p>
                                                 <p class="text-gray-600 dark:text-gray-400">
-                                                    {{ [branch.city?.name, branch.region?.name,
-                                                    branch.country?.name].filter(Boolean).join(', ') }}
+                                                    {{ [location.city?.name, location.region?.name,
+                                                    location.country?.name].filter(Boolean).join(', ') }}
                                                 </p>
                                             </template>
                                             <span v-else class="text-gray-400 italic">No address provided</span>
@@ -336,17 +336,17 @@
                                     </div>
 
                                     <!-- Coordinates -->
-                                    <div v-if="branch.latitude && branch.longitude" class="sm:col-span-2">
+                                    <div v-if="location.latitude && location.longitude" class="sm:col-span-2">
                                         <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">
                                             GPS
                                             coordinates</dt>
                                         <dd class="text-sm flex items-center gap-3 flex-wrap">
                                             <span class="font-mono text-gray-900 dark:text-white">
-                                                {{ Number(branch.latitude).toFixed(5) }}, {{
-                                                Number(branch.longitude).toFixed(5)
+                                                {{ Number(location.latitude).toFixed(5) }}, {{
+                                                Number(location.longitude).toFixed(5)
                                                 }}
                                             </span>
-                                            <a :href="`https://www.google.com/maps/dir/?api=1&destination=${branch.latitude},${branch.longitude}`"
+                                            <a :href="`https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}`"
                                                 target="_blank" rel="noopener"
                                                 class="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-800">
                                                 Open in Maps
@@ -360,27 +360,27 @@
                                         </dd>
                                     </div>
 
-                                    <!-- Branch phone -->
-                                    <div v-if="branch.phone">
+                                    <!-- Location phone -->
+                                    <div v-if="location.phone">
                                         <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">
-                                            Branch
+                                                                                        Location
                                             phone</dt>
                                         <dd class="text-sm text-gray-900 dark:text-white">
-                                            <a :href="`tel:${branch.phone}`" class="text-primary-600 hover:underline">
-                                                {{ branch.phone }}
+                                            <a :href="`tel:${location.phone}`" class="text-primary-600 hover:underline">
+                                                {{ location.phone }}
                                             </a>
                                         </dd>
                                     </div>
 
-                                    <!-- Branch WhatsApp -->
-                                    <div v-if="branch.whatsapp">
+                                    <!-- Location WhatsApp -->
+                                    <div v-if="location.whatsapp">
                                         <dt class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">
-                                            Branch
+                                                                                        Location
                                             WhatsApp</dt>
                                         <dd class="text-sm text-gray-900 dark:text-white">
-                                            <a :href="`https://wa.me/${String(branch.whatsapp).replace(/[^0-9]/g, '')}`"
+                                            <a :href="`https://wa.me/${String(location.whatsapp).replace(/[^0-9]/g, '')}`"
                                                 target="_blank" rel="noopener" class="text-emerald-600 hover:underline">
-                                                {{ branch.whatsapp }}
+                                                {{ location.whatsapp }}
                                             </a>
                                         </dd>
                                     </div>
@@ -389,8 +389,8 @@
                         </div>
 
                         <div v-else class="p-12 text-center">
-                            <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">No branches yet</p>
-                            <p class="text-xs text-gray-400 mt-1">The owner hasn't added any branch locations</p>
+                            <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">No Locations yet</p>
+                            <p class="text-xs text-gray-400 mt-1">The owner hasn't added any locations</p>
                         </div>
                     </div>
                 </div>

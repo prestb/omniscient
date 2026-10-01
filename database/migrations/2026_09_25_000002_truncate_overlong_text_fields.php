@@ -8,10 +8,10 @@ return new class extends Migration {
      * ✅ Truncate any existing rows that exceed the new limits.
      *
      * Verified against the production DB on 2026-09-25:
-     *   businesses.description     → 0 rows over 255
+          *   businesses.description     → 0 rows over 255
      *   business_services.name     → 0 rows over 50
      *   business_services.description → 0 rows over 75
-     *   branches.address           → 0 rows over 100
+     *   locations.address          → 0 rows over 100
      *   reviews.content            → 0 rows over 500
      *
      * So this migration is effectively a no-op — but it stays as a
@@ -26,9 +26,9 @@ return new class extends Migration {
         DB::statement("UPDATE reviews SET content = LEFT(content, 500) WHERE CHAR_LENGTH(content) > 500");
 
         // ==== Identifiers / headings ====
-        DB::statement("UPDATE businesses SET name = LEFT(name, 100) WHERE CHAR_LENGTH(name) > 100");
-        DB::statement("UPDATE branches SET name = LEFT(name, 100) WHERE CHAR_LENGTH(name) > 100");
-        DB::statement("UPDATE branches SET address = LEFT(address, 100) WHERE CHAR_LENGTH(address) > 100");
+                DB::statement("UPDATE businesses SET name = LEFT(name, 100) WHERE CHAR_LENGTH(name) > 100");
+        DB::statement("UPDATE locations SET name = LEFT(name, 100) WHERE CHAR_LENGTH(name) > 100");
+        DB::statement("UPDATE locations SET address = LEFT(address, 100) WHERE CHAR_LENGTH(address) > 100");
         DB::statement("UPDATE business_images SET caption = LEFT(caption, 100) WHERE CHAR_LENGTH(caption) > 100");
     }
 

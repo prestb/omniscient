@@ -39,9 +39,12 @@ class LeadController extends Controller
         }
 
         try {
-            $lead = Lead::create([
+                        $lead = Lead::create([
                 'business_id' => $business->id,
-                'branch_id' => $business->primaryBranch?->id,
+                // PHASE 9/10 — a lead is attributed to a Listing. This public
+                // contact form is business-scoped, so we attribute to the
+                // organization's first listing when one exists.
+                'listing_id' => $business->listings()->value('id'),
                 'source' => 'contact_form',
                 'name' => $validated['name'],
                 'email' => $validated['email'] ?? null,

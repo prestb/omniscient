@@ -98,7 +98,7 @@ const requireTyping = computed(() => !isRestore.value);
 const title = computed(() => isRestore.value ? 'Restore Business' : 'Permanently Delete');
 const subtitle = computed(() => isRestore.value ? 'Undo soft delete' : 'Cannot be undone');
 const message = computed(() => isRestore.value
-    ? `Restore "${props.business.name}"? All related branches, services, images, and reviews will be recovered.`
+    ? `Restore "${props.business.name}"? All related locations, services, images, and reviews will be recovered.`
     : `Permanently delete "${props.business.name}"? This will destroy all data including image files. This action cannot be undone.`
 );
 

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\BusinessImage;
+use App\Models\ListingImage;
 use App\Services\ImageService;
 use Illuminate\Console\Command;
 
@@ -16,15 +16,15 @@ class BackfillImageVariants extends Command
     public function handle(ImageService $service): int
     {
         if ($this->option('dry-run')) {
-            $total = BusinessImage::query()
+            $total = ListingImage::query()
                 ->whereNull('hidden_at')
                 ->count();
 
             $needProcessing = 0;
-            BusinessImage::query()
+            ListingImage::query()
                 ->whereNull('hidden_at')
                 ->get()
-                ->each(function (BusinessImage $img) use (&$needProcessing, $service) {
+                ->each(function (ListingImage $img) use (&$needProcessing, $service) {
                     if ($img->path && !$service->hasVariants($img->path)) {
                         $needProcessing++;
                     }
@@ -42,7 +42,7 @@ class BackfillImageVariants extends Command
 
         $bar->start();
 
-        $total = $service->backfill(function (BusinessImage $image) use ($bar, &$processed) {
+        $total = $service->backfill(function (ListingImage $image) use ($bar, &$processed) {
             $processed++;
             $bar->advance();
         });

@@ -36,7 +36,7 @@ class CheckSubscriptionLimits
         // Check specific limits
         if ($type === 'create_business') {
             if (!$subscription->canCreateBusiness()) {
-                $maxBusinesses = $subscription->plan->max_businesses ?? 0;
+                $maxBusinesses = $subscription->plan->max_listings ?? 0;
                 $currentBusinesses = Business::where('owner_id', $user->id)
                     ->whereNotIn('status', ['deleted', 'rejected'])
                     ->count();
@@ -59,7 +59,7 @@ class CheckSubscriptionLimits
 
             if ($businessId) {
                 if (!$subscription->canCreateBranch($businessId)) {
-                    $maxBranches = $subscription->plan->max_branches ?? 0;
+                    $maxBranches = $subscription->plan->max_locations ?? 0;
 
                     if ($request->wantsJson()) {
                         return response()->json([

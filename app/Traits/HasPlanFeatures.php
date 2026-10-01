@@ -63,11 +63,14 @@ trait HasPlanFeatures
     /**
      * Get current usage for a resource
      */
-    public function getCurrentUsage(string $resource): int
+        public function getCurrentUsage(string $resource): int
     {
-        return match ($resource) {
-            'businesses' => $this->businesses()->count(),
-            'branches' => $this->getBranchesCount(),
+                return match ($resource) {
+            // PHASE 9/11 — the LISTING quota counts Listing records, the
+            // canonical discoverable entity. Businesses are organizations and
+            // are NOT counted against listing quota.
+            'listings' => \App\Models\Listing::countFor($this),
+            'locations' => $this->getLocationsCount(),
             'services' => $this->getServicesCount(),
             'images' => $this->getImagesCount(),
             'coupons' => method_exists($this, 'coupons') ? $this->coupons()->count() : 0,
@@ -75,25 +78,36 @@ trait HasPlanFeatures
         };
     }
 
-    protected function getBranchesCount(): int
+                protected function getLocationsCount(): int
     {
         if (!method_exists($this, 'businesses'))
             return 0;
-        return $this->businesses()->withCount('branches')->get()->sum('branches_count');
+        // Locations are physical places; count all physical locations
+        // belonging to the account's organizations.
+        return \App\Models\Location::whereIn(
+            'business_id',
+            $this->businesses()->pluck('id')
+        )->count();
     }
 
-    protected function getServicesCount(): int
+        protected function getServicesCount(): int
     {
-        if (!method_exists($this, 'businesses'))
+        if (!method_exists($this, 'listings'))
             return 0;
-        return $this->businesses()->withCount('services')->get()->sum('services_count');
+        return \App\Models\ListingService::whereIn(
+            'listing_id',
+            $this->listings()->pluck('id')
+        )->count();
     }
 
     protected function getImagesCount(): int
     {
-        if (!method_exists($this, 'businesses'))
+        if (!method_exists($this, 'listings'))
             return 0;
-        return $this->businesses()->withCount('images')->get()->sum('images_count');
+        return \App\Models\ListingImage::whereIn(
+            'listing_id',
+            $this->listings()->pluck('id')
+        )->count();
     }
 
     /**

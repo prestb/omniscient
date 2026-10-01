@@ -2,6 +2,7 @@
 
 use App\Models\Business;
 use App\Models\Category;
+use App\Models\Listing;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function () {
@@ -23,8 +24,10 @@ test('autocomplete only returns categories with published businesses', function 
         'is_active' => true,
     ]);
 
-    $business = Business::factory()->published()->create();
-    $business->categories()->attach($realCategory->id, ['is_primary' => true]);
+    // PHASE 9 — discovery is Listing-centric: a published, visible Listing
+    // must carry the category for it to be suggested.
+    $listing = Listing::factory()->published()->create();
+    $listing->categories()->attach($realCategory->id, ['is_primary' => true]);
 
     $response = $this->getJson('/search/autocomplete?q=rest');
 
@@ -51,10 +54,10 @@ test('autocomplete uses prefix and word-boundary matching', function () {
         'is_active' => true,
     ]);
 
-    // ✅ Each category needs a published business to appear in results
+    // ✅ Each category needs a published listing to appear in results
     foreach ([$restaurants, $provision, $clothing] as $category) {
-        $business = Business::factory()->published()->create();
-        $business->categories()->attach($category->id, ['is_primary' => true]);
+        $listing = Listing::factory()->published()->create();
+        $listing->categories()->attach($category->id, ['is_primary' => true]);
     }
 
     $response = $this->getJson('/search/autocomplete?q=res');
