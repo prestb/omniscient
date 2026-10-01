@@ -7,6 +7,8 @@ export default defineConfig({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
+            // PHASE 15E - SSR entry. Build artifact only; no production Node process.
+            ssr: 'resources/js/ssr.js',
             refresh: true,
         }),
         vue(),

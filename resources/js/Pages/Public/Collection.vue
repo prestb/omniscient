@@ -11,7 +11,14 @@
             <meta property="og:description" :content="seo.description" />
             <meta property="og:type" content="website" />
             <meta property="og:url" :content="seo.canonical" />
-            <!-- JSON-LD injected via onMounted (see script below) -->
+            <!--
+                PHASE 15E — JSON-LD is expressed DECLARATIVELY here instead of
+                being appended to document.head in onMounted. That makes it
+                available to SSR and removes the last `document` usage from this
+                page's setup/render path. `<component :is="'script'">` is used
+                because Vue does not compile a literal <script> tag.
+            -->
+            <component :is="'script'" type="application/ld+json" v-html="schemaJson" />
         </Head>
 
         <!-- ============== HERO ============== -->
@@ -124,7 +131,7 @@
 </template>
 
 <script setup>
-    import { ref, computed, onMounted, onUnmounted } from 'vue';
+    import { ref, computed } from 'vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
     import ListingCard from '@/Components/Public/ListingCard.vue';
@@ -161,13 +168,33 @@
         });
     };
 
-    // Schema.org ItemList JSON-LD
+    // Schema.org ItemList JSON-LD.
+    //
+    // PHASE 15E — two corrections while making this SSR-ready:
+    //
+    //  1. `window.location.origin` was read INSIDE this computed, i.e. during
+    //     render, which is an SSR blocker. The absolute origin now comes from
+    //     `seo.canonical`, which the controller already supplies via url().
+    //
+    //  2. The items pointed at `/business/{slug}`. A collection is a set of
+    //     LISTINGS (CollectionService::businessesQuery() returns Listing::query()),
+    //     so the structured data advertised the wrong canonical entity — the same
+    //     Listing-slug-on-a-Business-URL defect fixed for ListingCard in Wave 1D-6.
+    //     Items now reference `/listing/{slug}`.
     const schemaJson = computed(() => {
-        const items = (props.listings.data || []).map((b, i) => ({
+        const origin = (() => {
+            try {
+                return new URL(props.seo.canonical).origin;
+            } catch (e) {
+                return '';
+            }
+        })();
+
+        const items = (props.listings?.data || []).map((l, i) => ({
             '@type': 'ListItem',
             position: i + 1,
-            url: `${window.location.origin}/business/${b.slug}`,
-            name: b.name,
+            url: `${origin}/listing/${l.slug}`,
+            name: l.name,
         }));
 
         return JSON.stringify({
@@ -177,29 +204,5 @@
             numberOfItems: props.total,
             itemListElement: items,
         });
-    });
-
-    // ✅ Inject JSON-LD into <head> on mount — Vue can't compile <script> tags
-    //    inside templates, so we create the element imperatively.
-    const JSONLD_ID = 'collection-jsonld';
-
-    const injectJsonLd = () => {
-        // Remove any stale element (e.g. after Inertia navigation)
-        document.getElementById(JSONLD_ID)?.remove();
-
-        const script = document.createElement('script');
-        script.type = 'application/ld+json';
-        script.id = JSONLD_ID;
-        script.textContent = schemaJson.value;
-        document.head.appendChild(script);
-    };
-
-    onMounted(() => {
-        injectJsonLd();
-    });
-
-    onUnmounted(() => {
-        // Clean up when navigating away
-        document.getElementById(JSONLD_ID)?.remove();
     });
 </script>
