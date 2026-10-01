@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\Business;
+use App\Http\Resources\ListingDirectoryResource;
 use App\Models\Category;
 use App\Models\City;
+use App\Models\Listing;
 use App\Models\Region;
 use App\Services\SearchIntentParser;
 use Illuminate\Http\Request;
@@ -39,26 +40,26 @@ class SearchController extends Controller
             $effectiveQuery = '';
         }
 
-        // Build search query
-        $search = Business::search($effectiveQuery);
+        // PHASE 11 / WAVE 1D-1 — discovery queries LISTINGS.
+        // A Business is an organization, never a competing discovery entity.
+        $search = Listing::search($effectiveQuery);
 
         // Apply filters using WHERE clauses
         $search->where('status', 'published');
         $search->where('has_active_subscription', true);
-        $search->where('hidden', false);   // ✅ skip hidden businesses
+        $search->where('hidden', false);
 
         if ($categoryId) {
             $search->where('category_ids', (int) $categoryId);
         }
 
         if ($cityId) {
-            // ✅ Filter on the union of all branches' city_ids, so multi-branch
-            //    businesses match a search in any of their cities.
-            $search->where('city_ids', (int) $cityId);
+            // A Listing has 0 or 1 Location, so the city filter is singular.
+            $search->where('city_id', (int) $cityId);
         }
 
         if ($regionId) {
-            $search->where('region_ids', (int) $regionId);
+            $search->where('region_id', (int) $regionId);
         }
 
         if ($featured) {
@@ -69,7 +70,7 @@ class SearchController extends Controller
             $search->where('is_open_now', true);
         }
 
-        $businesses = $search->paginate(12);
+        $listings = $search->paginate(12);
 
         // Get filter data
         $categories = Category::active()->root()->ordered()->get();
@@ -77,7 +78,7 @@ class SearchController extends Controller
         $cities = City::active()->get();
 
         return Inertia::render('Public/Search/Index', [
-            'businesses' => $businesses,
+            'listings' => ListingDirectoryResource::collection($listings),
             'query' => $query,
             'filters' => [
                 'category' => $categoryId,
@@ -105,22 +106,23 @@ class SearchController extends Controller
         }
 
         try {
-            $suggestions = Business::search($query)
+            $suggestions = Listing::search($query)
                 ->where('status', 'published')
                 ->where('has_active_subscription', true)
-                ->where('hidden', false)   // ✅ skip hidden businesses
+                ->where('hidden', false)
                 ->take(5)
                 ->get()
-                ->map(function ($business) {
-                    $branch = $business->primaryLocation ?? $business->locations->first();
-                    $category = $business->categories->first();
-
+                ->map(function ($listing) {
+                    // PHASE 11 / WAVE 1D-1 — the discoverable identity is the
+                    // LISTING. The organization is contextual metadata only.
                     return [
-                        'id' => $business->id,
-                        'name' => $business->name,
-                        'slug' => $business->slug,
-                        'category' => $category?->name,
-                        'city' => $branch?->city?->name,
+                        'id' => $listing->id,
+                        'type' => 'listing',
+                        'listing_type' => $listing->getListingType()->value,
+                        'name' => $listing->name,
+                        'slug' => $listing->slug,
+                        'category' => $listing->categories->first()?->name,
+                        'city' => $listing->location?->city?->name,
                     ];
                 });
 

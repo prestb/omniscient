@@ -34,8 +34,8 @@
                         <!-- Results count -->
                         <div class="flex-1 min-w-0">
                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                <span class="font-bold text-gray-900 dark:text-white">{{ businesses.total || 0 }}</span>
-                                result{{ businesses.total === 1 ? '' : 's' }}
+                                <span class="font-bold text-gray-900 dark:text-white">{{ listings.total || 0 }}</span>
+                                result{{ listings.total === 1 ? '' : 's' }}
                             </p>
                         </div>
 
@@ -215,15 +215,17 @@
             </div>
 
             <!-- Results -->
-            <div v-if="businesses.data && businesses.data.length > 0">
+            <div v-if="listings.data && listings.data.length > 0">
                 <p class="hidden lg:block text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Found <span class="font-bold text-gray-900 dark:text-white">{{ businesses.total }}</span> businesses
+                    Found <span class="font-bold text-gray-900 dark:text-white">{{ listings.total }}</span> listings
                 </p>
                 <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                    <BusinessCard v-for="business in businesses.data" :key="business.id" :business="business" />
+                    <!-- Naming debt (Wave 1D-6): BusinessCard's prop is still named
+                         `business`, but the result ENTITY is now always a Listing. -->
+                    <BusinessCard v-for="listing in listings.data" :key="listing.id" :business="listing" />
                 </div>
                 <div class="mt-6">
-                    <Pagination :links="businesses.links" />
+                    <Pagination :links="listings.links" />
                 </div>
             </div>
 
@@ -259,7 +261,7 @@
     import MobileFilterSheet from '@/Components/Public/MobileFilterSheet.vue';
 
     const props = defineProps({
-        businesses: Object,
+        listings: Object,
         query: String,
         filters: Object,
         categories: Array,

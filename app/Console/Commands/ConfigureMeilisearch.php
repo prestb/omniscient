@@ -5,64 +5,69 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Meilisearch\Client;
 
+/**
+ * PHASE 11 / WAVE 1D-1 — the canonical public discovery index is `listings`.
+ *
+ * A Business is an organization (an aggregate of Listings). It is NOT a
+ * competing searchable/discoverable entity, so its index is no longer
+ * configured or populated.
+ */
 class ConfigureMeilisearch extends Command
 {
     protected $signature = 'meilisearch:configure';
-    protected $description = 'Configure Meilisearch index settings';
+
+    protected $description = 'Configure the Listing discovery index settings';
+
+    /**
+     * The canonical discovery index.
+     */
+    public const INDEX = 'listings';
 
     public function handle()
     {
-        $this->info('Configuring Meilisearch index...');
+        $this->info('Configuring Meilisearch discovery index: ' . self::INDEX);
 
         $client = new Client(
             env('MEILISEARCH_HOST', 'http://localhost:7700'),
             env('MEILISEARCH_KEY')
         );
 
-        $index = $client->index('businesses');
+        $index = $client->index(self::INDEX);
 
         // Update filterable attributes
         $index->updateFilterableAttributes([
             'status',
+            'type',
             'is_featured',
-            'has_active_subscription',
             'hidden',
+            'has_active_subscription',
             'is_open_now',
+            'business_id',
+            'location_id',
             'category_ids',
             'city_id',
             'region_id',
             'country_id',
-            // ✅ Multi-branch unions
-            'city_ids',
-            'region_ids',
-            'country_ids',
         ]);
 
         $this->info('✅ Filterable attributes updated:');
-        $this->line('  - status');
-        $this->line('  - is_featured');
-        $this->line('  - has_active_subscription');
-        $this->line('  - hidden');
-        $this->line('  - is_open_now');
-        $this->line('  - category_ids');
-        $this->line('  - city_id');
-        $this->line('  - region_id');
-        $this->line('  - country_id');
-        $this->line('  - city_ids');
-        $this->line('  - region_ids');
-        $this->line('  - country_ids');
+        foreach ([
+            'status', 'type', 'is_featured', 'hidden', 'has_active_subscription',
+            'is_open_now', 'business_id', 'location_id', 'category_ids',
+            'city_id', 'region_id', 'country_id',
+        ] as $attribute) {
+            $this->line('  - ' . $attribute);
+        }
 
         // Update sortable attributes
         $index->updateSortableAttributes([
             'created_at',
             'published_at',
-            'average_rating',
         ]);
 
         $this->info('✅ Sortable attributes updated:');
         $this->line('  - created_at');
         $this->line('  - published_at');
-        $this->line('  - average_rating');
 
         // Update searchable attributes
         $index->updateSearchableAttributes([
@@ -72,9 +77,8 @@ class ConfigureMeilisearch extends Command
             'services_names',
             'city',
             'region',
+            'country',
             'address',
-            'phone',
-            'email',
         ]);
 
         $this->info('✅ Searchable attributes updated:');

@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-use Laravel\Scout\Searchable;
 
 /**
  * Business
@@ -29,7 +28,7 @@ use Laravel\Scout\Searchable;
  */
 class Business extends Model
 {
-    use HasFactory, SoftDeletes, Searchable;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'owner_id',
@@ -755,121 +754,6 @@ class Business extends Model
     // Business is an ORGANIZATION. Its discoverable entities are Listings
     // ({@see listings()}). Listing-specific actions (type, lifecycle,
     // ownership-in-listing-terms) live on the Listing model.
-
-    // ============== SEARCHABLE ==============
-
-        /**
-     * ✅ Meilisearch searchable payload.
-     *
-     *    Singular city_id / region_id / country_id and city / region strings
-     *    refer to the PRIMARY location. Plural city_ids / region_ids /
-     *    country_ids are the UNION of all locations' values — used for
-     *    multi-location filtering (so a business with a place in Yaoundé
-     *    matches a Yaounde search even if its primary place is in Buea).
-     */
-        public function toSearchableArray()
-    {
-        // Ensure locations + their geography are loaded (avoids N+1 during index)
-        $this->loadMissing([
-            'locations',
-            'locations.city',
-            'locations.region',
-            'locations.country',
-            'services',
-            'owner',
-            'owner.activeSubscription',
-        ]);
-
-        $primaryLocation = $this->locations->firstWhere('is_primary', true)
-            ?? $this->locations->first();
-
-        $categoryIds = $this->categories->pluck('id')->values()->all();
-        $categoryNames = $this->categories->pluck('name')->values()->all();
-
-        $serviceNames = method_exists($this, 'services')
-            ? $this->services->pluck('name')->values()->all()
-            : [];
-
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'description' => $this->description,
-            'slug' => $this->slug,
-            'status' => $this->status,
-            'is_featured' => (bool) $this->is_featured,
-            'average_rating' => $this->average_rating,
-            'created_at' => $this->created_at?->timestamp,
-            'published_at' => $this->published_at?->timestamp,
-            'has_active_subscription' => (bool) $this->has_active_subscription,
-            'hidden' => $this->hidden_at !== null,
-
-            'category_ids' => $categoryIds,
-            'categories_names' => $categoryNames,
-            'services_names' => $serviceNames,
-
-            // ============== PRIMARY LOCATION (singular) ==============
-            'city_id' => $primaryLocation?->city_id,
-            'region_id' => $primaryLocation?->region_id,
-            'country_id' => $primaryLocation?->country_id,
-            'city' => $primaryLocation?->city?->name,
-            'region' => $primaryLocation?->region?->name,
-            'country' => $primaryLocation?->country?->name,
-            'address' => $primaryLocation?->address,
-            'phone' => $primaryLocation?->phone,
-            'email' => $this->email,
-            'website' => $this->website,
-
-            // ============== ALL LOCATIONS (plural) ==============
-            'city_ids' => $this->locations->pluck('city_id')->filter()->unique()->values()->all(),
-            'region_ids' => $this->locations->pluck('region_id')->filter()->unique()->values()->all(),
-            'country_ids' => $this->locations->pluck('country_id')->filter()->unique()->values()->all(),
-        ];
-    }
-
-    public function searchableAs(): string
-    {
-        return 'businesses';
-    }
-
-
-    /**
-     * Custom search method with filters
-     */
-    public static function smartSearch($query, $filters = [])
-    {
-        $search = static::search($query);
-
-        // Apply status filter
-        if (isset($filters['status'])) {
-            $search->where('status', $filters['status']);
-        }
-
-        // Apply featured filter
-        if (isset($filters['is_featured'])) {
-            $search->where('is_featured', $filters['is_featured']);
-        }
-
-        // Apply category filter
-        if (isset($filters['category_id'])) {
-            $search->where('category_ids', $filters['category_id']);
-        }
-
-        // Apply location filters
-        if (isset($filters['city_id'])) {
-            $search->where('city_id', $filters['city_id']);
-        }
-
-        if (isset($filters['region_id'])) {
-            $search->where('region_id', $filters['region_id']);
-        }
-
-        // Apply open now filter
-        if (isset($filters['open_now']) && $filters['open_now']) {
-            $search->where('is_open_now', true);
-        }
-
-        return $search;
-    }
 
     // ============== FEATURE FLAG METHODS ==============
 

@@ -269,7 +269,16 @@ class Listing extends Model
 
     public function toSearchableArray()
     {
-        $this->loadMissing(['location.city', 'location.region', 'location.country', 'business', 'categories', 'services']);
+        $this->loadMissing([
+            'location.city',
+            'location.region',
+            'location.country',
+            'location.hours',
+            'business',
+            'categories',
+            'services',
+            'owner.activeSubscription',
+        ]);
 
         $location = $this->location;
 
@@ -282,14 +291,31 @@ class Listing extends Model
             'status' => $this->status,
             'is_featured' => (bool) $this->is_featured,
             'hidden' => $this->hidden_at !== null,
+            'created_at' => $this->created_at?->timestamp,
+            'published_at' => $this->published_at?->timestamp,
+
+            // Contextual organization reference — NOT a separate result identity.
             'business_id' => $this->business_id,
+
             'location_id' => $this->location_id,
             'city_id' => $location?->city_id,
+            'region_id' => $location?->region_id,
+            'country_id' => $location?->country_id,
             'city' => $location?->city?->name,
             'region' => $location?->region?->name,
             'country' => $location?->country?->name,
+            'address' => $location?->address,
+            'is_open_now' => (bool) ($location?->is_open_now ?? false),
+
             'category_ids' => $this->categories->pluck('id')->values()->all(),
+            'categories_names' => $this->categories->pluck('name')->values()->all(),
             'services_names' => $this->services->pluck('name')->values()->all(),
+
+            // PHASE 11 / WAVE 1D-1 — subscriptions are ACCOUNT-scoped, so the
+            // paid-visibility rule lives on the owner. This preserves the
+            // previous Business-level `has_active_subscription` filter meaning
+            // without keeping Business as a search entity.
+            'has_active_subscription' => (bool) ($this->owner?->activeSubscription),
         ];
     }
 
