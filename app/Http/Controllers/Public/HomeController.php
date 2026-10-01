@@ -33,8 +33,8 @@ class HomeController extends Controller
             ->where('is_featured', true)
             ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withCount(['reviews', 'images'])
-            ->withAvg('reviews', 'rating')
+            ->withCount(['businessReviews', 'images'])
+            ->withAvg('businessReviews', 'rating')
             ->inRandomOrder()
             ->take(6)
             ->get();
@@ -54,8 +54,8 @@ class HomeController extends Controller
         ])
             ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withCount(['reviews', 'images'])
-            ->withAvg('reviews', 'rating')
+            ->withCount(['businessReviews', 'images'])
+            ->withAvg('businessReviews', 'rating')
             ->latest()
             ->take(8)
             ->get();

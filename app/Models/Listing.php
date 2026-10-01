@@ -187,6 +187,34 @@ class Listing extends Model
         return $this->hasMany(Review::class)->approved();
     }
 
+    /**
+     * PHASE 11 — BUSINESS REVIEW AGGREGATE (Step 1 of review attribution integrity).
+     *
+     * Reviews belong to the owning BUSINESS, not to this Listing. This relation
+     * exists so a Listing can DISPLAY its organization's review metrics:
+     *
+     *     Listing -> Business -> Review
+     *
+     * It is deliberately NOT named `reviews()`. "Which reviews belong to this
+     * Listing?" has no answer — they belong to the Business. The name states the
+     * source, and `withCount` / `withAvg` / `orderByDesc` all work natively
+     * against it at SQL level, so browse sorting needs no query redesign.
+     *
+     * `reviews()` above is the obsolete Listing-owned relation; it is scheduled
+     * for removal in Step 2 once every consumer has moved here.
+     */
+    public function businessReviews()
+    {
+        return $this->hasManyThrough(
+            Review::class,
+            Business::class,
+            'id',          // businesses.id          (intermediate key)
+            'business_id', // reviews.business_id    (final model key)
+            'business_id', // listings.business_id   (local key)
+            'id'           // businesses.id          (intermediate local key)
+        );
+    }
+
     public function allReviews()
     {
         return $this->hasMany(Review::class);

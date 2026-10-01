@@ -41,8 +41,8 @@ class FavoriteController extends Controller
                 'images',
                 'categories',
             ])
-            ->withCount('reviews')
-            ->withAvg('reviews', 'rating')
+            ->withCount('businessReviews')
+            ->withAvg('businessReviews', 'rating')
             ->paginate(12);
 
         // The existing Favorites UI consumes a ListingDirectoryResource-shaped

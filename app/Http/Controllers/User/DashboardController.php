@@ -38,8 +38,8 @@ class DashboardController extends Controller
                 'categories',
                 'owner.activeSubscription.plan',
             ])
-            ->withCount('reviews')
-            ->withAvg('reviews', 'rating')
+            ->withCount('businessReviews')
+            ->withAvg('businessReviews', 'rating')
             ->take(6)
             ->get()
             ->map(fn($listing) => (new \App\Http\Resources\ListingDirectoryResource($listing))->resolve())

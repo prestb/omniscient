@@ -81,8 +81,8 @@ class DirectoryController extends Controller
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags per owner
             ])
-            ->withCount(['images', 'reviews'])        // ✅ always load for the accessors
-            ->withAvg('reviews', 'rating')            // ✅ always load for the accessors
+            ->withCount(['images', 'businessReviews'])        // ✅ always load for the accessors
+            ->withAvg('businessReviews', 'rating')            // ✅ always load for the accessors
             ->where('status', 'published')
             ->whereNull('hidden_at');   // ✅ skip hidden listings
 
@@ -227,12 +227,12 @@ class DirectoryController extends Controller
 
         switch ($sort) {
             case 'rating':
-                $query->withAvg('reviews', 'rating')
-                    ->orderByDesc('reviews_avg_rating');
+                $query->withAvg('businessReviews', 'rating')
+                    ->orderByDesc('business_reviews_avg_rating');
                 break;
             case 'reviews':
-                $query->withCount('reviews')
-                    ->orderByDesc('reviews_count');
+                $query->withCount('businessReviews')
+                    ->orderByDesc('business_reviews_count');
                 break;
             case 'name':
                 $query->orderBy('name', 'asc');
@@ -368,8 +368,8 @@ class DirectoryController extends Controller
             'latitude' => (float) $location->latitude,
             'longitude' => (float) $location->longitude,
             'category' => $listing->categories->first()?->name ?? 'Uncategorized',
-            'rating' => round((float) ($listing->reviews_avg_rating ?? 0), 1),
-            'reviews_count' => (int) ($listing->reviews_count ?? 0),
+            'rating' => round((float) ($listing->business_reviews_avg_rating ?? 0), 1),
+            'reviews_count' => (int) ($listing->business_reviews_count ?? 0),
             'cover_image_url' => $cover?->url ?? $listing->business?->cover_image_url,
             'logo_url' => $logo?->url ?? $listing->business?->logo_url,
             'is_featured' => (bool) $listing->is_featured,
@@ -408,8 +408,8 @@ class DirectoryController extends Controller
                     $query->where('status', Listing::STATUS_PUBLISHED)
                         ->whereNull('listings.hidden_at')
                         ->with(['location.city', 'categories', 'images'])
-                        ->withCount('reviews')
-                        ->withAvg('reviews', 'rating');
+                        ->withCount('businessReviews')
+                        ->withAvg('businessReviews', 'rating');
                 },
                 'reviews' => function ($query) {
                     $query->where('status', 'approved')

@@ -39,10 +39,10 @@ class CollectionController extends Controller
 
         switch ($sort) {
             case 'rating':
-                $query->orderByDesc('reviews_avg_rating');
+                $query->orderByDesc('business_reviews_avg_rating');
                 break;
             case 'reviews':
-                $query->orderByDesc('reviews_count');
+                $query->orderByDesc('business_reviews_count');
                 break;
             case 'name':
                 $query->orderBy('name', 'asc');
