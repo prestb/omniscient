@@ -392,8 +392,9 @@ class DirectoryController extends Controller
                     $query->whereNull('listing_services.hidden_at');
                 },
                 'contacts',
-                'logo',
-                'coverImage',
+                // PHASE 11 / WAVE 1D-3 — organization branding comes from the
+                // Business-owned `businesses.logo` / `businesses.cover_image`
+                // columns. There is no longer a through-Listing branding relation.
                 'galleryImages' => function ($query) {
                     $query->whereNull('listing_images.hidden_at');
                 },

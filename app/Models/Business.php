@@ -435,29 +435,23 @@ class Business extends Model
         )->orderBy('listing_images.sort_order');
     }
 
-    public function logo()
-    {
-        return $this->hasOneThrough(
-            ListingImage::class,
-            Listing::class,
-            'business_id',
-            'listing_id',
-            'id',
-            'id'
-        )->where('listing_images.type', ListingImage::TYPE_LOGO);
-    }
-
-    public function coverImage()
-    {
-        return $this->hasOneThrough(
-            ListingImage::class,
-            Listing::class,
-            'business_id',
-            'listing_id',
-            'id',
-            'id'
-        )->where('listing_images.type', ListingImage::TYPE_COVER);
-    }
+    /**
+     * PHASE 11 / WAVE 1D-3 — ORGANIZATION BRANDING IS BUSINESS-OWNED.
+     *
+     * `logo()` and `coverImage()` used to be `hasOneThrough(ListingImage, Listing)`
+     * relations: the organization's branding was read out of an arbitrarily
+     * chosen Listing's media. A Business may own several Listings, so those
+     * relations had no legitimate answer to "which Listing's logo is the
+     * organization's logo?".
+     *
+     * They are REMOVED. Organization branding is the Business-owned
+     * `businesses.logo` / `businesses.cover_image` columns, exposed through the
+     * existing `logo_url` / `cover_image_url` accessors. Branding never resolves
+     * through a Listing.
+     *
+     * Listing presentation media is Listing-owned and lives in `listing_images`
+     * (see App\Models\ListingImage and Owner\ListingImageController).
+     */
 
     public function galleryImages()
     {

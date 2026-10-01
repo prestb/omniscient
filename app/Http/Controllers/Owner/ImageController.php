@@ -4,295 +4,142 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\ListingImage;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use Inertia\Inertia;
 use App\Services\ImageService;
 use App\Traits\GuardsHiddenItems;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
+/**
+ * PHASE 11 / WAVE 1D-3 — ORGANIZATION BRANDING (BUSINESS-OWNED).
+ *
+ * This controller manages ONLY the organization's own branding:
+ * `businesses.logo` and `businesses.cover_image`.
+ *
+ * It is Business-scoped and Business-authorized on purpose: branding belongs to
+ * the organization, and a Business may legitimately exist with ZERO Listings.
+ *
+ * It no longer writes `listing_images` rows and no longer calls
+ * `primaryListing()`. The old dual-write (branding column + Listing media row)
+ * is gone. Listing presentation media is handled by
+ * {@see ListingImageController}.
+ */
 class ImageController extends Controller
 {
     use GuardsHiddenItems;
+
+    /** Branding slots this controller is allowed to touch. */
+    private const SLOTS = [
+        'logo' => 'logo',
+        'cover' => 'cover_image',
+    ];
+
     public function index(Business $business)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
         }
 
-        $images = $business->images()->ordered()->get();
-        $logo = $business->logo;
-        $cover = $business->coverImage;
-        $gallery = $business->galleryImages;
-
         return Inertia::render('Owner/Images/Index', [
             'business' => $business,
-            'images' => $images,
-            'logo' => $logo,
-            'cover' => $cover,
-            'gallery' => $gallery,
+            'logo' => $business->logo,
+            'cover' => $business->cover_image,
+            'logo_url' => $business->logo_url,
+            'cover_image_url' => $business->cover_image_url,
         ]);
     }
 
     public function store(Request $request, Business $business)
     {
-        Log::info('Image upload started', [
-            'business_id' => $business->id,
-            'user_id' => auth()->id(),
-            'request_data' => $request->all(),
-            'files' => $request->hasFile('image') ? 'has image' : 'no image',
-            'files_array' => $request->hasFile('images') ? 'has images array' : 'no images array'
-        ]);
-
         if ($business->owner_id !== auth()->id()) {
             abort(403);
         }
 
-                // ✅ Server-side lock: can't upload images to a hidden business
+        // ✅ Server-side lock: can't change branding of a hidden business
         if ($redirect = $this->guardNotHidden($business, 'business')) {
             return $redirect;
         }
 
-        // PHASE 11 / WAVE 1B — media is listing-owned. Attach to the
-        // organization's primary listing.
-        $listing = $business->primaryListing();
-        if (!$listing) {
-            return redirect()->back()->with('error', 'No listing found to attach images to.');
-        }
+        $validated = $request->validate([
+            'image' => [
+                'required',
+                'image',
+                'mimes:jpeg,png,jpg,gif,webp',
+                'max:5120', // 5MB
+                'dimensions:min_width=100,min_height=100',
+                function ($attribute, $value, $fail) {
+                    $imageInfo = getimagesize($value->getPathname());
+                    if ($imageInfo === false) {
+                        $fail('The file is not a valid image.');
+                    }
 
-        // Handle single image upload (logo or cover)
-        if ($request->hasFile('image')) {
-            $validated = $request->validate([
-                'image' => [
-                    'required',
-                    'image',
-                    'mimes:jpeg,png,jpg,gif,webp',
-                    'max:5120', // 5MB
-                    'dimensions:min_width=100,min_height=100',
-                    function ($attribute, $value, $fail) {
-                        // Check if file is actually an image (server-side)
-                        $imageInfo = getimagesize($value->getPathname());
-                        if ($imageInfo === false) {
-                            $fail('The file is not a valid image.');
-                        }
+                    $contents = file_get_contents($value->getPathname());
+                    if (
+                        strpos($contents, '<?php') !== false ||
+                        strpos($contents, 'eval(') !== false ||
+                        strpos($contents, 'base64_decode') !== false
+                    ) {
+                        $fail('The file contains suspicious content.');
+                    }
+                },
+            ],
+            // PHASE 11 / WAVE 1D-3 — organization branding accepts logo|cover only.
+            // Gallery media is Listing-owned; it is not an organization concern.
+            'type' => ['required', 'in:logo,cover'],
+            'caption' => ['nullable', 'string', 'max:100'],
+        ]);
 
-                        // Check for malicious content (basic)
-                        $contents = file_get_contents($value->getPathname());
-                        if (
-                            strpos($contents, '<?php') !== false ||
-                            strpos($contents, 'eval(') !== false ||
-                            strpos($contents, 'base64_decode') !== false
-                        ) {
-                            $fail('The file contains suspicious content.');
-                        }
-                    },
-                ],
-                'type' => ['required', 'in:logo,cover,gallery'],
-                'caption' => ['nullable', 'string', 'max:100'],
-            ]);
+        $file = $request->file('image');
+        $filename = time() . '_' . bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
 
-            // Get the file
-            $file = $request->file('image');
+        $path = $file->storeAs('businesses/' . $business->id . '/branding', $filename, 'public');
 
-            // Generate secure filename
-            $filename = time() . '_' . bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
-
-            $path = $file->storeAs('businesses/' . $business->id . '/images', $filename, 'public');
-
-            // ✅ Process image — downscale, re-encode, generate variants
-            try {
-                $processedPath = app(ImageService::class)->process($path);
-
-                // If the service rewrote the file (.png → .jpg), use the new path
-                if ($processedPath) {
-                    $path = $processedPath;
-                }
-            } catch (\Throwable $e) {
-                Log::warning('Image processing failed', [
-                    'path' => $path,
-                    'error' => $e->getMessage(),
-                ]);
+        try {
+            $processedPath = app(ImageService::class)->process($path);
+            if ($processedPath) {
+                $path = $processedPath;
             }
-
-            Log::info('Single image uploaded + processed', ['path' => $path]);
-
-            // Remove existing if logo or cover
-            if ($validated['type'] === 'logo') {
-                // Check if business has an existing logo (string path)
-                if ($business->logo) {
-                    // $business->logo is a string path, not an object
-                    if (Storage::disk('public')->exists($business->logo)) {
-                        Storage::disk('public')->delete($business->logo);
-                    }
-                }
-
-                // Also check if there's a logo record in ListingImage table
-                $existingLogoRecord = $business->logo()->first();
-                if ($existingLogoRecord) {
-                    if (Storage::disk('public')->exists($existingLogoRecord->path)) {
-                        Storage::disk('public')->delete($existingLogoRecord->path);
-                    }
-                    $existingLogoRecord->delete();
-                }
-
-                // Update business logo field with the new path
-                $business->update(['logo' => $path]);
-            }
-
-            if ($validated['type'] === 'cover') {
-                // Check if business has an existing cover (string path)
-                if ($business->cover_image) {
-                    // $business->cover_image is a string path
-                    if (Storage::disk('public')->exists($business->cover_image)) {
-                        Storage::disk('public')->delete($business->cover_image);
-                    }
-                }
-
-                // Also check if there's a cover record in ListingImage table
-                $existingCoverRecord = $business->coverImage()->first();
-                if ($existingCoverRecord) {
-                    if (Storage::disk('public')->exists($existingCoverRecord->path)) {
-                        Storage::disk('public')->delete($existingCoverRecord->path);
-                    }
-                    $existingCoverRecord->delete();
-                }
-
-                // Update business cover_image field with the new path
-                $business->update(['cover_image' => $path]);
-            }
-
-                        // Create the image record
-            $image = ListingImage::create([
-                'listing_id' => $listing->id,
+        } catch (\Throwable $e) {
+            Log::warning('Branding image processing failed', [
                 'path' => $path,
-                'caption' => $validated['caption'] ?? null,
-                'type' => $validated['type'],
-                'is_primary' => false,
-                'sort_order' => $business->images()->count() + 1,
+                'error' => $e->getMessage(),
             ]);
-
-            Log::info('Image record created', ['image_id' => $image->id]);
-
-            $typeLabel = match ($validated['type']) {
-                'logo' => 'Logo',
-                'cover' => 'Cover image',
-                default => 'Image',
-            };
-
-            return redirect()->back()
-                ->with('success', "{$typeLabel} uploaded successfully.");
-        }
-        // Handle multiple gallery images
-        if ($request->hasFile('images')) {
-            $validated = $request->validate([
-                'images.*' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-                'type' => 'required|in:gallery',
-            ]);
-
-            $uploaded = 0;
-            $imageService = app(ImageService::class);
-
-            foreach ($request->file('images') as $file) {
-                $filename = time() . '_' . bin2hex(random_bytes(8)) . '_' . $uploaded . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('businesses/' . $business->id . '/images', $filename, 'public');
-
-                // ✅ Process each gallery image
-                try {
-                    $processedPath = $imageService->process($path);
-                    if ($processedPath) {
-                        $path = $processedPath;
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning('Gallery image processing failed', [
-                        'path' => $path,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
-                                ListingImage::create([
-                    'listing_id' => $listing->id,
-                    'path' => $path,
-                    'caption' => null,
-                    'type' => 'gallery',
-                    'is_primary' => false,
-                    'sort_order' => $business->images()->count() + 1,
-                ]);
-                $uploaded++;
-            }
-
-            Log::info('Multiple images uploaded', ['count' => $uploaded]);
-
-            return redirect()->back();
         }
 
-        Log::warning('No image file found in request');
-        return redirect()->back()->with('error', 'No image file found.');
+        // Remove the file currently occupying this branding slot.
+        $previous = $business->{self::SLOTS[$validated['type']]};
+        if ($previous && Storage::disk('public')->exists($previous)) {
+            app(ImageService::class)->delete($previous);
+        }
+
+        $business->update([self::SLOTS[$validated['type']] => $path]);
+
+        $label = $validated['type'] === 'logo' ? 'Logo' : 'Cover image';
+
+        return redirect()->back()->with('success', "{$label} uploaded successfully.");
     }
 
-    // public function setPrimary(Business $business, ListingImage $image)
-    // {
-    //     if ($business->owner_id !== auth()->id()) {
-    //         abort(403);
-    //     }
-
-    //     // ✅ Server-side lock
-    //     if ($redirect = $this->guardNotHidden($business, 'business')) {
-    //         return $redirect;
-    //     }
-    //     if ($redirect = $this->guardNotHidden($image, 'image')) {
-    //         return $redirect;
-    //     }
-
-
-    //     if ($image->type !== 'gallery') {
-    //         return redirect()->back()->with('error', 'Only gallery images can be set as primary.');
-    //     }
-
-    //     // Unset other primary gallery images
-    //     $business->images()->where('type', 'gallery')->update(['is_primary' => false]);
-
-    //     $image->update(['is_primary' => true]);
-
-    //     return redirect()->back();
-    // }
-
-        public function destroy(Business $business, ListingImage $image)
+    /**
+     * Clear one organization branding slot. `$type` is `logo` or `cover`.
+     */
+    public function destroy(Business $business, string $type)
     {
         if ($business->owner_id !== auth()->id()) {
             abort(403);
         }
 
-        // ✅ Delete the file + all its variants.
-        //    Guard against stale paths (e.g., .png in DB, .jpg on disk).
-        $disk = Storage::disk('public');
-        $pathsToDelete = [$image->path];
+        abort_unless(array_key_exists($type, self::SLOTS), 404);
 
-        if (!$disk->exists($image->path)) {
-            $jpgTwin = preg_replace('#\.[^/.]+$#', '.jpg', $image->path);
-            if ($disk->exists($jpgTwin)) {
-                $pathsToDelete[] = $jpgTwin;
-            }
+        $column = self::SLOTS[$type];
+        $current = $business->{$column};
+
+        if ($current) {
+            app(ImageService::class)->delete($current);
         }
 
-        $service = app(ImageService::class);
-        foreach ($pathsToDelete as $p) {
-            $service->delete($p);
-        }
+        $business->update([$column => null]);
 
-        // If this was the logo, clear the business logo field
-        if ($image->type === 'logo') {
-            $business->update(['logo' => null]);
-        }
-
-        // If this was the cover, clear the business cover_image field
-        if ($image->type === 'cover') {
-            $business->update(['cover_image' => null]);
-        }
-
-        $image->delete();
-
-        return redirect()->back()
-            ->with('success', 'Image deleted successfully.');
+        return redirect()->back()->with('success', 'Organization branding removed.');
     }
 }

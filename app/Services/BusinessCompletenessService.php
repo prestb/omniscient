@@ -137,11 +137,11 @@ class BusinessCompletenessService
         return match ($key) {
             'description' => filled(trim((string) $business->description)),
 
-            'cover_image' => $business->coverImage()->exists()
-                || filled($business->cover_image),
+            // PHASE 11 / WAVE 1D-3 — organization branding is Business-owned.
+            // It is no longer read out of an arbitrarily chosen Listing's media.
+            'cover_image' => filled($business->cover_image),
 
-            'logo' => $business->logo()->exists()
-                || filled($business->logo),
+            'logo' => filled($business->logo),
 
             'gallery_min_1' => $business->galleryImages()->count() >= 1,
 

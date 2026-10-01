@@ -46,6 +46,7 @@ use App\Http\Controllers\Owner\LocationController as OwnerLocationController;
 use App\Http\Controllers\Owner\ServiceController;
 use App\Http\Controllers\Owner\ContactController;
 use App\Http\Controllers\Owner\ImageController;
+use App\Http\Controllers\Owner\ListingImageController;
 use App\Http\Controllers\Owner\HourController;
 use App\Http\Controllers\Owner\SubscriptionController as OwnerSubscriptionController;
 use App\Http\Controllers\Owner\AnalyticsController;
@@ -295,6 +296,14 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
             Route::put('/{contact}', [ContactController::class, 'update'])->name('update');
             Route::delete('/{contact}', [ContactController::class, 'destroy'])->name('destroy');
         });
+
+        // PHASE 11 / WAVE 1D-3 — LISTING MEDIA (LISTING-OWNED).
+        // Explicit Listing context; never resolved from a Business.
+        Route::prefix('{listing}/images')->name('images.')->group(function () {
+            Route::get('/', [ListingImageController::class, 'index'])->name('index');
+            Route::post('/', [ListingImageController::class, 'store'])->name('store');
+            Route::delete('/{image}', [ListingImageController::class, 'destroy'])->name('destroy');
+        });
     });
 
     Route::prefix('owner/businesses')->name('owner.businesses.')->group(function () {
@@ -335,13 +344,19 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
         // REMOVED. A contact is Listing-owned, so contact management now lives at
         // /owner/listings/{listing}/contacts (route names owner.listings.contacts.*).
 
-        // ✅ Images (needed for setup)
+        // PHASE 11 / WAVE 1D-3 — ORGANIZATION BRANDING (BUSINESS-OWNED).
+        // This route manages ONLY `businesses.logo` / `businesses.cover_image`.
+        // It no longer pretends to manage Listing media, and a Business may
+        // legitimately have zero Listings and still hold branding.
+        // Listing presentation media lives at /owner/listings/{listing}/images.
         Route::prefix('{business}/images')->name('images.')->group(function () {
             Route::get('/', [ImageController::class, 'index'])->name('index');
             Route::post('/', [ImageController::class, 'store'])
                 ->name('store')
                 ->middleware('plan.limit:images');
-            Route::delete('/{image}', [ImageController::class, 'destroy'])->name('destroy');
+            Route::delete('/{type}', [ImageController::class, 'destroy'])
+                ->whereIn('type', ['logo', 'cover'])
+                ->name('destroy');
         });
 
         // ✅ Hours (of a physical Location — needed for setup)

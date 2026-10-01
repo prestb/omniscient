@@ -17,9 +17,10 @@ beforeEach(function () {
  * Create an owner with verified email + active subscription so
  * owner-side middleware doesn't redirect.
  *
- * PHASE 11 / WAVE 1B — media is LISTING-owned (`listing_images.listing_id`).
- * Owner routes still address an organization, so the organization must own a
- * Listing for uploads to attach to via Business::primaryListing().
+ * PHASE 11 / WAVE 1D-3 — organization branding is BUSINESS-owned
+ * (`businesses.logo` / `businesses.cover_image`), while Listing presentation
+ * media is LISTING-owned (`listing_images`). They live on separate routes and
+ * neither resolves through the other.
  */
 function createOwnerWithBusiness(): array
 {
@@ -65,13 +66,15 @@ test('uploading a logo generates all variants', function () {
     Storage::disk('public')->assertExists("{$base}_large.jpg");
 });
 
-test('deleting an image removes all variants from storage', function () {
+test('deleting a listing image removes all variants from storage', function () {
     [$owner, $business, $listing] = createOwnerWithBusiness();
 
     $file = UploadedFile::fake()->image('test.jpg', 800, 600);
 
+    // PHASE 11 / WAVE 1D-3 — gallery media is LISTING-owned, so it is uploaded
+    // and deleted through the explicit Listing route.
     $this->actingAs($owner)->post(
-        "/owner/businesses/{$business->id}/images",
+        "/owner/listings/{$listing->id}/images",
         ['image' => $file, 'type' => 'gallery']
     );
 
@@ -82,7 +85,7 @@ test('deleting an image removes all variants from storage', function () {
     Storage::disk('public')->assertExists("{$base}_thumb.jpg");
 
     $response = $this->actingAs($owner)->delete(
-        "/owner/businesses/{$business->id}/images/{$image->id}"
+        "/owner/listings/{$listing->id}/images/{$image->id}"
     );
 
     $response->assertRedirect();

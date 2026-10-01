@@ -72,6 +72,9 @@
                                 <a :href="`/owner/listings/${listing.id}/contacts`"
                                     class="text-sm font-semibold text-blue-600 hover:text-blue-700">Contacts</a>
 
+                                <a :href="`/owner/listings/${listing.id}/images`"
+                                    class="text-sm font-semibold text-purple-600 hover:text-purple-700">Images</a>
+
                                 <a v-if="listing.status === 'published'" :href="`/listing/${listing.slug}`" target="_blank"
                                     class="text-sm font-semibold text-gray-500 hover:text-gray-700">View</a>
 
