@@ -26,8 +26,8 @@ test('category assignment applies to the explicit listing only', function () {
     $a = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
     $b = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
 
-    $c1 = Category::factory()->create();
-    $c2 = Category::factory()->create();
+    $c1 = Category::factory()->create(['name' => 'Gamma Cats', 'slug' => 'gamma-cats']);
+    $c2 = Category::factory()->create(['name' => 'Delta Cats', 'slug' => 'delta-cats']);
 
     $this->actingAs($owner)->put("/owner/listings/{$a->id}", [
         'type' => $a->type,
@@ -48,8 +48,8 @@ test('category sync replaces only the named listings categories', function () {
     $a = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
     $b = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
 
-    $cA = Category::factory()->create();
-    $cB = Category::factory()->create();
+    $cA = Category::factory()->create(['name' => 'Alpha Cats', 'slug' => 'alpha-cats']);
+    $cB = Category::factory()->create(['name' => 'Beta Cats', 'slug' => 'beta-cats']);
 
     $a->categories()->sync([$cA->id]);
     $b->categories()->sync([$cB->id]);

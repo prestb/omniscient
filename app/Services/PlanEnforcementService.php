@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Business;
+use App\Models\Listing;
 use App\Models\ListingImage;
 use App\Models\ListingService;
 use App\Models\Coupon;
@@ -44,7 +45,10 @@ class PlanEnforcementService
     public function enforce(Subscription $subscription): array
     {
         $breakdown = [
-            'businesses' => ['limit' => 0, 'visible' => 0, 'over' => 0],
+            // PHASE 11 / WAVE 1D-4 — `listings` replaces the phantom `businesses`
+            // breakdown key. A Business is an optional organization and is NOT a
+            // quota unit; `max_listings` governs Listings.
+            'listings' => ['limit' => 0, 'visible' => 0, 'over' => 0],
             'locations' => ['limit' => 0, 'visible' => 0, 'over' => 0],
             'services' => ['limit' => 0, 'visible' => 0, 'over' => 0],
             'images' => ['limit' => 0, 'visible' => 0, 'over' => 0],
@@ -63,58 +67,72 @@ class PlanEnforcementService
         $graceActive = $subscription->downgrade_grace_ends_at
             && Carbon::parse($subscription->downgrade_grace_ends_at)->isFuture();
 
-                // ── Businesses ──────────────────────────────────────────────
-        // PHASE 11 — reads the renamed `max_listings` quota column.
-        // NOTE: the deeper semantic flip (enforcing the quota against
-        // Listing rows rather than Business rows) is Wave 1D; for now the
-        // identifier is converged while behaviour is preserved.
-        $maxBusinesses = (int) ($subscription->plan->max_listings ?? 0);
-        if ($maxBusinesses === -1 || $maxBusinesses === 999) {
+        // ── Listings ────────────────────────────────────────────────
+        // PHASE 11 / WAVE 1D-4 — `max_listings` is the LISTING allowance and is
+        // enforced against LISTING rows owned by this account. It previously read
+        // the same column but counted and hid BUSINESS rows, so a user with more
+        // Businesses than their listing allowance had Businesses hidden for a
+        // quota that says nothing about Businesses.
+        $maxListings = (int) ($subscription->plan->max_listings ?? 0);
+        if ($maxListings === -1 || $maxListings === 999) {
             // Unlimited — restore everything, no hiding
+            $restored += $this->restoreAllForOwner($subscription->user_id, Listing::class);
             $restored += $this->restoreAllForOwner($subscription->user_id, Business::class);
-            $restored += $this->restoreAllBranches($subscription->user_id);
-                        $restored += $this->restoreAllChildren($subscription->user_id, ListingService::class);
+            $restored += $this->restoreAllLocations($subscription->user_id);
+            $restored += $this->restoreAllChildren($subscription->user_id, ListingService::class);
             $restored += $this->restoreAllChildren($subscription->user_id, ListingImage::class);
             $restored += $this->restoreAllChildren($subscription->user_id, Coupon::class);
             return ['hidden' => 0, 'restored' => $restored, 'breakdown' => $breakdown];
         }
 
-        $businesses = Business::where('owner_id', $subscription->user_id)
-            ->whereNotIn('status', ['deleted', 'rejected'])
+        // Only this account's Listings. Ownership is `listings.owner_id`, never
+        // inferred through a Business.
+        $listings = Listing::where('owner_id', $subscription->user_id)
+            ->whereNotIn('status', ['rejected'])
             ->orderBy('id')     // oldest first
             ->get();
 
-        $breakdown['businesses']['limit'] = $maxBusinesses;
-        $breakdown['businesses']['visible'] = min($businesses->count(), $maxBusinesses);
-        $breakdown['businesses']['over'] = max(0, $businesses->count() - $maxBusinesses);
+        $breakdown['listings']['limit'] = $maxListings;
+        $breakdown['listings']['visible'] = min($listings->count(), $maxListings);
+        $breakdown['listings']['over'] = max(0, $listings->count() - $maxListings);
 
-        foreach ($businesses as $index => $business) {
-            $shouldHide = $index >= $maxBusinesses;    // beyond limit → hide
-            $result = $this->applyVisibility($business, $shouldHide, $graceActive);
+        foreach ($listings as $index => $listing) {
+            $shouldHide = $index >= $maxListings;    // beyond limit → hide
+            $result = $this->applyVisibility($listing, $shouldHide, $graceActive);
             $hidden += $result['hidden'];
             $restored += $result['restored'];
 
-            // If the business is visible, enforce its children too
-            if (!$shouldHide) {
-                $r = $this->enforceBranches($subscription, $business, $graceActive, $breakdown);
-                $hidden += $r['hidden'];
-                $restored += $r['restored'];
-
-                $r = $this->enforceServices($subscription, $business, $graceActive, $breakdown);
-                $hidden += $r['hidden'];
-                $restored += $r['restored'];
-
-                $r = $this->enforceImages($subscription, $business, $graceActive, $breakdown);
-                $hidden += $r['hidden'];
-                $restored += $r['restored'];
-
-                $r = $this->enforceCoupons($subscription, $business, $graceActive, $breakdown);
-                $hidden += $r['hidden'];
-                $restored += $r['restored'];
-            } else {
-                // Business is hidden — hide all its children too
-                $hidden += $this->hideAllChildren($business);
+            if ($shouldHide) {
+                // A hidden Listing hides the children IT owns. Its Location is
+                // Business-owned and may be shared, so it is left alone.
+                $hidden += $this->hideListingChildren($listing);
             }
+        }
+
+        // ── Business-scoped child enforcement ───────────────────────
+        // Businesses are NOT quota units and are never hidden here. Each
+        // Business's children are enforced against their own quotas.
+        $businesses = Business::where('owner_id', $subscription->user_id)
+            ->whereNotIn('status', ['deleted', 'rejected'])
+            ->orderBy('id')
+            ->get();
+
+        foreach ($businesses as $business) {
+            $r = $this->enforceLocations($subscription, $business, $graceActive, $breakdown);
+            $hidden += $r['hidden'];
+            $restored += $r['restored'];
+
+            $r = $this->enforceServices($subscription, $business, $graceActive, $breakdown);
+            $hidden += $r['hidden'];
+            $restored += $r['restored'];
+
+            $r = $this->enforceImages($subscription, $business, $graceActive, $breakdown);
+            $hidden += $r['hidden'];
+            $restored += $r['restored'];
+
+            $r = $this->enforceCoupons($subscription, $business, $graceActive, $breakdown);
+            $hidden += $r['hidden'];
+            $restored += $r['restored'];
         }
 
         // If no grace is active, clear the downgrade marker once enforced
@@ -129,7 +147,7 @@ class PlanEnforcementService
     // Business children enforcement
     // ================================================================
 
-    private function enforceBranches(Subscription $sub, Business $business, bool $graceActive, array &$breakdown): array
+    private function enforceLocations(Subscription $sub, Business $business, bool $graceActive, array &$breakdown): array
     {
         $limit = (int) ($sub->plan->max_locations ?? 0);
         if ($limit === -1 || $limit === 999) {
@@ -285,7 +303,7 @@ class PlanEnforcementService
             ->update(['hidden_at' => null]);
     }
 
-        private function restoreAllBranches(int $ownerId): int
+    private function restoreAllLocations(int $ownerId): int
     {
         return DB::table('locations')
             ->join('businesses', 'businesses.id', '=', 'locations.business_id')
@@ -308,19 +326,15 @@ class PlanEnforcementService
             ->update(["{$table}.hidden_at" => null]);
     }
 
-        private function hideAllChildren(Business $business): int
+    private function hideListingChildren(Listing $listing): int
     {
         // PHASE 11 / WAVE 1B — children are listing-owned. Resolve the
         // organization's listings, then hide their children directly.
-        $listingIds = $business->listings()->pluck('id');
-
         $count = 0;
-        $count += $business->locations()->whereNull('hidden_at')->update(['hidden_at' => now()]);
-        $count += ListingService::whereIn('listing_id', $listingIds)
+        $count += ListingService::where('listing_id', $listing->id)
             ->whereNull('hidden_at')->update(['hidden_at' => now()]);
-        $count += ListingImage::whereIn('listing_id', $listingIds)
+        $count += ListingImage::where('listing_id', $listing->id)
             ->whereNull('hidden_at')->update(['hidden_at' => now()]);
-        $count += Coupon::where('business_id', $business->id)->whereNull('hidden_at')->update(['hidden_at' => now()]);
         return $count;
     }
 

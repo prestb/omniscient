@@ -122,16 +122,31 @@ class DowngradeSemanticsTest extends TestCase
             'downgrade_grace_ends_at' => now()->subDay(),
         ]);
 
-        Business::factory()->count(3)->create(['owner_id' => $user->id]);
+        // PHASE 11 / WAVE 1D-4 — `max_listings` governs LISTINGS, not Businesses.
+        // A Business is an optional organization and is not a quota unit, so the
+        // three Businesses below must remain visible; only the surplus Listings
+        // are hidden.
+        $business = Business::factory()->create(['owner_id' => $user->id]);
+        \App\Models\Listing::factory()->count(3)->forBusiness($business)->forOwner($user)->create();
 
         $enforcer = app(PlanEnforcementService::class);
         $enforcer->enforce($sub);
 
         // Rows still exist — none deleted.
-        $this->assertSame(3, Business::where('owner_id', $user->id)->count());
+        $this->assertSame(1, Business::where('owner_id', $user->id)->count());
+        $this->assertSame(3, \App\Models\Listing::where('owner_id', $user->id)->count());
 
-        // Exactly the surplus (2) are hidden; the oldest stays visible.
-        $this->assertSame(2, Business::where('owner_id', $user->id)->whereNotNull('hidden_at')->count());
+        // Businesses are NEVER hidden by the Listing quota.
+        $this->assertSame(
+            0,
+            Business::where('owner_id', $user->id)->whereNotNull('hidden_at')->count()
+        );
+
+        // Exactly the surplus (2) LISTINGS are hidden; the oldest stays visible.
+        $this->assertSame(
+            2,
+            \App\Models\Listing::where('owner_id', $user->id)->whereNotNull('hidden_at')->count()
+        );
     }
 
     public function test_grace_active_prevents_hiding(): void
