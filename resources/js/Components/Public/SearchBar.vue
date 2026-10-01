@@ -182,8 +182,8 @@
                                 <p class="text-sm font-medium text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
                                     v-html="highlightMatch(category.name)">
                                 </p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.businesses_count || 0 }}
-                                    businesses</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.listings_count || 0 }}
+                                    listings</p>
                             </div>
                             <span
                                 class="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">→</span>

@@ -20,7 +20,7 @@ class BusinessController extends Controller
         $user = auth()->user();
 
         // Get businesses with relationships
-        $businesses = Business::with(['categories', 'locations'])
+        $businesses = Business::with(['locations'])
             ->where('owner_id', $user->id)
             ->get();
 
@@ -120,9 +120,16 @@ class BusinessController extends Controller
                 ]);
         }
 
-        // Attach category
+        // PHASE 11 / WAVE 1C — categories are owned by the LISTING. Owner routes
+        // still address an organization, so we attach to its primary listing —
+        // the same deterministic bridge Wave 1B established for services, media
+        // and contacts (multi-listing addressing is a Wave 1D concern).
         if (isset($validated['category_id'])) {
-            $business->categories()->attach($validated['category_id'], ['is_primary' => true]);
+            if ($listing = $business->primaryListing()) {
+                $listing->categories()->syncWithoutDetaching([
+                    $validated['category_id'] => ['is_primary' => true],
+                ]);
+            }
         }
 
 
@@ -162,7 +169,6 @@ class BusinessController extends Controller
 
         // Load all relationships with proper eager loading
         $business->load([
-                        'categories',
             'locations' => function ($query) {
                 $query->with(['country', 'region', 'city', 'area'])->ordered();
             },
@@ -234,8 +240,11 @@ class BusinessController extends Controller
                 ]);
         }
 
-        // Sync categories
-        $business->categories()->sync($validated['categories']);
+        // PHASE 11 / WAVE 1C — categories belong to the LISTING, never to the
+        // organization (see store() for the primary-listing bridge rationale).
+        if ($listing = $business->primaryListing()) {
+            $listing->categories()->sync($validated['categories']);
+        }
 
         return redirect()->back()
             ->with('success', 'Business details updated successfully.');

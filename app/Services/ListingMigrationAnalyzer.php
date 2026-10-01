@@ -60,7 +60,6 @@ class ListingMigrationAnalyzer
             'owner',
             'locations.city',
             'locations.region',
-            'categories',
         ]);
 
         $branches = $business->locations;
@@ -118,7 +117,9 @@ class ListingMigrationAnalyzer
     {
         return [
             ['entity' => 'business.identity', 'count' => 1, 'reason' => 'Parent name/slug/description/owner'],
-            ['entity' => 'business.categories', 'count' => $business->categories->count(), 'reason' => 'Discovery metadata tied to the brand'],
+            // PHASE 11 / WAVE 1C — `business.categories` was removed from this
+            // bucket. Categories are owned by the LISTING (`listing_categories`),
+            // so there is no business-level discovery metadata left to migrate.
         ];
     }
 

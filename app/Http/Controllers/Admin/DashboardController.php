@@ -120,9 +120,10 @@ class DashboardController extends Controller
             ->take(10)
             ->get();
 
-        // ✅ Top Categories (by business count)
-        $topCategories = Category::withCount('businesses')
-            ->orderBy('businesses_count', 'desc')
+        // ✅ Top Categories (by LISTING count — PHASE 11 / WAVE 1C: a category's
+        //    population is its listings, not organizations)
+        $topCategories = Category::withCount('listings')
+            ->orderBy('listings_count', 'desc')
             ->take(5)
             ->get(['id', 'name', 'slug', 'icon']);
 

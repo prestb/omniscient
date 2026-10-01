@@ -66,7 +66,6 @@ class DirectoryController extends Controller
 
         $query = Business::query()
             ->with([
-                'categories',
                 'primaryLocation',
                 'locations' => function ($q) {
                     $q->whereNull('hidden_at');   // ✅ skip hidden branches
@@ -103,10 +102,10 @@ class DirectoryController extends Controller
         }
 
         // ============== CATEGORY (post-parse) ==============
+        // PHASE 11 / WAVE 1C — category ownership belongs to the LISTING; the
+        // organization is matched through its discoverable listings.
         if (!empty($parsedCategoryId)) {
-            $query->whereHas('categories', function ($q) use ($parsedCategoryId) {
-                $q->where('categories.id', $parsedCategoryId);
-            });
+            $query->withDiscoverableListingInCategory((int) $parsedCategoryId);
         }
 
         // ============== LOCATION ==============
@@ -393,7 +392,6 @@ class DirectoryController extends Controller
     {
         $business = Business::query()
             ->with([
-                'categories',
                 'locations' => function ($query) {
                     $query->whereNull('hidden_at')   // ✅ skip hidden branches
                         ->with(['country', 'region', 'city', 'area', 'hours']);
@@ -722,7 +720,6 @@ class DirectoryController extends Controller
 
         $baseQuery = Business::query()
             ->with([
-                'categories',
                 'primaryLocation',
                 'locations' => fn($q) => $q->whereNull('hidden_at'),
                 'locations.city',
@@ -747,7 +744,7 @@ class DirectoryController extends Controller
         // Tier 1 — same category + same city
         if ($categoryId && $cityId) {
             $tier1 = (clone $baseQuery)
-                ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
+                ->withDiscoverableListingInCategory($categoryId)
                 ->whereHas('locations', fn($q) => $q->where('city_id', $cityId))
                 ->orderByDesc('is_featured')
                 ->latest('published_at')
@@ -761,7 +758,7 @@ class DirectoryController extends Controller
         if ($categoryId && $collected->count() < 4) {
             $tier2 = (clone $baseQuery)
                 ->whereNotIn('id', $collected->pluck('id'))
-                ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
+                ->withDiscoverableListingInCategory($categoryId)
                 ->orderByDesc('is_featured')
                 ->latest('published_at')
                 ->take($limit - $collected->count())

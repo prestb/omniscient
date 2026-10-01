@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\City;
+use App\Models\Listing;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -103,7 +104,6 @@ class CollectionService
     {
         return Business::query()
             ->with([
-                'categories',
                 'primaryLocation',
                 'locations' => fn($q) => $q->whereNull('hidden_at'),
                 'locations.city',
@@ -119,7 +119,7 @@ class CollectionService
             ])
             ->where('status', Business::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
+            ->withDiscoverableListingInCategory($category->id)
             ->whereHas('locations', fn($q) => $q->where('city_id', $city->id))
             ->withCount(['reviews', 'galleryImages'])
             ->withAvg('reviews', 'rating');
@@ -137,7 +137,7 @@ class CollectionService
             return Business::query()
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
+                ->withDiscoverableListingInCategory($category->id)
                 ->whereHas('locations', fn($q) => $q->where('city_id', $city->id))
                 ->count();
         });
@@ -162,19 +162,19 @@ class CollectionService
         $cacheKey = "collection.other_cats.{$city->id}.{$excludeCategoryId}.{$limit}";
 
         return Cache::remember($cacheKey, self::CROSSLINK_CACHE_TTL, function () use ($city, $excludeCategoryId, $limit) {
-            $rows = \DB::table('business_categories')
-                ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('locations', 'locations.business_id', '=', 'businesses.id')
-                ->join('categories', 'categories.id', '=', 'business_categories.category_id')
-                ->where('businesses.status', Business::STATUS_PUBLISHED)
-                ->whereNull('businesses.hidden_at')
-                ->whereNull('businesses.deleted_at')
+            $rows = \DB::table('listing_categories')
+                ->join('listings', 'listings.id', '=', 'listing_categories.listing_id')
+                ->join('locations', 'locations.id', '=', 'listings.location_id')
+                ->join('categories', 'categories.id', '=', 'listing_categories.category_id')
+                ->where('listings.status', Listing::STATUS_PUBLISHED)
+                ->whereNull('listings.hidden_at')
+                ->whereNull('listings.deleted_at')
                 ->whereNull('locations.hidden_at')
                 ->where('locations.city_id', $city->id)
                 ->when($excludeCategoryId, fn($q) => $q->where('categories.id', '!=', $excludeCategoryId))
                 ->groupBy('categories.id', 'categories.name', 'categories.slug')
-                ->havingRaw('COUNT(DISTINCT businesses.id) >= ?', [self::MIN_BUSINESSES])
-                ->selectRaw('categories.id, categories.name, categories.slug, COUNT(DISTINCT businesses.id) as count')
+                ->havingRaw('COUNT(DISTINCT listings.id) >= ?', [self::MIN_BUSINESSES])
+                ->selectRaw('categories.id, categories.name, categories.slug, COUNT(DISTINCT listings.id) as count')
                 ->orderByDesc('count')
                 ->limit($limit)
                 ->get();
@@ -202,19 +202,19 @@ class CollectionService
         $cacheKey = "collection.other_cities.{$category->id}.{$excludeCityId}.{$limit}";
 
         return Cache::remember($cacheKey, self::CROSSLINK_CACHE_TTL, function () use ($category, $excludeCityId, $limit) {
-            $rows = \DB::table('business_categories')
-                ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('locations', 'locations.business_id', '=', 'businesses.id')
+            $rows = \DB::table('listing_categories')
+                ->join('listings', 'listings.id', '=', 'listing_categories.listing_id')
+                ->join('locations', 'locations.id', '=', 'listings.location_id')
                 ->join('cities', 'cities.id', '=', 'locations.city_id')
-                ->where('businesses.status', Business::STATUS_PUBLISHED)
-                ->whereNull('businesses.hidden_at')
-                ->whereNull('businesses.deleted_at')
+                ->where('listings.status', Listing::STATUS_PUBLISHED)
+                ->whereNull('listings.hidden_at')
+                ->whereNull('listings.deleted_at')
                 ->whereNull('locations.hidden_at')
-                ->where('business_categories.category_id', $category->id)
+                ->where('listing_categories.category_id', $category->id)
                 ->when($excludeCityId, fn($q) => $q->where('cities.id', '!=', $excludeCityId))
                 ->groupBy('cities.id', 'cities.name', 'cities.slug')
-                ->havingRaw('COUNT(DISTINCT businesses.id) >= ?', [self::MIN_BUSINESSES])
-                ->selectRaw('cities.id, cities.name, cities.slug, COUNT(DISTINCT businesses.id) as count')
+                ->havingRaw('COUNT(DISTINCT listings.id) >= ?', [self::MIN_BUSINESSES])
+                ->selectRaw('cities.id, cities.name, cities.slug, COUNT(DISTINCT listings.id) as count')
                 ->orderByDesc('count')
                 ->limit($limit)
                 ->get();
@@ -243,7 +243,7 @@ class CollectionService
             return Business::query()
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
+                ->withDiscoverableListingInCategory($category->id)
                 ->count();
         });
     }

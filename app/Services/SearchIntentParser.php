@@ -329,7 +329,11 @@ class SearchIntentParser
     }
 
     /**
-     * ✅ Get top N cities with the most published businesses in a category.
+     * ✅ Get top N cities with the most published LISTINGS in a category.
+     *
+     * PHASE 11 / WAVE 1C — a category's population is its Listings. A Listing's
+     * city comes from its own Location (`listings.location_id`), not from the
+     * organization's locations.
      *
      * @return array<int, array{id: int, name: string, count: int}>
      */
@@ -338,20 +342,20 @@ class SearchIntentParser
         $cacheKey = "search_intent.top_cities.{$categoryId}." . ($excludeCityId ?? 'none') . ".{$limit}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($categoryId, $excludeCityId, $limit) {
-                        $rows = \DB::table('business_categories')
-                ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('locations', 'locations.business_id', '=', 'businesses.id')
+            $rows = \DB::table('listing_categories')
+                ->join('listings', 'listings.id', '=', 'listing_categories.listing_id')
+                ->join('locations', 'locations.id', '=', 'listings.location_id')
                 ->join('cities', 'cities.id', '=', 'locations.city_id')
-                ->where('businesses.status', 'published')
-                ->whereNull('businesses.hidden_at')
-                ->whereNull('businesses.deleted_at')
+                ->where('listings.status', 'published')
+                ->whereNull('listings.hidden_at')
+                ->whereNull('listings.deleted_at')
                 ->whereNull('locations.hidden_at')
-                ->where('business_categories.category_id', $categoryId)
+                ->where('listing_categories.category_id', $categoryId)
                 ->when($excludeCityId, fn($q) => $q->where('cities.id', '!=', $excludeCityId))
                 ->groupBy('cities.id', 'cities.name')
-                ->orderByRaw('COUNT(DISTINCT businesses.id) DESC')
+                ->orderByRaw('COUNT(DISTINCT listings.id) DESC')
                 ->limit($limit)
-                ->selectRaw('cities.id, cities.name, COUNT(DISTINCT businesses.id) as count')
+                ->selectRaw('cities.id, cities.name, COUNT(DISTINCT listings.id) as count')
                 ->get();
 
             return $rows->map(fn($r) => [

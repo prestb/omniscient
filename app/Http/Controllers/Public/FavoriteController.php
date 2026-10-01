@@ -23,7 +23,6 @@ class FavoriteController extends Controller
 
         $favorites = $user->favoriteBusinesses()
             ->with([
-                'categories',
                 'primaryLocation',
                 'primaryLocation.city',
                 'primaryLocation.country',

@@ -155,7 +155,7 @@
                                 <span
                                     class="mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
                                     :class="idx === 0 ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'">
-                                    {{ category.businesses_count || 0 }} listings
+                                    {{ category.listings_count || 0 }} listings
                                 </span>
                             </a>
                         </div>
@@ -179,7 +179,7 @@
                                 <span
                                     class="mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
                                     :class="idx === 0 ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'">
-                                    {{ category.businesses_count || 0 }} listings
+                                    {{ category.listings_count || 0 }} listings
                                 </span>
                             </a>
                         </div>

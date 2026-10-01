@@ -56,13 +56,12 @@ class Category extends Model
         return $this->hasMany(Category::class, 'parent_id');
     }
 
-    public function businesses()
-    {
-        return $this->belongsToMany(Business::class, 'business_categories');
-    }
-
     /**
-     * PHASE 9 — the canonical discoverable entities in this category.
+     * PHASE 11 / WAVE 1C — the canonical discovery entities in this category.
+     *
+     * A Category describes what a LISTING is/does/offers. The organization is
+     * not a taxonomy owner: `Category::businesses()` backed by
+     * `business_categories` was removed. Use {@see self::listings()}.
      */
     public function listings()
     {
@@ -116,9 +115,14 @@ class Category extends Model
         return $this->children()->count();
     }
 
-    public function getBusinessCountAttribute()
+    /**
+     * PHASE 11 / WAVE 1C — organization-level category counts were removed with
+     * `business_categories`. The canonical population of a category is its
+     * LISTINGS; use `withCount('listings')` for an efficient equivalent.
+     */
+    public function getListingsCountAttribute()
     {
-        return $this->businesses()->count();
+        return $this->listings()->count();
     }
 
     // app/Models/Category.php

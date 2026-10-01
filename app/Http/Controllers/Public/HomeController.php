@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\BusinessDirectoryResource;
 use App\Models\Business;
 use App\Models\Category;
+use App\Models\Listing;
 use App\Models\Review;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -16,7 +17,6 @@ class HomeController extends Controller
     public function index()
     {
         $featuredBusinesses = Business::with([
-            'categories',
             'primaryLocation',
             'primaryLocation.country',
             'primaryLocation.region',
@@ -47,7 +47,6 @@ class HomeController extends Controller
             ->get();
 
         $recentBusinesses = Business::with([
-            'categories',
             'primaryLocation',
             'primaryLocation.country',
             'primaryLocation.region',
@@ -78,25 +77,25 @@ class HomeController extends Controller
 
         // ============== POPULAR CATEGORIES (grid below — top 6) ==============
         $popularCategories = Category::withCount([
-            'businesses' => function ($q) {
-                $q->where('status', Business::STATUS_PUBLISHED)
-                    ->whereNull('businesses.hidden_at');
+            'listings' => function ($q) {
+                $q->where('status', Listing::STATUS_PUBLISHED)
+                    ->whereNull('listings.hidden_at');
             }
         ])
-            ->having('businesses_count', '>', 0)
-            ->orderBy('businesses_count', 'desc')
+            ->having('listings_count', '>', 0)
+            ->orderBy('listings_count', 'desc')
             ->take(6)
             ->get();
 
         // ============== STRIP CATEGORIES (top 10, compact icon strip) ==============
         $stripCategories = Category::withCount([
-            'businesses' => function ($q) {
-                $q->where('status', Business::STATUS_PUBLISHED)
-                    ->whereNull('businesses.hidden_at');
+            'listings' => function ($q) {
+                $q->where('status', Listing::STATUS_PUBLISHED)
+                    ->whereNull('listings.hidden_at');
             }
         ])
-            ->having('businesses_count', '>', 0)
-            ->orderBy('businesses_count', 'desc')
+            ->having('listings_count', '>', 0)
+            ->orderBy('listings_count', 'desc')
             ->take(10)
             ->get(['id', 'name', 'icon', 'slug'])
             ->map(function ($cat) {
@@ -105,7 +104,7 @@ class HomeController extends Controller
                     'name' => $cat->name,
                     'icon' => $cat->icon ?: '📁',
                     'slug' => $cat->slug,
-                    'businesses_count' => $cat->businesses_count,
+                    'listings_count' => $cat->listings_count,
                 ];
             });
 

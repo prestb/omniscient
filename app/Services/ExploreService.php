@@ -84,7 +84,6 @@ class ExploreService
         return Cache::remember($cacheKey, self::ROW_CACHE_TTL, function () use ($categoryId, $cityId) {
             $q = Business::query()
                 ->with([
-                    'categories',
                     'primaryLocation',
                     'locations' => fn($x) => $x->whereNull('hidden_at'),
                     'locations.city',
@@ -95,7 +94,7 @@ class ExploreService
                 ])
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->whereHas('categories', fn($x) => $x->where('categories.id', $categoryId))
+                ->withDiscoverableListingInCategory($categoryId)
                 ->withCount('reviews')
                 ->withAvg('reviews', 'rating');
 
@@ -187,7 +186,7 @@ class ExploreService
             return Business::query()
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
+                ->withDiscoverableListingInCategory($categoryId)
                 ->whereHas('locations', fn($q) => $q->where('city_id', $cityId))
                 ->count();
         });
@@ -199,7 +198,7 @@ class ExploreService
             return Business::query()
                 ->where('status', Business::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
-                ->whereHas('categories', fn($q) => $q->where('categories.id', $categoryId))
+                ->withDiscoverableListingInCategory($categoryId)
                 ->count();
         });
     }

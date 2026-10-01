@@ -91,7 +91,7 @@ class BusinessCompletenessService
         $maxScore = 0;
 
         // Preload relationships once
-        $business->loadMissing(['locations.hours', 'services', 'categories', 'images', 'logo', 'coverImage', 'galleryImages']);
+        $business->loadMissing(['locations.hours', 'services', 'images', 'logo', 'coverImage', 'galleryImages']);
 
         foreach (self::CHECKLIST as $item) {
             $complete = $this->isComplete($item['key'], $business);
@@ -159,7 +159,7 @@ class BusinessCompletenessService
 
             'services' => $business->services()->count() >= 1,
 
-            'categories' => $business->categories()->count() >= 1,
+            'categories' => $business->categories->count() >= 1,
 
             'email_or_website' => filled($business->email) || filled($business->website),
 

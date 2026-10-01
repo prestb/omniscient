@@ -31,9 +31,13 @@ class BusinessSeeder extends Seeder
             'published_at' => now(),
         ]);
 
-        // Attach categories
+        // PHASE 11 / WAVE 1C — categories are owned by the LISTING. Attach to the
+        // organization's primary listing; a business with no Listing has no
+        // category to own (the same guard Wave 1B uses for services/contacts).
         $pharmacyCategories = Category::whereIn('name', ['Pharmacies', 'Health & Medical'])->get();
-        $pharmacy->categories()->attach($pharmacyCategories->pluck('id'), ['is_primary' => true]);
+        if ($pharmacyListing = $pharmacy->primaryListing()) {
+            $pharmacyListing->categories()->attach($pharmacyCategories->pluck('id')->all(), ['is_primary' => true]);
+        }
 
         // Create branches for ABC Pharmacy
         $branches = [
@@ -109,7 +113,9 @@ class BusinessSeeder extends Seeder
         ]);
 
         $hospitalCategories = Category::whereIn('name', ['Hospitals', 'Health & Medical'])->get();
-        $hospital->categories()->attach($hospitalCategories->pluck('id'), ['is_primary' => true]);
+        if ($hospitalListing = $hospital->primaryListing()) {
+            $hospitalListing->categories()->attach($hospitalCategories->pluck('id')->all(), ['is_primary' => true]);
+        }
 
         // Create branch for hospital
         $buea = \App\Models\City::where('name', 'Buea')->first();
@@ -142,7 +148,9 @@ class BusinessSeeder extends Seeder
         ]);
 
         $restaurantCategories = Category::whereIn('name', ['Restaurants', 'Food & Dining'])->get();
-        $restaurant->categories()->attach($restaurantCategories->pluck('id'), ['is_primary' => true]);
+        if ($restaurantListing = $restaurant->primaryListing()) {
+            $restaurantListing->categories()->attach($restaurantCategories->pluck('id')->all(), ['is_primary' => true]);
+        }
 
         $buea = \App\Models\City::where('name', 'Buea')->first();
         $greatSoppo = \App\Models\Area::where('name', 'Great Soppo')->first();

@@ -42,7 +42,6 @@ class CacheHelper
     public static function clearBusiness($businessId)
     {
         Cache::forget('business_' . $businessId);
-        Cache::forget('business_categories_' . $businessId);
         Cache::forget('business_branches_' . $businessId);
         Cache::tags(['businesses'])->flush();
     }

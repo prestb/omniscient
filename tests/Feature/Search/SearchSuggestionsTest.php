@@ -24,14 +24,20 @@ test('autocomplete returns search_suggestions for a matching category', function
         'slug' => 'buea',
     ]);
 
-    // Attach a published business so the category qualifies
+    // PHASE 11 / WAVE 1C — a category qualifies through its LISTINGS: a
+    // published Listing, in this city, carrying the category.
     $business = Business::factory()->published()->create();
-    $business->categories()->attach($category->id, ['is_primary' => true]);
-    \App\Models\Location::factory()
+    $location = \App\Models\Location::factory()
         ->forBusiness($business)
         ->inCity($buea)
         ->primary()
         ->create();
+    $listing = \App\Models\Listing::factory()
+        ->forBusiness($business)
+        ->atLocation($location)
+        ->published()
+        ->create();
+    $listing->categories()->attach($category->id, ['is_primary' => true]);
 
     $response = $this->getJson('/search/autocomplete?q=supermark');
 
@@ -89,8 +95,9 @@ test('search_suggestions has "near me" first when category matches', function ()
     $city = City::factory()->create(['region_id' => $region->id, 'name' => 'Buea']);
 
     $business = Business::factory()->published()->create();
-    $business->categories()->attach($category->id, ['is_primary' => true]);
-    \App\Models\Location::factory()->forBusiness($business)->inCity($city)->primary()->create();
+    $location = \App\Models\Location::factory()->forBusiness($business)->inCity($city)->primary()->create();
+    $listing = \App\Models\Listing::factory()->forBusiness($business)->atLocation($location)->published()->create();
+    $listing->categories()->attach($category->id, ['is_primary' => true]);
 
     $response = $this->getJson('/search/autocomplete?q=restaurants');
 

@@ -166,25 +166,27 @@ class LocationChipsController extends Controller
     }
 
     /**
-     * Top N categories by business count in a given city.
+     * Top N categories by published LISTING count in a given city.
+     *
+     * PHASE 11 / WAVE 1C — a category's population is its Listings; a Listing's
+     * city comes from its own Location.
      */
     private function topCategoriesForCity(City $city): array
     {
         $cacheKey = "location_chips.city.{$city->id}.top";
 
         return Cache::remember($cacheKey, self::CHIPS_CACHE_TTL, function () use ($city) {
-            // Get category IDs that have ≥1 published business in this city
-            $rows = \DB::table('business_categories')
-                ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('locations', 'locations.business_id', '=', 'businesses.id')
-                ->join('categories', 'categories.id', '=', 'business_categories.category_id')
-                ->where('businesses.status', 'published')
-                ->whereNull('businesses.hidden_at')
-                ->whereNull('businesses.deleted_at')
+            $rows = \DB::table('listing_categories')
+                ->join('listings', 'listings.id', '=', 'listing_categories.listing_id')
+                ->join('locations', 'locations.id', '=', 'listings.location_id')
+                ->join('categories', 'categories.id', '=', 'listing_categories.category_id')
+                ->where('listings.status', 'published')
+                ->whereNull('listings.hidden_at')
+                ->whereNull('listings.deleted_at')
                 ->whereNull('locations.hidden_at')
                 ->where('locations.city_id', $city->id)
                 ->groupBy('categories.id', 'categories.name')
-                ->selectRaw('categories.id as category_id, categories.name as category_name, COUNT(DISTINCT businesses.id) as count')
+                ->selectRaw('categories.id as category_id, categories.name as category_name, COUNT(DISTINCT listings.id) as count')
                 ->orderByDesc('count')
                 ->limit(self::MAX_CHIPS)
                 ->get();
@@ -206,14 +208,14 @@ class LocationChipsController extends Controller
     private function globalTopCategories(): array
     {
         return Cache::remember('location_chips.global.top', self::CHIPS_CACHE_TTL, function () {
-            $rows = \DB::table('business_categories')
-                ->join('businesses', 'businesses.id', '=', 'business_categories.business_id')
-                ->join('categories', 'categories.id', '=', 'business_categories.category_id')
-                ->where('businesses.status', 'published')
-                ->whereNull('businesses.hidden_at')
-                ->whereNull('businesses.deleted_at')
+            $rows = \DB::table('listing_categories')
+                ->join('listings', 'listings.id', '=', 'listing_categories.listing_id')
+                ->join('categories', 'categories.id', '=', 'listing_categories.category_id')
+                ->where('listings.status', 'published')
+                ->whereNull('listings.hidden_at')
+                ->whereNull('listings.deleted_at')
                 ->groupBy('categories.id', 'categories.name')
-                ->selectRaw('categories.id as category_id, categories.name as category_name, COUNT(DISTINCT businesses.id) as count')
+                ->selectRaw('categories.id as category_id, categories.name as category_name, COUNT(DISTINCT listings.id) as count')
                 ->orderByDesc('count')
                 ->limit(self::MAX_CHIPS)
                 ->get();

@@ -58,7 +58,6 @@ class UserController extends Controller
                         'businesses' => function ($q) {
                 $q->with([
                     'locations',
-                    'categories',
                     'subscriptions' => function ($q2) {
                         $q2->with(['plan'])->latest();
                     }

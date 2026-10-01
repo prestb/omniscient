@@ -157,7 +157,7 @@ class SearchController extends Controller
                         'name' => $category->name,
                         'type' => 'category',
                         'icon' => $category->icon,
-                        'businesses_count' => $category->listings_count,
+                        'listings_count' => $category->listings_count,
                     ];
                 });
 

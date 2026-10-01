@@ -26,7 +26,7 @@ class DashboardController extends Controller
 
         // Recent favorites
         $recentFavorites = $user->favoriteBusinesses()
-            ->with(['categories', 'primaryLocation', 'logo', 'coverImage'])
+            ->with(['primaryLocation', 'logo', 'coverImage'])
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
             ->take(6)

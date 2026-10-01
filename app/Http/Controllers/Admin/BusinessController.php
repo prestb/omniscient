@@ -17,7 +17,7 @@ class BusinessController extends Controller
     public function index(Request $request)
     {
         // ✅ Base query — includes soft-deleted if requested
-        $query = Business::query()->with(['owner:id,name,email', 'categories']);
+        $query = Business::query()->with(['owner:id,name,email']);
 
         if ($request->boolean('show_deleted')) {
             $query->onlyTrashed();
@@ -41,11 +41,10 @@ class BusinessController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Category filter
+        // Category filter — PHASE 11 / WAVE 1C: categories belong to the LISTING,
+        // so an organization matches through its discoverable listings.
         if ($request->filled('category_id')) {
-            $query->whereHas('categories', function ($q) use ($request) {
-                $q->where('categories.id', $request->category_id);
-            });
+            $query->withDiscoverableListingInCategory((int) $request->category_id);
         }
 
         // ✅ Featured filter
@@ -215,7 +214,6 @@ class BusinessController extends Controller
         //    to genuinely approve or reject a submitted business.
         $business->load([
             'owner' => fn($q) => $q->withCount('businesses'),
-            'categories',
             'primaryLocation',
             'locations' => fn($q) => $q->with(['country', 'region', 'city', 'area'])->ordered(),
             'logo',

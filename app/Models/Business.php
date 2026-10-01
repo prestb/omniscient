@@ -58,9 +58,12 @@ class Business extends Model
         'hidden_at' => 'datetime',
     ];
 
-    // ✅ ADD THIS
     protected $appends = [
         'feature_flags',
+        // PHASE 11 / WAVE 1C — categories are DERIVED from the organization's
+        // listings (there is no `business_categories` pivot). Appended so the
+        // existing Inertia payloads keep exposing `business.categories`.
+        'categories',
     ];
 
     // Status Constants
@@ -356,6 +359,22 @@ class Business extends Model
             ->first();
     }
 
+    /**
+     * PHASE 11 / WAVE 1C — constrain to organizations that own a DISCOVERABLE
+     * Listing in the given category.
+     *
+     * Category ownership belongs to the LISTING, so an organization is matched
+     * through its listings. There is no business-level taxonomy to match on.
+     */
+    public function scopeWithDiscoverableListingInCategory($query, int $categoryId)
+    {
+        return $query->whereHas('listings', function ($q) use ($categoryId) {
+            $q->where('status', Listing::STATUS_PUBLISHED)
+                ->whereNull('listings.hidden_at')
+                ->whereHas('categories', fn($c) => $c->where('categories.id', $categoryId));
+        });
+    }
+
         /**
          * PHASE 10 — the organization's physical Locations (places).
          *
@@ -373,11 +392,30 @@ class Business extends Model
             return $this->hasOne(Location::class)->where('is_primary', true);
         }
 
-    public function categories()
+    /**
+     * PHASE 11 / WAVE 1C — categories are owned by LISTINGS, never by the
+     * organization.
+     *
+     * There is no `business_categories` pivot and no stored organization-level
+     * taxonomy. The organization exposes the UNION of its listings' categories,
+     * derived on read:
+     *
+     *     Business → Listings → Categories
+     *
+     * `pivot` is preserved from `listing_categories` because existing consumers
+     * (public cards, profile pages, owner forms) read `pivot.is_primary`.
+     *
+     * @return \Illuminate\Support\Collection<int, Category>
+     */
+    public function getCategoriesAttribute()
     {
-        return $this->belongsToMany(Category::class, 'business_categories')
-            ->withPivot('is_primary')
-            ->withTimestamps();
+        return $this->listings()
+            ->with('categories')
+            ->get()
+            ->pluck('categories')
+            ->flatten()
+            ->unique('id')
+            ->values();
     }
 
         /**
@@ -737,7 +775,6 @@ class Business extends Model
             'locations.city',
             'locations.region',
             'locations.country',
-            'categories',
             'services',
             'owner',
             'owner.activeSubscription',

@@ -234,13 +234,13 @@
                                 <span class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ cat.name }}</span>
                             </div>
                             <span class="text-xs text-gray-500 dark:text-gray-400 font-medium flex-shrink-0 ml-2">
-                                <span class="text-gray-900 dark:text-white font-bold">{{ cat.businesses_count }}</span>
-                                business{{ cat.businesses_count !== 1 ? 'es' : '' }}
+                                <span class="text-gray-900 dark:text-white font-bold">{{ cat.listings_count }}</span>
+                                listing{{ cat.listings_count !== 1 ? 's' : '' }}
                             </span>
                         </div>
                         <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                             <div class="h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-600 transition-all"
-                                :style="{ width: getCategoryPercent(cat.businesses_count) + '%' }"></div>
+                                :style="{ width: getCategoryPercent(cat.listings_count) + '%' }"></div>
                         </div>
                     </div>
                 </div>
@@ -462,7 +462,7 @@
     // ============== TOP CATEGORIES ==============
     const getCategoryPercent = (count) => {
         if (!props.topCategories || props.topCategories.length === 0) return 0;
-        const max = Math.max(...props.topCategories.map((c) => c.businesses_count || 0));
+        const max = Math.max(...props.topCategories.map((c) => c.listings_count || 0));
         if (max === 0) return 0;
         return Math.round((count / max) * 100);
     };

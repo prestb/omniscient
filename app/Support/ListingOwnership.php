@@ -106,7 +106,7 @@ final class ListingOwnership
                     . 'Legacy business-level categories stay on the parent and are not blindly '
                     . 'duplicated to every listing.',
                 'rationale' => 'The model must not artificially make every location identical.',
-                'evidence' => 'business_categories is a business_id<->category_id pivot with is_primary.',
+                'evidence' => 'Category ownership is listing_id-scoped via listing_categories; the legacy organization-level pivot was removed in Phase 11 Wave 1C.',
             ],
             'contact' => [
                 'marker' => self::DECISION,

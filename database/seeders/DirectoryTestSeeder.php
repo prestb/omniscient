@@ -68,8 +68,10 @@ class DirectoryTestSeeder extends Seeder
                     'is_featured' => $i === 1 && random_int(0, 3) === 0,
                 ]);
 
-                // ✅ Attach category as primary
-                $business->categories()->attach($category->id, ['is_primary' => true]);
+                // PHASE 11 / WAVE 1C — categories are owned by the LISTING.
+                if ($listing = $business->primaryListing()) {
+                    $listing->categories()->attach($category->id, ['is_primary' => true]);
+                }
 
                                 // ✅ Create a primary location in the target city
                 Location::create([
