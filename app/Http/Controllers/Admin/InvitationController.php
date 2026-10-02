@@ -53,7 +53,22 @@ class InvitationController extends Controller
         //    itself is always created so it can be resent later from the
         //    index page.
         if ($request->boolean('send_email', true)) {
-            Mail::to($invitation->email)->send(new InvitationMail($invitation));
+            // PHASE 21A - the invitation ROW is already created above. A mail
+            // failure must not turn a successful administrative operation into
+            // a 500, and must not roll the row back. Same principle as the
+            // Phase 20 registration fix. Failure is logged, never exposed.
+            try {
+                Mail::to($invitation->email)->send(new InvitationMail($invitation));
+            } catch (\Throwable $e) {
+                \Log::error('Invitation email could not be sent', [
+                    'invitation_id' => $invitation->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return redirect()->route('admin.invitations.index')
+                    ->with('warning', 'Invitation created, but the email could not be sent. You can resend it from this list.');
+            }
+
 
             return redirect()->route('admin.invitations.index')
                 ->with('success', 'Invitation created and sent successfully!');

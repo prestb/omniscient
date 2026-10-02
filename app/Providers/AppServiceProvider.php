@@ -17,12 +17,21 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
 
-        // ✅ Disable HIBP check in tests (no internet + faster)
-        if (app()->environment('testing')) {
-            Password::defaults(function () {
-                return Password::min(8)->mixedCase()->letters()->numbers()->symbols();
-            });
-        }
+        // PHASE 21A - ONE password policy, in EVERY environment.
+        //
+        // Previously configured ONLY when the environment was `testing`, so
+        // in production Password::defaults() fell back to Laravel's min(8)
+        // and password RESET / CHANGE accepted trivial passwords while
+        // registration demanded symbols. That is the weaker policy guarding
+        // the operation that can replace an account's credentials.
+        Password::defaults(function () {
+            $rule = Password::min(8)->mixedCase()->letters()->numbers()->symbols();
+
+            // `uncompromised()` performs an external HTTP call to the Have I
+            // Been Pwned range API. Skipped ONLY in tests, for determinism and
+            // speed - never in production.
+            return app()->environment('testing') ? $rule : $rule->uncompromised();
+        });
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());

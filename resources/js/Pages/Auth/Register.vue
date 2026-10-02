@@ -199,6 +199,12 @@
                                 <input :type="showPassword ? 'text' : 'password'" id="password" v-model="form.password"
                                     class="w-full pl-11 pr-12 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors text-sm"
                                     placeholder="Create a strong password" required autocomplete="new-password" />
+                                    <!-- PHASE 21A - requirements are shown BEFORE submission -->
+                                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                        At least 8 characters, including upper and lower case letters,
+                                        a number, and a symbol.
+                                    </p>
+
                                 <button type="button" @click="togglePasswordVisibility"
                                     class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                                     <svg v-if="!showPassword" class="h-4 w-4" fill="none" stroke="currentColor"

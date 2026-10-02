@@ -34,16 +34,7 @@ class RegisteredUserController extends Controller
     $request->validate([
         'name' => ['required', 'string', 'max:255'],
         'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
-        'password' => [
-            'required',
-            'confirmed',
-            Password::min(8)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised(),
-        ],
+        'password' => ['required', 'confirmed', Password::defaults()],
         'phone' => ['nullable', 'string', 'max:50', 'regex:/^[0-9+\-\s()]+$/'],
         'terms' => ['required', 'accepted'],
         // PHASE 19B - `professional` is a Listing-only path: a discoverable
