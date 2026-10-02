@@ -79,7 +79,27 @@ class RegisteredUserController extends Controller
         'account_type' => $request->input('account_type'),
     ]);
 
-    event(new Registered($user));
+    // PHASE 20 — REGISTRATION MUST NOT DEPEND ON EMAIL DELIVERY.
+    //
+    // `event(new Registered($user))` triggers the verification mail INLINE.
+    // With a real SMTP transport (production) an unreachable/failing mailer
+    // threw, the exception escaped the controller, and the user received a
+    // 500 — the account row was created but the person never got in. The test
+    // suite never caught this because the test environment uses the
+    // array/log transport.
+    //
+    // The account now succeeds regardless of mail health. The failure is
+    // logged so it is still visible to operators, and the user can resend
+    // verification later.
+    try {
+        event(new Registered($user));
+    } catch (\Throwable $e) {
+        \Log::error('Verification email could not be sent after registration', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'error' => $e->getMessage(),
+        ]);
+    }
 
     Auth::login($user);
 
