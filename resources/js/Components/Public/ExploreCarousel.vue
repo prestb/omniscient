@@ -57,7 +57,7 @@
 
         <!-- Empty -->
         <div v-else-if="!loading && loadedOnce" class="text-sm text-gray-400 dark:text-gray-500 py-4">
-            No businesses in this category yet.
+            No listings in this category yet.
         </div>
     </section>
 </template>

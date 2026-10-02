@@ -409,3 +409,82 @@ test('SearchBar browser storage is pre-existing and handler-scoped', function ()
         }
     }
 });
+// ── Public-surface refinement (16G) ─────────────────────────────────────────
+
+test('no discovery surface labels its results as businesses', function (string $rel) {
+    $source = discoverySource($rel);
+    $code = preg_replace('#<!--.*?-->#s', '', $source);
+    $code = preg_replace('#^\s*//.*$#m', '', $code);
+
+    foreach ([
+        'No businesses on the map',
+        'No businesses in this category yet',
+        'Browse All Businesses',
+        'No businesses found',
+    ] as $label) {
+        expect($code)->not->toContain($label);
+    }
+})->with([
+    'Components/Public/DirectoryMap.vue',
+    'Components/Public/ExploreCarousel.vue',
+    'Pages/Public/Collection.vue',
+    'Pages/Public/Directory.vue',
+    'Pages/Public/Search/Index.vue',
+]);
+
+test('every public discovery page has exactly one h1', function (string $rel) {
+    $source = discoverySource($rel);
+
+    expect(substr_count($source, '<h1'))->toBe(1);
+})->with([
+    'Pages/Public/Home.vue',
+    'Pages/Public/Explore.vue',
+    'Pages/Public/Collection.vue',
+    'Pages/Public/ListingProfile.vue',
+    'Pages/Public/Categories.vue',
+    'Pages/Public/Locations.vue',
+    'Pages/Public/Search/Index.vue',
+    'Pages/Public/Directory.vue',
+]);
+
+test('the public shell navigation exposes aria-current for the active page', function () {
+    foreach ([
+        'Components/Public/Shell/PublicDesktopNav.vue',
+        'Components/Public/Shell/PublicMobileNav.vue',
+    ] as $rel) {
+        expect(discoverySource($rel))->toContain('aria-current');
+    }
+});
+
+test('the bottom navigation keeps accessible names and touch targets', function () {
+    $nav = discoverySource('Components/Public/Shell/PublicMobileNav.vue');
+
+    expect($nav)->toContain('aria-label="Primary"');
+    expect($nav)->toContain('min-h-14');
+    expect($nav)->toContain('env(safe-area-inset-bottom)');
+});
+
+test('the listing type badge never communicates type by colour alone', function () {
+    $badge = discoverySource('Components/Public/ui/ListingTypeBadge.vue');
+
+    // The label text always carries the meaning.
+    expect($badge)->toContain('Professional');
+    expect($badge)->toContain('Store');
+    expect($badge)->toContain('Business');
+});
+
+test('primitives keep a visible focus state', function () {
+    foreach ([
+        'Components/Public/ui/Button.vue',
+        'Components/Public/ui/IconButton.vue',
+        'Components/Public/ui/Input.vue',
+        'Components/Public/ui/Chip.vue',
+        'Components/Public/ui/Sheet.vue',
+    ] as $rel) {
+        expect(discoverySource($rel))->toContain('focus-visible');
+    }
+});
+
+test('reduced motion remains handled globally', function () {
+    expect(file_get_contents(resource_path('css/app.css')))->toContain('prefers-reduced-motion');
+});

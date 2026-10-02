@@ -81,7 +81,7 @@
                     </svg>
                 </div>
                 <h3 class="text-base font-bold text-gray-900 dark:text-white tracking-tight mb-1">
-                    No businesses on the map
+                    No listings on the map
                 </h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                     None of the matching businesses have a location set. Try adjusting your filters, or switch

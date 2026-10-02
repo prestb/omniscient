@@ -117,7 +117,7 @@
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Try browsing the full directory.</p>
                 <Link href="/directory"
                     class="inline-flex items-center gap-2 px-5 py-2.5 mt-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold text-sm hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg shadow-primary-500/25">
-                    Browse All Businesses
+                    Browse all listings
                 </Link>
             </div>
 
