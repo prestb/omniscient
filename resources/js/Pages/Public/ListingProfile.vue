@@ -178,6 +178,7 @@
                     <ul class="space-y-2">
                         <li v-for="contact in listing.contacts" :key="contact.id">
                             <a v-if="contactHref(contact)" :href="contactHref(contact)"
+                                @click="trackContact(contact)"
                                 target="_blank" rel="noopener noreferrer"
                                 class="inline-flex min-h-11 items-center gap-2 text-body font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-control">
                                 {{ contactLabel(contact.type) }}
@@ -206,11 +207,6 @@
                         <span v-if="listing.location.address">{{ listing.location.address }}<br /></span>
                         <span v-if="listing.location.city">{{ listing.location.city }}</span>
                     </p>
-                    <a v-if="listing.location.phone" :href="`tel:${listing.location.phone}`"
-                        @click="trackClick('phone')"
-                        class="inline-block text-sm text-gray-700 dark:text-gray-300 mt-3">
-                        📞 {{ listing.location.phone }}
-                    </a>
                 </section>
             </aside>
         </div>
@@ -226,7 +222,7 @@ import LeadCaptureForm from '@/Components/Public/LeadCaptureForm.vue';
 import ListingTypeBadge from '@/Components/Public/ui/ListingTypeBadge.vue';
 import Badge from '@/Components/Public/ui/Badge.vue';
 // PHASE 17 — Listing-owned contact links.
-import { contactHref, contactLabel } from '@/urls';
+import { contactHref, contactLabel, clickTypeFor } from '@/urls';
 import RatingSummary from '@/Components/Public/ui/RatingSummary.vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -248,6 +244,16 @@ const props = defineProps({
  * from this page's own props — never a Business id, and never a Listing
  * resolved through a Business.
  */
+/**
+ * PHASE 18B - a real Listing-owned contact action. Records against
+ * the exact Listing via the existing endpoint. trackClick remains
+ * the primitive for other public actions.
+ */
+const trackContact = (contact) => {
+    const type = clickTypeFor(contact.type);
+    if (type) trackClick(type);
+};
+
 const trackClick = (type) => {
     axios.post(`/analytics/listing/${props.listing.id}/track-click/${type}`).catch(() => {});
 };

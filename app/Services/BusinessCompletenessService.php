@@ -91,7 +91,11 @@ class BusinessCompletenessService
         $maxScore = 0;
 
         // Preload relationships once
-        $business->loadMissing(['locations.hours', 'services', 'images', 'logo', 'coverImage', 'galleryImages']);
+        // PHASE 18B - `logo` and `cover_image` are COLUMNS on Business, not
+        // relationships (see Business::$fillable). Eager-loading them as
+        // relations threw RelationNotFoundException. The checklist below
+        // reads them as attributes, so no relation is required.
+        $business->loadMissing(['locations.hours', 'services', 'images', 'galleryImages']);
 
         foreach (self::CHECKLIST as $item) {
             $complete = $this->isComplete($item['key'], $business);

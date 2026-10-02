@@ -86,3 +86,32 @@ export function contactLabel(type) {
 
     return labels[type] ?? 'Contact';
 }
+
+/**
+ * PHASE 18B — map a Listing contact type onto the analytics click vocabulary
+ * that already exists server-side:
+ *
+ *     phone | whatsapp | website | direction | social
+ *
+ * No new click type is invented. Contact types with no corresponding public
+ * action (e.g. `other`) return null and are simply not measured.
+ */
+export function clickTypeFor(contactType) {
+    switch (contactType) {
+        case 'phone':
+            return 'phone';
+        case 'whatsapp':
+            return 'whatsapp';
+        case 'website':
+            return 'website';
+        case 'facebook':
+        case 'instagram':
+        case 'tiktok':
+        case 'twitter':
+        case 'youtube':
+        case 'linkedin':
+            return 'social';
+        default:
+            return null;
+    }
+}

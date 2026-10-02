@@ -499,6 +499,9 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
         Route::get('/{lead}', [OwnerListingLeadController::class, 'show'])->name('show');
         Route::put('/{lead}/status', [OwnerListingLeadController::class, 'updateStatus'])->name('update-status');
         Route::put('/{lead}/notes', [OwnerListingLeadController::class, 'updateNotes'])->name('update-notes');
+        // PHASE 18B - owner response. Sends a real reply and stamps
+        // `replied_at` only when the transport accepts it.
+        Route::put('/{lead}/reply', [OwnerListingLeadController::class, 'reply'])->name('reply');
         Route::delete('/{lead}', [OwnerListingLeadController::class, 'destroy'])->name('destroy');
     });
 
