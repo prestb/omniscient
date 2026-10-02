@@ -865,7 +865,7 @@
           hasBusiness: Boolean,
           businesses: { type: Array, default: () => [] },
           selectedBusinessId: { type: [Number, String], default: null },
-          branchesCount: Number,
+          locationsCount: Number,
           activeSubscription: Object,
           completeness: {
                type: Object,

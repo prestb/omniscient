@@ -179,7 +179,10 @@ test('branch residue was reported, not removed, because it is still live', funct
     $resource = file_get_contents(app_path('Http/Resources/ListingDirectoryResource.php'));
 
     expect($resource)->toContain("'branches'");
-    expect(file_exists(resource_path('js/Components/Public/BranchesSection.vue')))->toBeTrue();
+    // PHASE 19D renamed the component FILE (its UI already said "Locations &
+    // Hours" and it iterates a `locations` prop). The compatibility ALIAS
+    // asserted above is the actual invariant, and it remains.
+    expect(file_exists(resource_path('js/Components/Public/LocationsSection.vue')))->toBeTrue();
 });
 
 test('no backend, route or SEO file was touched by this phase', function () {

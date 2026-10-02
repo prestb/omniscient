@@ -251,7 +251,6 @@ class DashboardController extends Controller
             'business' => $business,
             'hasBusiness' => true,
             'completeness' => $completeness,
-            'branchesCount' => $business->locations_count,
             'locationsCount' => $business->locations_count,
             'activeSubscription' => $activeSubscription,
             'analytics' => [

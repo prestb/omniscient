@@ -320,7 +320,7 @@
     const deleteArea = async (area) => {
         const confirmed = await confirmDialog({
             title: 'Delete area?',
-            message: `Delete "${area.name}"? If any branches are using it, the delete will be blocked. This action cannot be undone.`,
+            message: `Delete "${area.name}"? If any locations are using it, the delete will be blocked. This action cannot be undone.`,
             confirmText: 'Delete',
             cancelText: 'Cancel',
             variant: 'danger',

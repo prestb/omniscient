@@ -277,8 +277,8 @@
                     </div>
 
                     <!-- LOCATIONS SECTION (child component) -->
-                    <BranchesSection v-if="business.locations && business.locations.length > 0"
-                        :locations="business.locations" :has-access="hasFeature('branch_hours')" />
+                    <LocationsSection v-if="business.locations && business.locations.length > 0"
+                        :locations="business.locations" :has-access="hasFeature('locations')" />
 
 
 
@@ -790,7 +790,7 @@
     import { useUpgradeModal } from "@/composables/useUpgradeModal";
     import VerifiedBadge from "@/Components/VerifiedBadge.vue";
     import LeadCaptureForm from "@/Components/Public/LeadCaptureForm.vue";
-    import BranchesSection from "@/Components/Public/BranchesSection.vue";
+    import LocationsSection from "@/Components/Public/LocationsSection.vue";
     import ContactIcon from "@/Components/ContactIcon.vue";
     import ReviewImageGallery from "@/Components/Public/ReviewImageGallery.vue";
     import RelatedBusinesses from "@/Components/Public/RelatedBusinesses.vue";
@@ -984,43 +984,6 @@
         });
     };
 
-    const branchHours = computed(() => {
-        if (!props.primaryLocation?.hours) return [];
-        const hours = props.primaryLocation.hours;
-        const result = [];
-
-        for (let i = 0; i < 7; i++) {
-            const dayHours = hours.filter((h) => h.day_of_week === i);
-
-            if (dayHours.length === 0) {
-                result.push("Closed");
-            } else {
-                const formattedHours = dayHours
-                    .map((h) => {
-                        if (h.formatted_hours) return h.formatted_hours;
-                        if (h.is_closed) return "Closed";
-                        if (h.is_24h) return "Open 24 Hours";
-                        if (h.opens_at && h.closes_at) {
-                            try {
-                                const open = new Date("2000-01-01T" + h.opens_at).toLocaleTimeString("en-US", {
-                                    hour: "2-digit", minute: "2-digit", hour12: true,
-                                });
-                                const close = new Date("2000-01-01T" + h.closes_at).toLocaleTimeString("en-US", {
-                                    hour: "2-digit", minute: "2-digit", hour12: true,
-                                });
-                                return `${open} - ${close}`;
-                            } catch (e) {
-                                return `${h.opens_at} - ${h.closes_at}`;
-                            }
-                        }
-                        return "Open";
-                    })
-                    .join(", ");
-                result.push(formattedHours);
-            }
-        }
-        return result;
-    });
 
     const getRatingPercentage = (star) => {
         const total = props.business.reviews_count || 0;
@@ -1161,13 +1124,13 @@
     });
 
     // ============== Location Helpers ==============
-    const getLocationAddress = (branch) => {
-        if (!branch) return "Address not set";
+    const getLocationAddress = (location) => {
+        if (!location) return "Address not set";
         const parts = [];
-        if (branch.address) parts.push(branch.address);
-        if (branch.city?.name) parts.push(branch.city.name);
-        if (branch.region?.name) parts.push(branch.region.name);
-        if (branch.country?.name) parts.push(branch.country.name);
+        if (location.address) parts.push(location.address);
+        if (location.city?.name) parts.push(location.city.name);
+        if (location.region?.name) parts.push(location.region.name);
+        if (location.country?.name) parts.push(location.country.name);
         return parts.join(", ") || "Address not set";
     };
 
@@ -1175,13 +1138,13 @@
      * ✅ Google Maps directions URL — opens native app on mobile.
      *    Prefers coordinates when available, falls back to address.
      */
-    const getDirectionsUrl = (branch) => {
-        if (!branch) return '#';
-        const lat = branch.latitude;
-        const lng = branch.longitude;
+    const getDirectionsUrl = (location) => {
+        if (!location) return '#';
+        const lat = location.latitude;
+        const lng = location.longitude;
         const destination = (lat && lng)
             ? `${lat},${lng}`
-            : encodeURIComponent(getLocationAddress(branch));
+            : encodeURIComponent(getLocationAddress(location));
         return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
     };
 
@@ -1240,10 +1203,10 @@
         return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
     };
 
-    const getTodayHours = (branch) => {
-        if (!branch?.hours) return null;
+    const getTodayHours = (location) => {
+        if (!location?.hours) return null;
         const today = new Date().getDay();
-        const hour = branch.hours.find((h) => h.day_of_week === today);
+        const hour = location.hours.find((h) => h.day_of_week === today);
         return hour ? getHourDisplay(hour) : null;
     };
 
@@ -1303,11 +1266,11 @@
     const collectionCrossLink = computed(() => {
         // Business must have a primary category + a primary location city
         const category = props.business.categories?.[0];
-        const branch = props.primaryLocation;
-        if (!category?.slug || !branch?.city?.slug) return null;
+        const location = props.primaryLocation;
+        if (!category?.slug || !location?.city?.slug) return null;
         return {
-            href: `/${category.slug}-in-${branch.city.slug}`,
-            label: `More ${category.name} in ${branch.city.name}`,
+            href: `/${category.slug}-in-${location.city.slug}`,
+            label: `More ${category.name} in ${location.city.name}`,
         };
     });
 </script>

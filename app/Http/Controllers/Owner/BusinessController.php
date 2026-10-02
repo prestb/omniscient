@@ -176,13 +176,12 @@ class BusinessController extends Controller
         $categories = Category::active()->ordered()->get();
 
         // Get locations count
-        $branchesCount = $business->locations()->count();
+        $locationsCount = $business->locations()->count();
 
         return Inertia::render('Owner/Businesses/Edit', [
             'business' => $business,
             'categories' => $categories,
-            'locationsCount' => $branchesCount,
-            'branchesCount' => $branchesCount,
+            'locationsCount' => $locationsCount,
         ]);
     }
 
