@@ -825,21 +825,29 @@
                                         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                               </svg>
                          </div>
-                         <h3 class="text-xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">
-                              No business yet
-                         </h3>
-                         <p class="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6 text-sm">
-                              You haven't created a business profile yet. Start by creating
-                              your first business.
-                         </p>
-                         <a href="/owner/businesses/create"
+                          <h3 class="text-xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">
+                               Create your first Listing
+                          </h3>
+                          <p class="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6 text-sm">
+                               Your Listing is what people discover on Omniscient. Create one to
+                               offer your services. If you represent an organization, you can add
+                               a Business as well - it can group several Listings.
+                          </p>
+                         <a href="/owner/listings/create"
                               class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-0.5 font-semibold text-sm">
                               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4" />
                               </svg>
-                              Create Your Business
-                         </a>
+                               Create your Listing
+                          </a>
+                          <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                               Represent an organization?
+                               <a href="/owner/businesses/create"
+                                   class="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-control">
+                                   Create a Business instead
+                               </a>
+                          </p>
                     </div>
                </div>
           </PullToRefresh>

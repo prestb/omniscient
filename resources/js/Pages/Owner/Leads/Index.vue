@@ -199,7 +199,7 @@
                     </div>
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">No leads yet</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                        When customers contact you through your business profile, their messages will appear here.
+                        When someone contacts one of your Listings, their messages will appear here.
                     </p>
                 </div>
 
