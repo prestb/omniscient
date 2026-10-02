@@ -241,11 +241,20 @@ test('completeness is not a search signal', function () {
 // ── 6. Regression guards ────────────────────────────────────────────────────
 
 test('reviews remain business-owned and listing reputation is labelled', function () {
+    // PHASE 16E - the reputation is still shown only when an owning Business
+    // exists, and it is still explicitly attributed. The rendering moved from
+    // inline markup into the shared RatingSummary primitive, so the contract is
+    // asserted where it now lives.
     $profile = file_get_contents(resource_path('js/Pages/Public/ListingProfile.vue'));
+    $summary = file_get_contents(resource_path('js/Components/Public/ui/RatingSummary.vue'));
 
-    // The reputation is only shown when an owning Business exists, and it is labelled.
-    expect($profile)->toContain('listing.business_id && listing.average_rating');
-    expect($profile)->toContain('Business rating');
+    expect($profile)->toContain('listing.business_id');
+    expect($profile)->toContain('<RatingSummary');
+    expect($profile)->toContain('attribution');
+    expect($summary)->toContain('Business rating');
+
+    // Still Business-owned.
+    expect(Schema::hasColumn('reviews', 'listing_id'))->toBeFalse();
 });
 
 test('no representative listing selection exists in completeness or owner listings', function () {

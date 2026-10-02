@@ -24,26 +24,47 @@
 
             <div class="absolute bottom-0 left-0 right-0">
                 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
-                    <span class="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest bg-white/15 text-white backdrop-blur">
-                        {{ listing.listing_type }}
-                    </span>
-                    <h1 class="mt-2 text-3xl sm:text-4xl font-bold text-white tracking-tight">{{ listing.name }}</h1>
+                    <div class="flex items-end gap-4">
+                        <!-- Listing logo is LISTING media, not organization branding.
+                             It is supporting identity, never a replacement for the name. -->
+                        <div v-if="listing.logo"
+                            class="hidden sm:flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-card border border-white/20 bg-white/95 backdrop-blur">
+                            <OptimizedImage :path="listing.logo" :name="listing.name" size="thumb"
+                                img-class="h-full w-full object-contain"
+                                fallback-class="h-full w-full bg-white" />
+                        </div>
 
-                    <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/85">
-                        <span v-if="listing.categories?.length">
+                        <div class="min-w-0">
+                            <!-- PHASE 16E — the raw enum string ('business') was being
+                                 printed straight into the hero. The Listing's TYPE is now
+                                 an accessible, human label that renders nothing for an
+                                 unknown/future enum value. -->
+                            <ListingTypeBadge :type="listing.listing_type" size="sm" class="mb-1.5" />
+
+                            <h1 class="text-heading-xl sm:text-display text-white">{{ listing.name }}</h1>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-body text-white/85">
+                        <span v-if="listing.categories?.length" class="min-w-0">
                             {{ listing.categories.map(c => c.name).join(' · ') }}
                         </span>
-                        <!-- Location is optional: only rendered when present -->
+
+                        <!-- Location is OPTIONAL. A locationless Professional is a valid
+                             Listing and must render cleanly with no empty placeholder. -->
                         <span v-if="listing.location?.city" class="inline-flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                             {{ listing.location.city }}
                         </span>
-                        <span v-if="listing.business_id && listing.average_rating" class="inline-flex items-center gap-1">
-                            ★ {{ listing.average_rating }} ({{ listing.reviews_count }}) <span class="text-xs font-normal text-gray-400 dark:text-gray-500">Business rating</span>
-                        </span>
+
+                        <!-- PHASE 14/16C ownership: this is the OWNING BUSINESS's
+                             aggregate, shown on the Listing and always attributed. -->
+                        <RatingSummary v-if="listing.business_id"
+                            :rating="listing.average_rating" :review-count="listing.reviews_count"
+                            mode="compact" attribution />
                     </div>
                 </div>
             </div>
@@ -52,13 +73,13 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- ==================== MAIN ==================== -->
             <div class="lg:col-span-2 space-y-6">
-                <section v-if="listing.description" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">About</h2>
+                <section v-if="listing.description" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">About</h2>
                     <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ listing.description }}</p>
                 </section>
 
-                <section v-if="listing.categories?.length" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Categories</h2>
+                <section v-if="listing.categories?.length" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Categories</h2>
                     <div class="flex flex-wrap gap-2">
                         <span v-for="c in listing.categories" :key="c.id"
                             class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300">
@@ -67,8 +88,8 @@
                     </div>
                 </section>
 
-                <section v-if="listing.locations?.[0]?.hours?.length" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Opening hours</h2>
+                <section v-if="listing.locations?.[0]?.hours?.length" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Opening hours</h2>
                     <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                         <li v-for="h in listing.locations[0].hours" :key="h.day" class="flex justify-between gap-4">
                             <span class="capitalize">Day {{ h.day }}</span>
@@ -93,13 +114,13 @@
                      Business context (if any) is derived server-side. A Listing
                      with no Business works identically. -->
                 <section id="inquiry"
-                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Send an inquiry</h2>
+                    class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Send an inquiry</h2>
                     <LeadCaptureForm :listing="listing" />
                 </section>
                 <!-- Organization context: the Listing stays canonical -->
-                <section v-if="listing.business_id" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Organization</h2>
+                <section v-if="listing.business_id" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Organization</h2>
                     <a :href="`/business/${listing.business_slug}`"
                         class="text-sm font-semibold text-primary-600 hover:text-primary-700">
                         {{ listing.business_name }}
@@ -108,8 +129,8 @@
                 </section>
 
                 <!-- Physical place (optional) -->
-                <section v-if="listing.location" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">Where</h2>
+                <section v-if="listing.location" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Where</h2>
                     <p class="text-sm text-gray-700 dark:text-gray-300">
                         <span v-if="listing.location.address">{{ listing.location.address }}<br /></span>
                         <span v-if="listing.location.city">{{ listing.location.city }}</span>
@@ -129,6 +150,10 @@
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import OptimizedImage from '@/Components/Public/OptimizedImage.vue';
 import LeadCaptureForm from '@/Components/Public/LeadCaptureForm.vue';
+// PHASE 16E — the Listing page now consumes the design system rather than
+// hand-rolling a type pill, a rating span and raw surface classes.
+import ListingTypeBadge from '@/Components/Public/ui/ListingTypeBadge.vue';
+import RatingSummary from '@/Components/Public/ui/RatingSummary.vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import { onMounted } from 'vue';
