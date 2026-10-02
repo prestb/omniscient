@@ -152,3 +152,95 @@ test('every listing type resolves independently of business presence', function 
     'professional' => [\App\Support\ListingType::PROFESSIONAL->value],
     'store' => [\App\Support\ListingType::STORE->value],
 ]);
+
+// ── Desktop discovery layout (16F continuation) ─────────────────────────────
+
+test('the directory provides a persistent desktop filter rail', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+
+    // A two-column discovery layout at lg and above.
+    expect($source)->toContain('lg:grid');
+    expect($source)->toContain('lg:grid-cols-[19rem_minmax(0,1fr)]');
+    expect($source)->toContain('<aside');
+
+    // The rail is the EXISTING filter component, not a second implementation.
+    expect($source)->toContain('<DirectoryFilters');
+    expect($source)->toContain('lg:sticky');
+
+    // Mobile behaviour is preserved: the grid simply does not apply below lg.
+    expect($source)->toContain('lg:mb-0');
+});
+
+test('the directory uses listing-first discovery copy', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+    // Comments legitimately name the copy that was replaced.
+    $source = preg_replace('#<!--.*?-->#s', '', $source);
+
+    // The page no longer presents itself as an organization directory.
+    expect($source)->not->toContain('Business Directory');
+    expect($source)->not->toContain('No businesses found');
+
+    expect($source)->toContain('Browse listings');
+});
+
+test('the empty state offers real recovery actions', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+
+    expect($source)->toContain('clearAllFilters');
+    expect($source)->toContain('Clear filters');
+    expect($source)->toContain('href="/categories"');
+    expect($source)->toContain('href="/locations"');
+
+    // The empty state distinguishes "no results" from "filters too narrow".
+    expect($source)->toContain('hasActiveFilters');
+});
+
+test('the directory does not reintroduce a second filter or modal implementation', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+    $source = preg_replace('#<!--.*?-->#s', '', $source);
+
+    // Exactly one filter component.
+    expect(substr_count($source, '<DirectoryFilters'))->toBe(1);
+    // No bespoke modal/sheet invented here.
+    expect($source)->not->toContain('<Modal');
+    expect($source)->not->toContain('MobileFilterSheet');
+});
+
+test('the directory introduces no browser APIs into render or setup', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+    $code = preg_replace('#<!--.*?-->#s', '', $source);
+    $code = preg_replace('#^\s*//.*$#m', '', $code);
+
+    expect($code)->not->toContain('document.');
+    expect($code)->not->toContain('window.');
+    expect($code)->not->toContain('navigator.');
+    expect($code)->not->toContain('localStorage');
+    expect($code)->not->toContain('matchMedia');
+});
+
+test('the directory view toggle exposes a non-visual selected state', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+
+    // aria-pressed on both toggles, so selection is not colour-only.
+    expect(substr_count($source, 'aria-pressed'))->toBeGreaterThanOrEqual(2);
+    expect($source)->toContain('role="group"');
+});
+
+test('the directory respects the design tokens rather than raw values', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+
+    expect($source)->toContain('rounded-card');
+    expect($source)->toContain('text-heading-lg');
+    expect($source)->toContain('shadow-elevation-1');
+
+    // The old ad-hoc surfaces are gone.
+    expect($source)->not->toContain('rounded-2xl shadow-sm');
+});
+
+test('the view choice still uses the existing cookie composable', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+
+    expect($source)->toContain('writeDirectoryViewMode');
+    // No raw cookie access.
+    expect($source)->not->toContain('document.cookie');
+});
