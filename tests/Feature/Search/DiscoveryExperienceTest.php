@@ -553,3 +553,70 @@ test('touch targets on public action controls meet the 44px baseline', function 
     expect(discoverySource('Components/Public/MobileFilterSheet.vue'))->toContain('min-h-11');
     expect(discoverySource('Pages/Public/Directory.vue'))->toContain('min-h-11');
 });
+// ── Phase 16H — residue classification ──────────────────────────────────────
+
+test('the listing card no longer names Location data after a branch', function () {
+    $card = discoverySource('Components/Public/ListingCard.vue');
+    $code = preg_replace('#^\s*//.*$#m', '', $card);
+    $code = preg_replace('#<!--.*?-->#s', '', $code);
+
+    // Identifiers now match the data they operate on.
+    expect($code)->toContain('hasOpenLocation');
+    expect($code)->toContain('locationStatusCounts');
+    expect($code)->not->toContain('hasOpenBranch');
+    expect($code)->not->toContain('branchStatusCounts');
+});
+
+test('the branches payload fallback is preserved because it is still live', function () {
+    // `branches` is still emitted by ListingDirectoryResource,
+    // BusinessDirectoryResource and Owner\LocationController, and is still read
+    // by RelatedBusinesses as well as this card. Removing it would be a payload
+    // change, so it is documented rather than deleted.
+    $card = discoverySource('Components/Public/ListingCard.vue');
+
+    expect($card)->toContain('props.listing.locations || props.listing.branches');
+    expect(discoverySource('Components/Public/RelatedBusinesses.vue'))
+        ->toContain('biz.locations || biz.branches');
+
+    // And the producer side still emits it.
+    expect(file_get_contents(app_path('Http/Resources/ListingDirectoryResource.php')))
+        ->toContain("'branches'");
+});
+
+test('retired public components have no executable references', function (string $dead) {
+    $files = [
+        'Components/Public/ListingCard.vue',
+        'Components/Public/ReviewCard.vue',
+        'Pages/Public/Directory.vue',
+        'Pages/Public/Search/Index.vue',
+        'Pages/Public/Collection.vue',
+        'Pages/Public/Home.vue',
+    ];
+
+    foreach ($files as $rel) {
+        $code = discoverySource($rel);
+        $code = preg_replace('#^\s*//.*$#m', '', $code);
+        $code = preg_replace('#<!--.*?-->#s', '', $code);
+
+        expect($code)->not->toContain("import {$dead}");
+        expect($code)->not->toContain("{$dead}.vue");
+    }
+})->with([
+    'RatingBadge',
+    'RatingDisplay',
+    'StarRating',
+    'BusinessCardSkeleton',
+]);
+
+test('the public navigation has a single coherent implementation', function () {
+    // One desktop nav, one mobile nav, one secondary menu. No stale variants.
+    $layout = discoverySource('Layouts/PublicLayout.vue');
+
+    expect($layout)->toContain('PublicDesktopNav');
+    expect($layout)->toContain('PublicMobileNav');
+    expect(substr_count($layout, '<PublicDesktopNav'))->toBe(1);
+    expect(substr_count($layout, '<PublicMobileNav'))->toBe(1);
+
+    // No legacy absolute-dropdown navigation remains.
+    expect($layout)->not->toContain('absolute top-full');
+});

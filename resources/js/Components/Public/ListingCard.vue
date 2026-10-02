@@ -67,7 +67,7 @@
                     <span class="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white rounded-full"></span>
                     Closed today
                 </div>
-                <div v-else-if="hasOpenBranch"
+                <div v-else-if="hasOpenLocation"
                     class="absolute bottom-2 left-2 sm:bottom-2.5 sm:left-2.5 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-green-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full shadow-lg shadow-green-500/30 flex items-center gap-1 sm:gap-1.5">
                     <span class="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white rounded-full animate-pulse"></span>
                     {{ getOpenStatusLabel() }}
@@ -144,12 +144,12 @@
         const isLoggedIn = computed(() => !!page.props.auth?.user);
 
     // ✅ Unified location list — accepts either `locations` or the
-    //    legacy `branches` key so this card works with every resource.
+    //    legacy `branches` payload key, which three resources still emit.
     const locations = computed(() => props.listing.locations || props.listing.branches || []);
 
     // ============== Open Status ==============
 
-    const hasOpenBranch = computed(() => {
+    const hasOpenLocation = computed(() => {
         if (!locations.value || locations.value.length === 0) {
             return props.listing.is_open_now || false;
         }
@@ -157,7 +157,7 @@
     });
 
 
-    // ✅ Override today — business-wide (any branch with an override today)
+    // ✅ Override today — business-wide (any location with an override today)
     const hasOverrideToday = computed(() => {
         if (!locations.value || locations.value.length === 0) {
             return false;
@@ -167,11 +167,11 @@
 
     // First override note we find, for the tooltip
     const overrideNote = computed(() => {
-        const branch = locations.value.find(b => b.has_override_today);
-        return branch?.override_note || null;
+        const location = locations.value.find(b => b.has_override_today);
+        return location?.override_note || null;
     });
 
-    // ✅ Special hours override today — business-wide (any branch)
+    // ✅ Special hours override today — business-wide (any location)
     const hasSpecialHoursToday = computed(() => {
         if (!locations.value || locations.value.length === 0) {
             return false;
@@ -179,16 +179,16 @@
         return locations.value.some(b => b.is_special_hours);
     });
 
-    // ✅ "10 AM–2 PM" from the first branch with special hours today
+    // ✅ "10 AM–2 PM" from the first location with special hours today
     const specialHoursText = computed(() => {
-        const branch = locations.value.find(b => b.is_special_hours);
-        if (!branch?.override_opens_at || !branch?.override_closes_at) return null;
+        const location = locations.value.find(b => b.is_special_hours);
+        if (!location?.override_opens_at || !location?.override_closes_at) return null;
 
         try {
-            const open = new Date('2000-01-01T' + branch.override_opens_at).toLocaleTimeString('en-US', {
+            const open = new Date('2000-01-01T' + location.override_opens_at).toLocaleTimeString('en-US', {
                 hour: 'numeric', minute: '2-digit', hour12: true
             }).replace(':00', '');
-            const close = new Date('2000-01-01T' + branch.override_closes_at).toLocaleTimeString('en-US', {
+            const close = new Date('2000-01-01T' + location.override_closes_at).toLocaleTimeString('en-US', {
                 hour: 'numeric', minute: '2-digit', hour12: true
             }).replace(':00', '');
             return `${open}–${close}`;
@@ -197,7 +197,7 @@
         }
     });
 
-    const branchStatusCounts = computed(() => {
+    const locationStatusCounts = computed(() => {
         if (!locations.value || locations.value.length === 0) {
             return { open: 0, closed: 0 };
         }
@@ -207,7 +207,7 @@
     });
 
     const getOpenStatusLabel = () => {
-        const { open, closed } = branchStatusCounts.value;
+        const { open, closed } = locationStatusCounts.value;
         const total = open + closed;
 
         if (open === 0) return 'Closed';
