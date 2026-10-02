@@ -75,9 +75,29 @@
                         <DirectoryMap :businesses="mapListings" />
                     </div>
 
+                    <!-- ==================== ERROR ==================== -->
+                    <div v-else-if="hasError"
+                        class="text-center py-12 bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark">
+                        <h2 class="text-heading-md text-ink dark:text-white mb-2">Something went wrong</h2>
+                        <p class="text-body text-ink-muted dark:text-gray-400">
+                            These listings could not be loaded. Please try again.
+                        </p>
+                        <button type="button" @click="clearAllFilters"
+                            class="mt-6 inline-flex min-h-11 items-center rounded-control bg-primary-600 px-4 text-body font-semibold text-white transition-colors duration-fast hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2">
+                            Try again
+                        </button>
+                    </div>
+
                     <!-- ==================== LIST VIEW ==================== -->
                     <div v-else>
-                        <div v-if="listings.data && listings.data.length > 0">
+                        <!-- PHASE 16F — loading: the 16C skeleton, aria-hidden,
+                             shown only while an Inertia visit is in flight. -->
+                        <div v-if="isRefreshing"
+                            class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                            <ListingCardSkeleton v-for="n in 6" :key="n" />
+                        </div>
+
+                        <div v-else-if="listings.data && listings.data.length > 0">
                             <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                                 <ListingCard v-for="listing in listings.data" :key="listing.id" :listing="listing" />
                             </div>
@@ -135,7 +155,7 @@
 
 <script setup>
     // PHASE 15B - indexation control
-    import { Head } from '@inertiajs/vue3';
+    import { Head, usePage } from '@inertiajs/vue3';
     import { computed } from 'vue';
     import { router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
@@ -144,6 +164,9 @@
     import DirectoryFilters from '@/Components/Public/DirectoryFilters.vue';
     import DirectoryMap from '@/Components/Public/DirectoryMap.vue';
     import LocationChips from '@/Components/Public/LocationChips.vue';
+    // PHASE 16F — the consolidated 16C skeleton system (no new skeleton).
+    import ListingCardSkeleton from '@/Components/Public/ui/ListingCardSkeleton.vue';
+    import { onMounted, onBeforeUnmount, ref } from 'vue';
     import { writeDirectoryViewMode } from '@/composables/useDirectoryFilters';
 
     const props = defineProps({
@@ -163,6 +186,48 @@
     });
 
     const viewMode = computed(() => props.viewMode || 'list');
+
+    const page = usePage();
+
+    /**
+     * PHASE 16F — loading state.
+     *
+     * Inertia already shows a progress bar on navigation; this adds the
+     * structural feedback the page was missing, using the consolidated
+     * 16C skeleton rather than a new one.
+     *
+     * The listeners are registered inside onMounted, so nothing runs during
+     * SSR and no browser API reaches a render path.
+     */
+    const isRefreshing = ref(false);
+    let removeStart = null;
+    let removeFinish = null;
+
+    onMounted(() => {
+        removeStart = router.on('start', () => {
+            isRefreshing.value = true;
+        });
+        removeFinish = router.on('finish', () => {
+            isRefreshing.value = false;
+        });
+    });
+
+    onBeforeUnmount(() => {
+        removeStart?.();
+        removeFinish?.();
+    });
+
+    /**
+     * PHASE 16F — recoverable error state.
+     *
+     * Surfaces only a human message; never a stack trace or API internals.
+     * A validation-shaped `errors` bag is normal on a filter form, so only
+     * the presence of a genuine error is treated as a failed load.
+     */
+    const hasError = computed(() => {
+        const errors = page.props.errors || {};
+        return Object.keys(errors).length > 0;
+    });
 
     // Chips shown only when no filters are applied (they are a discovery aid).
     const hasActiveFilters = computed(() => {

@@ -244,3 +244,91 @@ test('the view choice still uses the existing cookie composable', function () {
     // No raw cookie access.
     expect($source)->not->toContain('document.cookie');
 });
+// ── Mobile filter sheet dialog contract (16F completion) ────────────────────
+
+test('the mobile filter sheet provides the full dialog contract', function () {
+    $sheet = discoverySource('Components/Public/MobileFilterSheet.vue');
+
+    // Semantics the sheet previously lacked entirely.
+    expect($sheet)->toContain('role="dialog"');
+    expect($sheet)->toContain('aria-modal');
+    expect($sheet)->toContain(':aria-label="resolvedTitle"');
+    expect($sheet)->toContain('tabindex="-1"');
+
+    // Escape dismissal.
+    expect($sheet)->toContain("e.key === 'Escape'");
+
+    // Focus moved in, contained, and restored.
+    expect($sheet)->toContain('lastFocused');
+    expect($sheet)->toContain("e.key === 'Tab'");
+
+    // Body scroll lock, applied once and released once.
+    expect($sheet)->toContain('body.style.overflow');
+    expect($sheet)->toContain('locked');
+
+    // Safe area retained.
+    expect($sheet)->toContain('env(safe-area-inset-bottom)');
+});
+
+test('the mobile filter sheet remains the single mobile filter surface', function () {
+    // It must still exist and still be the thing DirectoryFilters drives.
+    expect(file_exists(resource_path('js/Components/Public/MobileFilterSheet.vue')))->toBeTrue();
+
+    $sheet = discoverySource('Components/Public/MobileFilterSheet.vue');
+
+    // No nested Sheet primitive was introduced inside it.
+    expect($sheet)->not->toContain('<Sheet');
+    expect($sheet)->not->toContain('ui/Sheet.vue');
+});
+
+test('the mobile sheet exposes accessible filter actions', function () {
+    $sheet = discoverySource('Components/Public/MobileFilterSheet.vue');
+
+    expect($sheet)->toContain('Clear all');
+    expect($sheet)->toContain('Apply Filters');
+    expect($sheet)->toContain('min-h-11');
+    expect($sheet)->toContain('aria-label="Close filters"');
+});
+
+// ── Loading and error states ────────────────────────────────────────────────
+
+test('the directory has a loading state using the consolidated skeleton', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+    // Comments name the retired skeletons they describe.
+    $source = preg_replace('#<!--.*?-->#s', '', $source);
+    $source = preg_replace('#^\s*//.*$#m', '', $source);
+
+    expect($source)->toContain('isRefreshing');
+    expect($source)->toContain('<ListingCardSkeleton');
+
+    // It must be the 16C skeleton. The retired ones all lived under
+    // Components/Skeletons/, and 'CardSkeleton' is a substring of the new
+    // 'ListingCardSkeleton', so the LOCATION is asserted rather than the name.
+    expect($source)->toContain('Components/Public/ui/ListingCardSkeleton.vue');
+    expect($source)->not->toContain('Components/Skeletons/');
+});
+
+test('the directory loading listeners are lifecycle-guarded for SSR', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+
+    // router listeners are registered in onMounted and torn down on unmount,
+    // so nothing executes during SSR.
+    expect($source)->toContain('onMounted');
+    expect($source)->toContain('onBeforeUnmount');
+    expect($source)->toContain('removeStart');
+});
+
+test('the directory has a recoverable error state with no technical detail', function () {
+    $source = discoverySource('Pages/Public/Directory.vue');
+    $source = preg_replace('#<!--.*?-->#s', '', $source);
+    $source = preg_replace('#^\s*//.*$#m', '', $source);
+
+    expect($source)->toContain('hasError');
+    expect($source)->toContain('Something went wrong');
+    expect($source)->toContain('Try again');
+
+    // No stack traces, exception text or API internals exposed to the user.
+    foreach (['e.stack', 'error.message', 'Exception', 'response.data.message'] as $leak) {
+        expect($source)->not->toContain($leak);
+    }
+});
