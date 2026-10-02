@@ -49,6 +49,13 @@ class ListingController extends Controller
 
         return Inertia::render('Public/ListingProfile', [
             'listing' => (new ListingDirectoryResource($listing))->resolve(),
+            // PHASE 16E correction — the viewer's own favorite state for THIS
+            // Listing. Listing-scoped (favorites are Listing-owned, Wave 1D-5A);
+            // no Business favorite semantics and no new endpoint.
+            'is_favorited' => auth()->check()
+                && \App\Models\Favorite::where('user_id', auth()->id())
+                    ->where('listing_id', $listing->id)
+                    ->exists(),
             'seo' => $this->seoFor($listing),
         ]);
     }

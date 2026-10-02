@@ -62,6 +62,25 @@
 
                         <!-- PHASE 14/16C ownership: this is the OWNING BUSINESS's
                              aggregate, shown on the Listing and always attributed. -->
+                        <!-- PHASE 16E correction — existing Listing-scoped favorite
+                             capability (POST /favorites/{listing}/toggle). A guest is
+                             sent to the existing auth flow by the server on 401/403;
+                             no Business favorite semantics are involved. -->
+                        <button
+                            type="button"
+                            class="inline-flex min-h-11 items-center gap-1.5 rounded-control px-3 text-body font-semibold transition-colors duration-fast focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                            :class="favorited ? 'text-white' : 'text-white/80 hover:text-white'"
+                            :aria-pressed="String(favorited)"
+                            :aria-label="favorited ? 'Remove from saved' : 'Save this listing'"
+                            :disabled="saving"
+                            @click="toggleFavorite"
+                        >
+                            <svg class="h-4 w-4" :fill="favorited ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                            {{ favorited ? 'Saved' : 'Save' }}
+                        </button>
+
                         <RatingSummary v-if="listing.business_id"
                             :rating="listing.average_rating" :review-count="listing.reviews_count"
                             mode="compact" attribution />
@@ -156,7 +175,7 @@ import ListingTypeBadge from '@/Components/Public/ui/ListingTypeBadge.vue';
 import RatingSummary from '@/Components/Public/ui/RatingSummary.vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
 const props = defineProps({
     listing: { type: Object, required: true },
