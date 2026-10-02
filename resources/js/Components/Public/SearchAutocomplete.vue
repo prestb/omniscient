@@ -97,7 +97,7 @@
                         </div>
                         <ul>
                             <li v-for="(biz, idx) in businesses" :key="`b-${biz.id}`">
-                                <button type="button" @mousedown.prevent="selectBusiness(biz)"
+                                <button type="button" @mousedown.prevent="selectListing(biz)"
                                     @mouseenter="highlighted = { type: 'business', index: idx }" :class="[
                                         'w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors',
                                         isHighlighted('business', idx)
@@ -343,7 +343,7 @@
     const onEnter = () => {
         if (highlighted.value.type === 'business') {
             const biz = businesses.value[highlighted.value.index];
-            if (biz) selectBusiness(biz);
+            if (biz) selectListing(biz);
             return;
         }
         if (highlighted.value.type === 'search') {
@@ -362,10 +362,10 @@
         inputEl.value?.blur();
     };
 
-    const selectBusiness = (biz) => {
+    const selectListing = (biz) => {
         close();
         query.value = '';
-        router.visit(`/business/${biz.slug}`);
+        router.visit(`/listing/${biz.slug}`);
     };
 
     const selectSearch = (suggestion) => {

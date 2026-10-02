@@ -302,7 +302,9 @@ const buildPopupHtml = (business) => {
     const name = escapeHtml(business.name);
     const category = escapeHtml(business.category);
     const address = escapeHtml(business.address || '');
-    const url = `/business/${encodeURIComponent(business.slug)}`;
+    // PHASE 16F — the map renders LISTINGS, so the popup must point at the
+    // canonical Listing URL. `/business/{listing.slug}` cannot resolve.
+    const url = `/listing/${encodeURIComponent(business.slug)}`;
 
     const cover = business.cover_image_url
         ? `<img src="${escapeHtml(business.cover_image_url)}" alt="${name}"

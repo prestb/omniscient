@@ -367,7 +367,8 @@
     const selectSuggestion = (suggestion) => {
         showSuggestions.value = false;
         addRecentSearch(suggestion.name);
-        router.visit(`/business/${suggestion.slug}`);
+        // PHASE 16F — search suggestions are LISTINGS (Phase 1D-1).
+        router.visit(`/listing/${suggestion.slug}`);
     };
 
     const selectCategory = (category) => {
