@@ -15,12 +15,12 @@
                         Get started
                     </div>
                     <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
-                        {{ accountType === 'owner' ? 'Create your business account' : 'Join Omniscient' }}
+                        {{ accountType === 'user' ? 'Join Omniscient' : 'Create your discoverable account' }}
                     </h1>
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                         {{ accountType === 'owner'
-                            ? 'Get started with your business listing'
-                            : 'Save favorites, leave reviews, and discover businesses' }}
+                            ? 'Your Listing is what people find on Omniscient'
+                            : 'Save favorites, leave reviews, and discover what you need' }}
                     </p>
                 </div>
 
@@ -32,7 +32,7 @@
                             What brings you here today?
                         </p>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <!-- User -->
                             <button type="button" @click="accountType = 'user'; form.account_type = 'user'"
                                 class="relative p-4 rounded-2xl border-2 transition-all text-left" :class="accountType === 'user'
@@ -51,7 +51,30 @@
                                     </div>
                                 </div>
                                 <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                                    Save favorites, leave reviews, discover businesses.
+                                    Save favorites, leave reviews, and contact listings.
+                                </p>
+                            </button>
+
+
+                            <!-- Professional (PHASE 19B) -->
+                            <button type="button" @click="accountType = 'professional'; form.account_type = 'professional'"
+                                class="relative p-4 rounded-2xl border-2 transition-all text-left" :class="accountType === 'professional'
+                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'">
+                                <div class="flex items-center gap-2.5 mb-2">
+                                    <span class="text-2xl">🧑‍🔧</span>
+                                    <span class="font-bold text-gray-900 dark:text-white text-sm tracking-tight">A professional</span>
+                                    <div class="ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                        :class="accountType === 'professional' ? 'border-primary-500 bg-primary-500' : 'border-gray-300 dark:border-gray-600'">
+                                        <svg v-if="accountType === 'professional'" class="w-3 h-3 text-white" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                                d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    Offer a service. No Business required.
                                 </p>
                             </button>
 
@@ -62,7 +85,7 @@
                                     : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'">
                                 <div class="flex items-center gap-2.5 mb-2">
                                     <span class="text-2xl">🏢</span>
-                                    <span class="font-bold text-gray-900 dark:text-white text-sm tracking-tight">Own a business</span>
+                                    <span class="font-bold text-gray-900 dark:text-white text-sm tracking-tight">An organization</span>
                                     <div class="ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center"
                                         :class="accountType === 'owner' ? 'border-amber-500 bg-amber-500' : 'border-gray-300 dark:border-gray-600'">
                                         <svg v-if="accountType === 'owner'" class="w-3 h-3 text-white" fill="none"
@@ -73,7 +96,7 @@
                                     </div>
                                 </div>
                                 <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                                    List your business, manage customers, grow.
+                                    A Business can group several Listings.
                                 </p>
                             </button>
                         </div>

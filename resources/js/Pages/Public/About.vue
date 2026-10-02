@@ -27,7 +27,7 @@
                         About Omniscient
                     </h1>
                     <p class="text-lg sm:text-xl text-primary-100 max-w-2xl mx-auto">
-                        Connecting people with the best local businesses in Cameroon
+                        Helping people in Cameroon find what they need, and who can do it
                     </p>
                 </div>
             </div>
@@ -46,7 +46,7 @@
                         </div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight mb-2">Our Mission</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                            To empower local businesses and help customers discover the best services and products in their community.
+                            To make it easy to discover the people, businesses and services that can help, wherever you are in community.
                         </p>
                     </div>
 
@@ -99,7 +99,7 @@
                                     Starting in 2024, we built a platform that not only helps customers discover businesses but also gives business owners a powerful tool to grow their presence and connect with their community.
                                 </p>
                                 <p>
-                                    Today, Omniscient is the leading business directory in Cameroon, helping thousands of people discover local businesses and supporting economic growth across the country.
+                                    Omniscient helps people in Cameroon discover the professionals, businesses, stores and places that can help them, and connect with them directly.
                                 </p>
                             </div>
                         </div>

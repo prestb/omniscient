@@ -21,7 +21,7 @@
                         </svg>
                         <span class="truncate">
                             <strong>Verify your email</strong>
-                            <span class="hidden sm:inline opacity-90">— you won't be able to publish a business until
+                            <span class="hidden sm:inline opacity-90">— you won't be able to publish a listing until
                                 it's verified.</span>
                         </span>
                     </div>

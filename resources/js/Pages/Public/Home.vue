@@ -20,20 +20,20 @@
                         <span
                         class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] sm:text-xs font-medium tracking-wide uppercase text-primary-100 mb-4 sm:mb-6 backdrop-blur-sm">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Trusted by thousands across Cameroon
+                        Discover people, businesses, services and places
                     </span>
 
                         <h1
                             class="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-5 leading-tight tracking-tight">
-                            Discover Local
+                            Find what you need.
                             <span class="bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-                                Businesses
+                                Find who can do it.
                             </span>
-                            in Cameroon
                         </h1>
-                        <!-- <p class="text-base sm:text-lg md:text-xl text-primary-100 mb-6 sm:mb-9 max-w-2xl mx-auto">
-                        Find trusted businesses, services, and institutions near you — all in one place.
-                    </p> -->
+                        <p class="text-base sm:text-lg md:text-xl text-primary-100 mb-6 sm:mb-9 max-w-2xl mx-auto">
+                            Search professionals, businesses, stores and places across Cameroon.
+                            See what each one offers, then contact or save it.
+                        </p>
 
                         <!-- Search bar with glow -->
                         <div class="max-w-2xl mx-auto relative">
@@ -44,18 +44,18 @@
                         </div>
 
                         <!-- CTAs -->
-                        <!-- <div class="mt-6 sm:mt-8 flex flex-wrap justify-center gap-2 sm:gap-3">
+                        <div class="mt-6 sm:mt-8 flex flex-wrap justify-center gap-2 sm:gap-3">
                         <a href="/directory"
                             class="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-white text-primary-700 rounded-xl font-semibold hover:bg-gray-50 hover:shadow-xl hover:-translate-y-0.5 transition-all text-sm sm:text-base"><svg
                                 class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            Browse Directory
+                            Browse listings
                         </a>
                         <a href="/register"
                             class="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-white/70 text-white rounded-xl font-semibold hover:bg-white hover:text-primary-700 transition-all text-sm sm:text-base">
-                            List Your Business
+                            Create a Listing
                         </a>
                     </div> -->
 
@@ -126,7 +126,7 @@
                         <span class="text-xs uppercase tracking-widest text-primary-600 dark:text-primary-400 font-semibold">Explore</span>
                         <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mt-2">Popular Categories
                         </h2>
-                        <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-2 sm:mt-3 max-w-xl mx-auto">Browse thousands of
+                        <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-2 sm:mt-3 max-w-xl mx-auto">Browse listings across
                             listings across the categories people search for most.</p>
                     </div>
 
@@ -198,7 +198,7 @@
     class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mt-2 flex items-center gap-2">
                                 <!-- <span>⭐</span> Featured Businesses -->
                             </h2>
-                            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1.5 sm:mt-2">Premium listings trusted by our
+                            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1.5 sm:mt-2">Listings from owners who chose to feature them
                                 community.</p>
                         </div>
                         <a href="/directory?featured=true"
@@ -296,7 +296,7 @@
                             <span class="text-xs uppercase tracking-widest text-primary-600 font-semibold">Fresh</span>
                             <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mt-2">Recently Added
                             </h2>
-                            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1.5 sm:mt-2">The newest businesses joining
+                            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1.5 sm:mt-2">The newest listings added to
                                 the
                                 platform.</p>
                         </div>
@@ -352,7 +352,7 @@
                         <div class="relative grid md:grid-cols-2 gap-6 sm:gap-10 items-center">
                             <div>
                                 <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 leading-tight">
-                                    List Your Business Today
+                                    Create a Listing Today
                                 </h2>
                                 <p class="text-primary-100 text-sm sm:text-lg mb-5 sm:mb-8">
                                     Join thousands of businesses getting discovered by customers across Cameroon.
@@ -442,7 +442,7 @@
         'Reach thousands of local customers',
         'Showcase photos, hours & services',
         'Respond to reviews & capture leads',
-        'Verified badges on premium plans',
+        'Featured placement on premium plans',
     ];
 
     // ============== PULL-TO-REFRESH ==============

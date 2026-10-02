@@ -36,8 +36,7 @@
                  a Listing-scoped endpoint. -->
 
             <!-- Status badges (top right) -->
-            <div class="absolute top-4 right-4 flex flex-wrap gap-2 justify-end max-w-[90%]">
-                <div v-if="business.feature_flags?.verified_badge"
+            <div class="absolute top-4 right-4 flex flex-wrap gap-2 justify-end max-w-[90%]"> <div v-if="false" data-phase19b-removed-verified
                     class="px-3 py-1.5 bg-blue-600/90 backdrop-blur-sm text-white text-xs font-bold uppercase tracking-wide rounded-full flex items-center gap-1.5 shadow-lg shadow-blue-500/30 border border-blue-400/40">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                         <path fill-rule="evenodd"
@@ -83,8 +82,7 @@
                     <div class="text-white min-w-0 flex-1">
                         <h1
                             class="text-2xl md:text-4xl font-bold tracking-tight drop-shadow-lg flex items-center gap-2 flex-wrap">
-                            {{ business.name }}
-                            <svg v-if="business.feature_flags?.verified_badge"
+                            {{ business.name }} <svg v-if="false" data-phase19b-removed-verified
                                 class="w-6 h-6 md:w-7 md:h-7 text-blue-400 drop-shadow-lg flex-shrink-0"
                                 viewBox="0 0 24 24" fill="currentColor">
                                 <path fill-rule="evenodd"
