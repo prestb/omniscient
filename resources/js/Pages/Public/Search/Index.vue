@@ -249,11 +249,13 @@
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No results found</h3>
+                <h3 class="text-heading-md text-ink dark:text-white mb-2">No listings found</h3>
                 <p class="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your search terms or filters.</p>
-                <a href="/directory"
+                <!-- PHASE 16F — discovery entry points, not a dead end. -->
+                        <a href="/categories" class="inline-flex min-h-11 items-center rounded-control border border-hairline dark:border-hairline-dark px-4 text-body font-semibold text-ink dark:text-gray-100">Browse categories</a>
+                        <a href="/directory"
                     class="inline-flex items-center gap-2 px-5 py-2.5 mt-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold text-sm hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg shadow-primary-500/25">
-                    Browse All Businesses
+                    Browse all listings
                 </a>
             </div>
         </div>

@@ -332,3 +332,80 @@ test('the directory has a recoverable error state with no technical detail', fun
         expect($source)->not->toContain($leak);
     }
 });
+// ── Narrow Search polish (16F micro-pass) ───────────────────────────────────
+
+test('search results use listing-first copy', function () {
+    $source = discoverySource('Pages/Public/Search/Index.vue');
+    $code = preg_replace('#<!--.*?-->#s', '', $source);
+
+    expect($code)->not->toContain('Browse All Businesses');
+    expect($code)->not->toContain('No results found');
+
+    expect($code)->toContain('Browse all listings');
+    expect($code)->toContain('No listings found');
+});
+
+test('the search no-result state offers discovery entry points', function () {
+    $source = discoverySource('Pages/Public/Search/Index.vue');
+
+    expect($source)->toContain('href="/categories"');
+    expect($source)->toContain('Browse categories');
+});
+
+test('autocomplete exposes listbox semantics for its keyboard navigation', function () {
+    $source = discoverySource('Components/Public/SearchAutocomplete.vue');
+
+    // Keyboard nav already existed; the semantics that announce it did not.
+    expect($source)->toContain('role="combobox"');
+    expect($source)->toContain('aria-autocomplete="list"');
+    expect($source)->toContain(':aria-controls="listboxId"');
+    expect($source)->toContain(':aria-activedescendant="activeDescendant"');
+    expect($source)->toContain('computed');
+});
+
+test('autocomplete names its suggestion group after a listing, not a business', function () {
+    $source = discoverySource('Components/Public/SearchAutocomplete.vue');
+
+    expect($source)->toContain("type: 'listing'");
+    expect($source)->toContain("isHighlighted('listing'");
+    expect($source)->not->toContain("type: 'business'");
+    expect($source)->not->toContain("isHighlighted('business'");
+});
+
+test('search components keep canonical listing destinations', function () {
+    foreach ([
+        'Components/Public/SearchBar.vue',
+        'Components/Public/SearchAutocomplete.vue',
+    ] as $rel) {
+        $source = discoverySource($rel);
+        $code = preg_replace('#^\s*//.*$#m', '', $source);
+        $code = preg_replace('#<!--.*?-->#s', '', $code);
+
+        expect($code)->not->toContain('/business/${');
+        expect($code)->toContain('/listing/');
+    }
+});
+
+test('SearchBar browser storage is pre-existing and handler-scoped', function () {
+    // CORRECTED: SearchBar has used localStorage for recent searches since
+    // before this phase. Phase 16F introduced NO browser API; the honest
+    // assertion is that the existing usage stays inside functions rather than
+    // reaching setup/render, and that the components this phase DID touch
+    // remain free of browser APIs entirely.
+    $bar = discoverySource('Components/Public/SearchBar.vue');
+
+    expect($bar)->toContain("localStorage.getItem('recentSearches')");
+    // Every use sits inside a function body, never at setup scope.
+    foreach (['const stored = localStorage', 'localStorage.setItem', 'localStorage.removeItem'] as $use) {
+        expect($bar)->toContain($use);
+    }
+
+    foreach (['Components/Public/SearchAutocomplete.vue', 'Pages/Public/Search/Index.vue'] as $rel) {
+        $code = preg_replace('#<!--.*?-->#s', '', discoverySource($rel));
+        $code = preg_replace('#^\s*//.*$#m', '', $code);
+
+        foreach (['localStorage', 'sessionStorage', 'matchMedia'] as $api) {
+            expect($code)->not->toContain($api);
+        }
+    }
+});

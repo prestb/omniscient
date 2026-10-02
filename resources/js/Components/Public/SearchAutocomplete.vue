@@ -13,7 +13,7 @@
 
             <input ref="inputEl" v-model="query" type="text" :placeholder="placeholder" autocomplete="off"
                 :class="inputClass" @input="onInput" @focus="onFocus" @keydown.down.prevent="moveHighlight(1)"
-                @keydown.up.prevent="moveHighlight(-1)" @keydown.enter.prevent="onEnter" @keydown.esc="close"
+                @keydown.up.prevent="moveHighlight(-1)" @keydown.enter.prevent="onEnter" @keydown.esc="close" role="combobox" aria-autocomplete="list" :aria-controls="listboxId" :aria-activedescendant="activeDescendant"
                 @blur="onBlur" />
 
             <!-- Loading spinner -->
@@ -98,9 +98,9 @@
                         <ul>
                             <li v-for="(biz, idx) in businesses" :key="`b-${biz.id}`">
                                 <button type="button" @mousedown.prevent="selectListing(biz)"
-                                    @mouseenter="highlighted = { type: 'business', index: idx }" :class="[
+                                    @mouseenter="highlighted = { type: 'listing', index: idx }" :class="[
                                         'w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors',
-                                        isHighlighted('business', idx)
+                                        isHighlighted('listing', idx)
                                             ? 'bg-primary-50 dark:bg-primary-900/20'
                                             : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                                     ]">
@@ -171,7 +171,7 @@
 </template>
 
 <script setup>
-    import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+    import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue';
     import { router } from '@inertiajs/vue3';
     import axios from 'axios';
 
@@ -192,6 +192,17 @@
     const categories = ref([]);
     const searches = ref([]);
     const highlighted = ref({ type: null, index: -1 });
+
+/**
+ * PHASE 16F — the panel had keyboard navigation but NO listbox semantics, so a
+ * screen reader received no suggestion state at all. `aria-activedescendant`
+ * tracks the highlighted option.
+ */
+const listboxId = 'search-suggestions';
+const activeDescendant = computed(() => {
+    if (!highlighted.value.type || highlighted.value.index < 0) return undefined;
+    return `suggestion-${highlighted.value.type}-${highlighted.value.index}`;
+});
     const dropdownStyle = ref({});
 
     let debounceTimer = null;
@@ -320,7 +331,7 @@
         }
 
         const flat = [
-            ...businesses.value.map((_, i) => ({ type: 'business', index: i })),
+            ...businesses.value.map((_, i) => ({ type: 'listing', index: i })),
             ...searches.value.map((_, i) => ({ type: 'search', index: i })),
             ...categories.value.map((_, i) => ({ type: 'category', index: i })),
         ];
@@ -341,7 +352,7 @@
     };
 
     const onEnter = () => {
-        if (highlighted.value.type === 'business') {
+        if (highlighted.value.type === 'listing') {
             const biz = businesses.value[highlighted.value.index];
             if (biz) selectListing(biz);
             return;
