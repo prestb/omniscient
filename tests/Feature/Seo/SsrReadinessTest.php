@@ -177,7 +177,8 @@ test('collection json-ld is declarative in Head and listing-first', function () 
     // Strip comments: the migration note legitimately names the old API.
     $builder = preg_replace('#//.*$#m', '', $builder);
 
-    expect($builder)->toContain('/listing/');
+    // PHASE 17 — the builder routes Listing URLs through the canonical helper.
+    expect($builder)->toContain('listingUrl');
     expect($builder)->not->toContain('/business/${');
     expect($builder)->not->toContain('window.location');
 });

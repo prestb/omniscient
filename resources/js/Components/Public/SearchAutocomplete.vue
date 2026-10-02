@@ -171,6 +171,7 @@
 </template>
 
 <script setup>
+    import { listingUrl } from '@/urls';
     import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue';
     import { router } from '@inertiajs/vue3';
     import axios from 'axios';
@@ -376,7 +377,7 @@ const activeDescendant = computed(() => {
     const selectListing = (biz) => {
         close();
         query.value = '';
-        router.visit(`/listing/${biz.slug}`);
+        router.visit(listingUrl(biz));
     };
 
     const selectSearch = (suggestion) => {

@@ -1,6 +1,6 @@
 <!-- resources/js/Components/Public/ListingCard.vue -->
 <template>
-    <Link :href="`/listing/${listing.slug}`" :class="['block group h-full', compact ? 'business-card-compact' : '']">
+    <Link :href="listingUrl(listing)" :class="['block group h-full', compact ? 'business-card-compact' : '']">
         <div
             class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all duration-300 overflow-hidden h-full hover:-translate-y-1">
 
@@ -117,6 +117,7 @@
 </template>
 
 <script setup>
+    import { listingUrl } from '@/urls';
     import { ref, computed } from 'vue';
     import { Link, router, usePage } from '@inertiajs/vue3';
     import { useToast } from '@/composables/useToast';

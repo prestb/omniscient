@@ -131,6 +131,7 @@
 </template>
 
 <script setup>
+    import { listingUrl } from '@/urls';
     import { ref, computed } from 'vue';
     import { Head, Link, router } from '@inertiajs/vue3';
     import PublicLayout from '@/Layouts/PublicLayout.vue';
@@ -193,7 +194,7 @@
         const items = (props.listings?.data || []).map((l, i) => ({
             '@type': 'ListItem',
             position: i + 1,
-            url: `${origin}/listing/${l.slug}`,
+            url: `${origin}${listingUrl(l)}`,
             name: l.name,
         }));
 

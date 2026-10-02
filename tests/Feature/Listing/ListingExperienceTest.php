@@ -100,7 +100,7 @@ test('gallery images are genuinely absent from the public listing payload', func
     expect($resource)->not->toContain("'images' =>");
 });
 
-test('no contact action is available in the public listing payload', function () {
+test('listing contacts are exposed and the inquiry form remains the attributed path', function () {
     // CORRECTED FINDING: neither a contacts collection nor a location phone is
     // exposed. The Listing page's existing tel: link is therefore dead code and
     // can never render. The only engagement path is the Phase 12 inquiry form,
@@ -108,18 +108,23 @@ test('no contact action is available in the public listing payload', function ()
     // resource change this phase is not permitted to make.
     $resource = file_get_contents(app_path('Http/Resources/ListingDirectoryResource.php'));
 
-    expect($resource)->not->toContain("'contacts' =>");
-    expect($resource)->not->toContain("'phone'");
+    expect($resource)->toContain("'contacts' =>");
+    // PHASE 17 supersedes the Phase 16E finding above: contacts ARE now\n    // serialized from the Listing-owned listing_contacts records.\n    expect(file_get_contents(resource_path('js/urls.js')))->toContain('export function contactHref');
+    expect(file_get_contents(resource_path('js/Pages/Public/ListingProfile.vue')))->toContain('contactHref');
 
     // The inquiry form remains the real, Listing-attributed engagement path.
     expect(file_get_contents(resource_path('js/Pages/Public/ListingProfile.vue')))
         ->toContain('LeadCaptureForm');
 });
 
-test('services are still absent from the public listing payload', function () {
+test('listing detail is opt-in so discovery payloads stay lean', function () {
+    // PHASE 17 changed this contract: services/contacts/gallery are now
+    // serialized, but ONLY for the canonical Listing page. The invariant
+    // that still matters is that discovery payloads are not bloated.
     $resource = file_get_contents(app_path('Http/Resources/ListingDirectoryResource.php'));
 
-    expect($resource)->not->toContain("'services' =>");
+    expect($resource)->toContain('mergeWhen($this->detailed');
+    expect($resource)->toContain('private bool $detailed = false');
 });
 
 // ── Preserved invariants ────────────────────────────────────────────────────

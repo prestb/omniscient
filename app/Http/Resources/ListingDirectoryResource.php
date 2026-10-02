@@ -22,6 +22,15 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class ListingDirectoryResource extends JsonResource
 {
+    /**
+     * PHASE 17 — discovery payloads stay lean; only the canonical Listing
+     * page opts into the full Listing-owned detail.
+     */
+    public function __construct($resource, private bool $detailed = false)
+    {
+        parent::__construct($resource);
+    }
+
     public function toArray($request)
     {
         $location = $this->location;
@@ -122,6 +131,43 @@ class ListingDirectoryResource extends JsonResource
                 'verified_badge' => (bool) $this->owner?->canUse('verified_badge'),
                 'featured_listing' => (bool) $this->owner?->canUse('featured_listing'),
             ],
+
+            // ── PHASE 17: LISTING-OWNED detail (opt-in) ─────────────────
+            // The controller already eager-loads these; only serialization
+            // was missing. Business branding is a separate concept and is
+            // never substituted for Listing media.
+            $this->mergeWhen($this->detailed, [
+                'services' => $this->relationLoaded('services')
+                    ? $this->services->map(fn($s) => [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'description' => $s->description,
+                    ])->values()
+                    : [],
+
+                'gallery' => $this->relationLoaded('images')
+                    ? $this->images
+                        ->where('type', ListingImage::TYPE_GALLERY)
+                        ->map(fn($i) => [
+                            'id' => $i->id,
+                            'path' => $i->path,
+                            'caption' => $i->caption,
+                        ])->values()
+                    : [],
+
+                // Contacts are LISTING-owned. Blank values are dropped so
+                // nothing unusable or fabricated reaches the page.
+                'contacts' => $this->relationLoaded('contacts')
+                    ? $this->contacts
+                        ->filter(fn($c) => trim((string) $c->value) !== '')
+                        ->map(fn($c) => [
+                            'id' => $c->id,
+                            'type' => $c->type,
+                            'value' => $c->value,
+                            'is_primary' => (bool) $c->is_primary,
+                        ])->values()
+                    : [],
+            ]),
         ];
     }
 }

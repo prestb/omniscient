@@ -205,6 +205,7 @@
 </template>
 
 <script setup>
+    import { listingUrl } from '@/urls';
     import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
     import { router } from '@inertiajs/vue3';
     import axios from 'axios';
@@ -368,7 +369,7 @@
         showSuggestions.value = false;
         addRecentSearch(suggestion.name);
         // PHASE 16F — search suggestions are LISTINGS (Phase 1D-1).
-        router.visit(`/listing/${suggestion.slug}`);
+        router.visit(listingUrl(suggestion));
     };
 
     const selectCategory = (category) => {

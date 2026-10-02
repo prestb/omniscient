@@ -93,6 +93,7 @@
 </template>
 
 <script setup>
+    import { listingUrl } from '@/urls';
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useGeolocation } from '@/composables/useGeolocation';
@@ -304,7 +305,7 @@ const buildPopupHtml = (business) => {
     const address = escapeHtml(business.address || '');
     // PHASE 16F — the map renders LISTINGS, so the popup must point at the
     // canonical Listing URL. `/business/{listing.slug}` cannot resolve.
-    const url = `/listing/${encodeURIComponent(business.slug)}`;
+    const url = listingUrl(business.slug);
 
     const cover = business.cover_image_url
         ? `<img src="${escapeHtml(business.cover_image_url)}" alt="${name}"

@@ -72,7 +72,7 @@
                             :class="favorited ? 'text-white' : 'text-white/80 hover:text-white'"
                             :aria-pressed="String(favorited)"
                             :aria-label="favorited ? 'Remove from saved' : 'Save this listing'"
-                            :disabled="saving"
+                            :disabled="savingFavorite"
                             @click="toggleFavorite"
                         >
                             <svg class="h-4 w-4" :fill="favorited ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -137,6 +137,58 @@
                     <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Send an inquiry</h2>
                     <LeadCaptureForm :listing="listing" />
                 </section>
+                <!-- PHASE 17 — LISTING-OWNED SERVICES.
+                     Services belong to the Listing (Wave 1D-3); they are not
+                     copied from a Business and never fanned out across sibling
+                     Listings. An empty collection renders nothing. -->
+                <section v-if="(listing.services || []).length"
+                    class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Services</h2>
+                    <ul class="flex flex-wrap gap-2">
+                        <li v-for="service in listing.services" :key="service.id">
+                            <Badge variant="neutral">{{ service.name }}</Badge>
+                        </li>
+                    </ul>
+                </section>
+
+                <!-- PHASE 17 — LISTING-OWNED MEDIA.
+                     `listing_images`, never `businesses.logo`/`cover_image`: the
+                     two concepts are deliberately separate and are not synced. -->
+                <section v-if="(listing.gallery || []).length"
+                    class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Photos</h2>
+                    <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <li v-for="img in listing.gallery" :key="img.id">
+                            <OptimizedImage :path="img.path" :alt="img.caption || listing.name" size="thumb"
+                                img-class="w-full h-28 sm:h-32 object-cover rounded-control"
+                                fallback-class="w-full h-28 sm:h-32 rounded-control bg-gray-100 dark:bg-gray-700" />
+                        </li>
+                    </ul>
+                </section>
+
+                <!-- PHASE 17 — LISTING-OWNED CONTACTS.
+                     Replaces the dead `listing.location.phone` path: the location
+                     payload has never carried a phone, so that tel: link could
+                     never render. Values come from `listing_contacts`; blank
+                     values are dropped server-side and absent types render no
+                     control at all. -->
+                <section v-if="(listing.contacts || []).length"
+                    class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                    <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Contact</h2>
+                    <ul class="space-y-2">
+                        <li v-for="contact in listing.contacts" :key="contact.id">
+                            <a v-if="contactHref(contact)" :href="contactHref(contact)"
+                                target="_blank" rel="noopener noreferrer"
+                                class="inline-flex min-h-11 items-center gap-2 text-body font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-control">
+                                {{ contactLabel(contact.type) }}
+                                <span class="font-normal text-ink-muted dark:text-gray-400">{{ contact.value }}</span>
+                            </a>
+                            <span v-else class="text-body text-ink-muted dark:text-gray-400">
+                                {{ contactLabel(contact.type) }}: {{ contact.value }}
+                            </span>
+                        </li>
+                    </ul>
+                </section>
                 <!-- Organization context: the Listing stays canonical -->
                 <section v-if="listing.business_id" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
                     <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Organization</h2>
@@ -172,6 +224,9 @@ import LeadCaptureForm from '@/Components/Public/LeadCaptureForm.vue';
 // PHASE 16E — the Listing page now consumes the design system rather than
 // hand-rolling a type pill, a rating span and raw surface classes.
 import ListingTypeBadge from '@/Components/Public/ui/ListingTypeBadge.vue';
+import Badge from '@/Components/Public/ui/Badge.vue';
+// PHASE 17 — Listing-owned contact links.
+import { contactHref, contactLabel } from '@/urls';
 import RatingSummary from '@/Components/Public/ui/RatingSummary.vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -179,6 +234,9 @@ import { onMounted, ref } from 'vue';
 
 const props = defineProps({
     listing: { type: Object, required: true },
+    // PHASE 16E/17 - viewer's own favorite state for THIS Listing.
+    // Listing-scoped: favorites are Listing-owned (Wave 1D-5A).
+    is_favorited: { type: Boolean, default: false },
     // PHASE 15B - canonical metadata passed by the controller.
     seo: { type: Object, default: null },
 });
@@ -196,5 +254,29 @@ const trackClick = (type) => {
 
 onMounted(() => {
     axios.post(`/analytics/listing/${props.listing.id}/track-view`).catch(() => {});
+
+    /**
+     * PHASE 16E/17 - the existing Listing-scoped favorite capability
+     * (POST /favorites/{listing}/toggle). Optimistic, reverting on
+     * failure, including a guest hitting the auth guard.
+     */
+    const favorited = ref(props.is_favorited);
+    const savingFavorite = ref(false);
+
+    const toggleFavorite = async () => {
+        if (savingFavorite.value) return;
+        savingFavorite.value = true;
+        const previous = favorited.value;
+        favorited.value = !previous;
+
+        try {
+            const { data } = await axios.post(`/favorites/${props.listing.id}/toggle`);
+            favorited.value = data.is_favorited;
+        } catch (e) {
+            favorited.value = previous;
+        } finally {
+            savingFavorite.value = false;
+        }
+    };
 });
 </script>

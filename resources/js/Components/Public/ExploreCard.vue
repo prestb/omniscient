@@ -1,6 +1,6 @@
 <!-- resources/js/Components/Public/ExploreCard.vue -->
 <template>
-    <Link :href="`/listing/${listing.slug}`" class="block group h-full">
+    <Link :href="listingUrl(listing)" class="block group h-full">
         <div
             class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 h-full">
             <!-- Image -->
@@ -51,6 +51,7 @@
 </template>
 
 <script setup>
+    import { listingUrl } from '@/urls';
     import { Link } from '@inertiajs/vue3';
     import OptimizedImage from './OptimizedImage.vue';
 

@@ -48,7 +48,8 @@ class ListingController extends Controller
             ->firstOrFail();
 
         return Inertia::render('Public/ListingProfile', [
-            'listing' => (new ListingDirectoryResource($listing))->resolve(),
+            // PHASE 17 — the canonical Listing page opts into Listing-owned detail.
+            'listing' => (new ListingDirectoryResource($listing, detailed: true))->resolve(),
             // PHASE 16E correction — the viewer's own favorite state for THIS
             // Listing. Listing-scoped (favorites are Listing-owned, Wave 1D-5A);
             // no Business favorite semantics and no new endpoint.

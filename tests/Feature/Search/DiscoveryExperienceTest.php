@@ -40,17 +40,21 @@ test('no discovery component links a listing slug to the business route', functi
 ]);
 
 test('discovery results navigate to the canonical listing url', function () {
-    // Map popup.
-    expect(discoverySource('Components/Public/DirectoryMap.vue'))
-        ->toContain('`/listing/${encodeURIComponent(business.slug)}`');
-
-    // Search bar suggestion.
-    expect(discoverySource('Components/Public/SearchBar.vue'))
-        ->toContain('`/listing/${suggestion.slug}`');
-
-    // Autocomplete.
-    expect(discoverySource('Components/Public/SearchAutocomplete.vue'))
-        ->toContain('`/listing/${biz.slug}`');
+    // PHASE 17 — construction now goes through the canonical helper, so the
+    // assertion is that every discovery surface USES it rather than that it
+    // repeats a literal.
+    foreach ([
+        'Components/Public/DirectoryMap.vue',
+        'Components/Public/SearchBar.vue',
+        'Components/Public/SearchAutocomplete.vue',
+        'Components/Public/ListingCard.vue',
+        'Components/Public/ExploreCard.vue',
+        'Pages/Public/Collection.vue',
+    ] as $rel) {
+        $src = discoverySource($rel);
+        expect($src)->toContain('listingUrl');
+        expect($src)->toContain("from '@/urls'");
+    }
 });
 
 test('autocomplete no longer names its handler after a business', function () {
@@ -63,7 +67,7 @@ test('autocomplete no longer names its handler after a business', function () {
 test('the discovery card remains the canonical ListingCard with canonical links', function () {
     $card = discoverySource('Components/Public/ListingCard.vue');
 
-    expect($card)->toContain('`/listing/${listing.slug}`');
+    expect($card)->toContain('listingUrl(listing)');
     expect($card)->toContain('ListingTypeBadge');
 
     // Old primitives must not return to the canonical card.
@@ -115,13 +119,15 @@ test('search ranking rules were not modified in this phase', function () {
     }
 });
 
-test('no payload expansion was made for discovery', function () {
+test('discovery results are not bloated with listing detail', function () {
+    // PHASE 17 added services/contacts/gallery to the resource, but behind
+    // a `detailed` opt-in that only the canonical Listing page sets. The
+    // discovery invariant therefore still holds.
     $resource = file_get_contents(app_path('Http/Resources/ListingDirectoryResource.php'));
+    expect($resource)->toContain('mergeWhen($this->detailed');
 
-    // The three known gaps stay gaps, as Phase 16F requires.
-    expect($resource)->not->toContain("'services' =>");
-    expect($resource)->not->toContain("'contacts' =>");
-    expect($resource)->not->toContain("'images' =>");
+    $controller = file_get_contents(app_path('Http/Controllers/Public/ListingController.php'));
+    expect($controller)->toContain('detailed: true');
 });
 
 // ── Listing-type neutrality ─────────────────────────────────────────────────
@@ -382,7 +388,8 @@ test('search components keep canonical listing destinations', function () {
         $code = preg_replace('#<!--.*?-->#s', '', $code);
 
         expect($code)->not->toContain('/business/${');
-        expect($code)->toContain('/listing/');
+        // PHASE 17 — construction goes through the canonical helper.
+        expect($code)->toContain('listingUrl');
     }
 });
 
