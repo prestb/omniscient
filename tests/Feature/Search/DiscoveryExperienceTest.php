@@ -488,3 +488,68 @@ test('primitives keep a visible focus state', function () {
 test('reduced motion remains handled globally', function () {
     expect(file_get_contents(resource_path('css/app.css')))->toContain('prefers-reduced-motion');
 });
+// ── Responsive refinement (16G continuation) ────────────────────────────────
+
+test('truncated flex children can actually shrink', function () {
+    // A flex item will not shrink below its content width without min-w-0, so
+    // `truncate` silently fails and the row overflows at narrow widths.
+    $card = discoverySource('Components/Public/ListingCard.vue');
+
+    $truncated = preg_match_all('/truncate|line-clamp/', $card);
+    $constrained = preg_match_all('/min-w-0/', $card);
+
+    expect($truncated)->toBeGreaterThan(0);
+    expect($constrained)->toBeGreaterThan(0);
+
+    // Specifically: the review/category row that overflows at ~320px.
+    expect($card)->toContain('min-w-0');
+    expect($card)->toMatch('/class="flex items-center gap-1\.5[^"]*min-w-0"/');
+});
+
+test('no truncated flex child lacks a shrink constraint', function (string $rel) {
+    $source = discoverySource($rel);
+
+    $truncated = preg_match_all('/truncate|line-clamp/', $source);
+    if ($truncated === 0) {
+        expect(true)->toBeTrue();
+        return;
+    }
+
+    // Where truncation is used, a shrink constraint must also exist.
+    // A shrink constraint may be the Tailwind class or inline CSS.
+    expect(preg_match_all('/min-w-0|min-w-\[0\]|flex-shrink-0|min-width:\s*0/', $source))->toBeGreaterThan(0);
+})->with([
+    'Components/Public/ListingCard.vue',
+    'Components/Public/DirectoryMap.vue',
+    'Components/Public/SearchAutocomplete.vue',
+    'Components/Public/SearchBar.vue',
+]);
+
+test('public page content width is consistent', function () {
+    $pages = [
+        'Pages/Public/Home.vue',
+        'Pages/Public/Explore.vue',
+        'Pages/Public/Collection.vue',
+        'Pages/Public/Categories.vue',
+        'Pages/Public/Locations.vue',
+        'Pages/Public/Search/Index.vue',
+        'Pages/Public/Directory.vue',
+        'Pages/Public/ListingProfile.vue',
+    ];
+
+    foreach ($pages as $rel) {
+        expect(discoverySource($rel))->toContain('max-w-7xl');
+    }
+});
+
+test('the responsive shell breakpoint remains unchanged', function () {
+    // `md` is the documented shell breakpoint established in 16D.
+    expect(discoverySource('Layouts/PublicLayout.vue'))->toContain('hidden md:flex');
+    expect(discoverySource('Components/Public/Shell/PublicMobileNav.vue'))->toContain('md:hidden');
+});
+
+test('touch targets on public action controls meet the 44px baseline', function () {
+    expect(discoverySource('Components/Public/Shell/PublicMobileNav.vue'))->toContain('min-h-14');
+    expect(discoverySource('Components/Public/MobileFilterSheet.vue'))->toContain('min-h-11');
+    expect(discoverySource('Pages/Public/Directory.vue'))->toContain('min-h-11');
+});

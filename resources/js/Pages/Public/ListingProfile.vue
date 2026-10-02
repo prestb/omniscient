@@ -23,7 +23,7 @@
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10"></div>
 
             <div class="absolute bottom-0 left-0 right-0">
-                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
                     <div class="flex items-end gap-4">
                         <!-- Listing logo is LISTING media, not organization branding.
                              It is supporting identity, never a replacement for the name. -->
@@ -89,7 +89,7 @@
             </div>
         </div>
 
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- ==================== MAIN ==================== -->
             <div class="lg:col-span-2 space-y-6">
                 <section v-if="listing.description" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
