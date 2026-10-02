@@ -252,23 +252,11 @@ class DirectoryController extends Controller
         $viewMode = $request->input('view', 'list');
 
         // ============== APPLY VERIFIED FILTER (post-query) ==============
-        // (Runs on the collection for both list and map.)
-        if ($request->filled('verified') && $request->verified == 'true') {
-            // For the LIST: filter the paginated collection
-            // For the MAP: we need to fetch everything first, so handle below
-        }
 
         if ($viewMode === 'map') {
             // MAP MODE — fetch all matching listings with coordinates,
             // no pagination, minimal payload.
             $allListings = $query->get();
-
-            // Post-filter: verified
-            if ($request->filled('verified') && $request->verified == 'true') {
-                $allListings = $allListings->filter(function ($listing) {
-                    return (bool) $listing->owner?->canUse('verified_badge');
-                })->values();
-            }
 
             // Post-filter: only listings whose single Location carries coordinates
             $mapListings = $allListings
@@ -293,14 +281,6 @@ class DirectoryController extends Controller
         } else {
             // LIST MODE — paginate
             $listings = $query->paginate(12)->withQueryString();
-
-            if ($request->filled('verified') && $request->verified == 'true') {
-                $listings->setCollection(
-                    $listings->getCollection()->filter(function ($listing) {
-                        return (bool) $listing->owner?->canUse('verified_badge');
-                    })->values()
-                );
-            }
 
             // ============== FAVORITES (list mode only) ==============
             $userFavoriteIds = [];
@@ -344,8 +324,7 @@ class DirectoryController extends Controller
                     'city_id',
                     'open_now',
                     'featured',
-                    'verified',
-                    'min_rating',
+                            'min_rating',
                     'has_photos',
                     'has_whatsapp',
                     'sort',

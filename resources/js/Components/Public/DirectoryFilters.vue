@@ -81,13 +81,6 @@
                             :class="local.open_now ? 'bg-white animate-pulse' : 'bg-green-500'"></span>
                         Open Now
                     </button>
-                    <button type="button" @click="local.verified = !local.verified"
-                        :class="local.verified
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border text-sm font-medium transition-all">
-                        ✓ Verified
-                    </button>
                     <button type="button" @click="local.featured = !local.featured"
                         :class="local.featured
                             ? 'bg-amber-500 text-white border-amber-500'
@@ -217,19 +210,6 @@
                         <span class="w-1.5 h-1.5 rounded-full"
                             :class="local.open_now ? 'bg-white animate-pulse' : 'bg-green-500'"></span>
                         Open Now
-                    </button>
-
-                    <button type="button" @click="toggle('verified')"
-                        :class="local.verified
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all">
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z"
-                                clip-rule="evenodd" />
-                        </svg>
-                        Verified
                     </button>
 
                     <button type="button" @click="toggle('featured')"
@@ -414,7 +394,8 @@
         city_id: props.filters?.city_id || '',
         open_now: props.filters?.open_now === 'true' || props.filters?.open_now === true,
         featured: props.filters?.featured === 'true' || props.filters?.featured === true,
-        verified: props.filters?.verified === 'true' || props.filters?.verified === true,
+            // PHASE 19C - the paid-as-verification filter was retired.
+            // PHASE 19C — the paid-as-verification filter was retired.,
         has_photos: props.filters?.has_photos === 'true' || props.filters?.has_photos === true,
         has_whatsapp: props.filters?.has_whatsapp === 'true' || props.filters?.has_whatsapp === true,
         min_rating: props.filters?.min_rating || 0,
@@ -455,7 +436,6 @@
         }
         if (local.open_now) chips.push({ key: 'open_now', label: '🟢 Open Now' });
         if (local.featured) chips.push({ key: 'featured', label: '⭐ Featured' });
-        if (local.verified) chips.push({ key: 'verified', label: '✓ Verified' });
         if (local.has_photos) chips.push({ key: 'has_photos', label: '📸 Gallery Photos' });
         if (local.has_whatsapp) chips.push({ key: 'has_whatsapp', label: '💬 WhatsApp' });
         if (local.min_rating > 0) chips.push({ key: 'min_rating', label: `⭐ ${local.min_rating}+ Stars` });
@@ -562,7 +542,6 @@
         if (local.city_id) params.city_id = local.city_id;
         if (local.open_now) params.open_now = 'true';
         if (local.featured) params.featured = 'true';
-        if (local.verified) params.verified = 'true';
         if (local.has_photos) params.has_photos = 'true';
         if (local.has_whatsapp) params.has_whatsapp = 'true';
         if (local.min_rating > 0) params.min_rating = local.min_rating;
@@ -625,7 +604,6 @@
         local.city_id = '';
         local.open_now = false;
         local.featured = false;
-        local.verified = false;
         local.has_photos = false;
         local.has_whatsapp = false;
         local.min_rating = 0;
@@ -641,7 +619,7 @@
 
     // ============ REMOVE CHIP ============
     const removeChip = (key) => {
-        if (['open_now', 'featured', 'verified', 'has_photos', 'has_whatsapp'].includes(key)) {
+        if (['open_now', 'featured', 'has_photos', 'has_whatsapp'].includes(key)) {
             local[key] = false;
         } else if (key === 'min_rating') {
             local.min_rating = 0;

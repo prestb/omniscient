@@ -67,6 +67,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\OwnerController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\BusinessController as AdminBusinessController;
+use App\Http\Controllers\Admin\ListingController as AdminListingController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
@@ -568,6 +569,13 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
 
     // Revenue Analytics
     Route::get('/revenue', [RevenueController::class, 'index'])->name('revenue');
+
+    // Listings — PHASE 19C. The canonical discoverable entity had no admin
+    // surface; admin could only see Businesses. READ-ONLY inspection.
+    Route::prefix('listings')->name('listings.')->group(function () {
+        Route::get('/', [AdminListingController::class, 'index'])->name('index');
+        Route::get('/{listing}', [AdminListingController::class, 'show'])->name('show');
+    });
 
     // Contacts
     Route::prefix('contacts')->name('contacts.')->group(function () {

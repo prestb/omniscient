@@ -242,8 +242,6 @@
             f.open_now === true ||
             f.featured === 'true' ||
             f.featured === true ||
-            f.verified === 'true' ||
-            f.verified === true ||
             f.has_photos === 'true' ||
             f.has_photos === true ||
             f.has_whatsapp === 'true' ||
