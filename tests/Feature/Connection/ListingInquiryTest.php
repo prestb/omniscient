@@ -47,8 +47,11 @@ function inquiryPayload(array $overrides = []): array
 }
 
 test('a business-less listing can receive an inquiry', function () {
-    $owner = User::factory()->owner()->create();
-    $listing = Listing::factory()->create([
+    // PHASE 21B-R2: a business-less Listing is no longer ungated. It obeys
+    // the same account-level lead-capture entitlement as any other Listing,
+    // so this fixture now needs an owner whose plan grants it.
+    $owner = entitledOwner();
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 
         'owner_id' => $owner->id,
         'business_id' => null,
         'status' => Listing::STATUS_PUBLISHED,
@@ -68,6 +71,7 @@ test('a business-less listing can receive an inquiry', function () {
 test('a business-owned listing receives the correct business context', function () {
     $business = Business::factory()->create(['owner_id' => entitledOwner()->id]);
     $listing = Listing::factory()->forBusiness($business)->create([
+        'owner_id' => $business->owner_id,
         'status' => Listing::STATUS_PUBLISHED,
         'hidden_at' => null,
     ]);
@@ -83,8 +87,10 @@ test('a business-owned listing receives the correct business context', function 
 test('two listings of one business attribute inquiries to the exact listing', function () {
     $business = Business::factory()->create(['owner_id' => entitledOwner()->id]);
 
-    $a = Listing::factory()->forBusiness($business)->create(['status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
-    $b = Listing::factory()->forBusiness($business)->create(['status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
+    $a = Listing::factory()->forBusiness($business)->create([
+        'owner_id' => $business->owner_id,'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
+    $b = Listing::factory()->forBusiness($business)->create([
+        'owner_id' => $business->owner_id,'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
 
     $this->post("/listing/{$a->slug}/contact", inquiryPayload())->assertOk();
     $this->post("/listing/{$b->slug}/contact", inquiryPayload())->assertOk();
@@ -99,6 +105,7 @@ test('a visitor cannot spoof business context', function () {
     $other = Business::factory()->create();
 
     $listing = Listing::factory()->forBusiness($real)->create([
+        'owner_id' => $real->owner_id,
         'status' => Listing::STATUS_PUBLISHED,
         'hidden_at' => null,
     ]);
@@ -116,7 +123,7 @@ test('a visitor cannot spoof business context', function () {
 });
 
 test('an unpublished listing cannot receive an inquiry', function () {
-    $listing = Listing::factory()->create([
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 
         'status' => Listing::STATUS_DRAFT,
         'hidden_at' => null,
     ]);
@@ -128,7 +135,7 @@ test('an unpublished listing cannot receive an inquiry', function () {
 });
 
 test('a hidden listing cannot receive an inquiry', function () {
-    $listing = Listing::factory()->create([
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 
         'status' => Listing::STATUS_PUBLISHED,
         'hidden_at' => now(),
     ]);
@@ -140,7 +147,7 @@ test('a hidden listing cannot receive an inquiry', function () {
 });
 
 test('an inquiry requires a contact method and a message', function () {
-    $listing = Listing::factory()->create([
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 
         'status' => Listing::STATUS_PUBLISHED,
         'hidden_at' => null,
     ]);
@@ -159,7 +166,7 @@ test('an inquiry requires a contact method and a message', function () {
 });
 
 test('every new inquiry has a non-null authoritative listing id', function () {
-    $listing = Listing::factory()->create([
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 
         'business_id' => null,
         'status' => Listing::STATUS_PUBLISHED,
         'hidden_at' => null,
@@ -171,8 +178,8 @@ test('every new inquiry has a non-null authoritative listing id', function () {
 });
 
 test('the owner is notified and the notification names the listing', function () {
-    $owner = User::factory()->owner()->create();
-    $listing = Listing::factory()->create([
+    $owner = entitledOwner();
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 
         'owner_id' => $owner->id,
         'business_id' => null,
         'status' => Listing::STATUS_PUBLISHED,
@@ -205,8 +212,8 @@ test('the owner is notified and the notification names the listing', function ()
 });
 
 test('inquiries are not shared across listings', function () {
-    $a = Listing::factory()->create(['business_id' => null, 'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
-    $b = Listing::factory()->create(['business_id' => null, 'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
+    $a = Listing::factory()->create(['owner_id' => entitledOwner()->id, 'business_id' => null, 'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
+    $b = Listing::factory()->create(['owner_id' => entitledOwner()->id, 'business_id' => null, 'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
 
     $this->post("/listing/{$a->slug}/contact", inquiryPayload(['name' => 'For A']))->assertOk();
 
@@ -215,7 +222,7 @@ test('inquiries are not shared across listings', function () {
 });
 
 test('soft-deleting a listing retains its inquiries without orphaning the reference', function () {
-    $listing = Listing::factory()->create(['business_id' => null, 'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
+    $listing = Listing::factory()->create(['owner_id' => entitledOwner()->id, 'business_id' => null, 'status' => Listing::STATUS_PUBLISHED, 'hidden_at' => null]);
 
     $this->post("/listing/{$listing->slug}/contact", inquiryPayload())->assertOk();
 

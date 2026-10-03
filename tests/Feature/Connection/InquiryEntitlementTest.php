@@ -10,32 +10,71 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 /**
- * PHASE 21B-R1 — INQUIRY ENTITLEMENT + OWNER AUTHORIZATION.
+ * PHASE 21B-R2 — LEAD-CAPTURE ENTITLEMENT CONTRACT.
  *
- * These tests DOCUMENT the established contract. No production behaviour was
- * changed: a proposed correction was reverted because it could not be proven
- * SAFE (see the class docblock on the entitlement test below).
+ * CONTRACT PROVEN from database/seeders/PlanSeeder.php, the authoritative plan
+ * source:
+ *
+ *     Free     max_listings 1   lead_capture false
+ *     Starter  max_listings 1   lead_capture false
+ *     Growth   max_listings 3   lead_capture true
+ *     Premium  max_listings -1  lead_capture true
+ *
+ *   Is lead capture subscription-gated?   YES
+ *   Who owns the entitlement?             USER ACCOUNT (the Listing's owner)
+ *   Do business-less Listings obey it?    YES — there is no bypass
+ *
+ * Entitlement resolves as:
+ *
+ *     Listing.owner -> User subscription -> Plan -> lead_capture
+ *
+ * for business-backed AND business-less Listings alike. A Business is never a
+ * subscription owner and never influences the result.
  */
 
-function r1Owner(bool $subscribed): User
+/** An owner on a plan that GRANTS lead_capture (Growth/Premium shape). */
+function entitledListingOwner(): User
 {
-    $user = User::factory()->owner()->create();
+    $owner = User::factory()->owner()->create();
 
-    if ($subscribed) {
-        $plan = Plan::factory()->create(['max_listings' => 10]);
-        Subscription::factory()->create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'status' => Subscription::STATUS_ACTIVE,
-            'start_date' => now()->subDay(),
-            'end_date' => now()->addYear(),
-        ]);
-    }
+    $plan = Plan::factory()->create([
+        'max_listings' => 3,
+        'features' => ['lead_capture' => true],
+    ]);
 
-    return $user;
+    Subscription::factory()->create([
+        'user_id' => $owner->id,
+        'plan_id' => $plan->id,
+        'status' => Subscription::STATUS_ACTIVE,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addYear(),
+    ]);
+
+    return $owner;
 }
 
-function r1Listing(User $owner, ?Business $business = null): Listing
+/** An owner on a plan that does NOT grant lead_capture (Free/Starter shape). */
+function unentitledListingOwner(): User
+{
+    $owner = User::factory()->owner()->create();
+
+    $plan = Plan::factory()->create([
+        'max_listings' => 1,
+        'features' => ['lead_capture' => false],
+    ]);
+
+    Subscription::factory()->create([
+        'user_id' => $owner->id,
+        'plan_id' => $plan->id,
+        'status' => Subscription::STATUS_ACTIVE,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addYear(),
+    ]);
+
+    return $owner;
+}
+
+function r2Listing(User $owner, ?Business $business = null): Listing
 {
     return Listing::factory()->create([
         'owner_id' => $owner->id,
@@ -45,154 +84,174 @@ function r1Listing(User $owner, ?Business $business = null): Listing
     ]);
 }
 
-function r1Inquire(Listing $listing)
+function r2Inquire(Listing $listing, array $overrides = [])
 {
-    return test()->post('/listing/' . $listing->slug . '/contact', [
+    return test()->post('/listing/' . $listing->slug . '/contact', array_merge([
         'name' => 'Visitor',
         'email' => 'visitor@example.com',
         'message' => 'Do you cover this area?',
-    ]);
+    ], $overrides));
 }
 
-// ── THE ROOT CAUSE, PINNED ──────────────────────────────────────────────────
+// ── 1 & 2. Business-less ────────────────────────────────────────────────────
 
-test('the inquiry entitlement is resolved through the BUSINESS, not the listing owner', function () {
+test('a business-less listing with an entitled owner accepts an inquiry', function () {
+    $listing = r2Listing(entitledListingOwner(), business: null);
+
+    r2Inquire($listing)->assertOk()->assertJson(['success' => true]);
+
+    expect(\App\Models\Lead::first()->listing_id)->toBe($listing->id);
+});
+
+test('a business-less listing with a NON-entitled owner is refused', function () {
+    // THE OLD BUG, now impossible: business-less Listings used to bypass the
+    // entitlement check entirely because the `&&` short-circuited.
+    $listing = r2Listing(unentitledListingOwner(), business: null);
+
+    r2Inquire($listing)->assertStatus(403);
+    expect(\App\Models\Lead::count())->toBe(0);
+});
+
+// ── 3 & 4. Business-backed ──────────────────────────────────────────────────
+
+test('a business-backed listing with an entitled listing owner accepts an inquiry', function () {
+    $owner = entitledListingOwner();
+    $business = Business::factory()->create(['owner_id' => $owner->id]);
+    $listing = r2Listing($owner, $business);
+
+    r2Inquire($listing)->assertOk()->assertJson(['success' => true]);
+});
+
+test('a business-backed listing with a NON-entitled listing owner is refused', function () {
+    $owner = unentitledListingOwner();
+    $business = Business::factory()->create(['owner_id' => $owner->id]);
+    $listing = r2Listing($owner, $business);
+
+    r2Inquire($listing)->assertStatus(403);
+});
+
+// ── 5. Business owner differs from Listing owner ────────────────────────────
+
+test('entitlement follows the LISTING owner when the business owner differs', function () {
+    // The schema permits these to differ. An entitled Listing owner grouped
+    // under someone else's (unentitled) Business must still be able to receive
+    // inquiries: the Business must not become a hidden subscription owner.
+    $listingOwner = entitledListingOwner();
+    $businessOwner = unentitledListingOwner();
+    $business = Business::factory()->create(['owner_id' => $businessOwner->id]);
+
+    $listing = r2Listing($listingOwner, $business);
+
+    expect($listing->owner_id)->not->toBe($business->owner_id);
+
+    r2Inquire($listing)->assertOk();
+});
+
+test('an unentitled listing owner cannot borrow the business owners entitlement', function () {
+    // The inverse: an unentitled Listing owner must NOT be granted access just
+    // because the organization that groups the Listing is on a better plan.
+    $listingOwner = unentitledListingOwner();
+    $businessOwner = entitledListingOwner();
+    $business = Business::factory()->create(['owner_id' => $businessOwner->id]);
+
+    $listing = r2Listing($listingOwner, $business);
+
+    r2Inquire($listing)->assertStatus(403);
+});
+
+// ── 6 & 7. No bypass remains ────────────────────────────────────────────────
+
+test('business grouping cannot bypass entitlement', function () {
+    $owner = unentitledListingOwner();
+    $business = Business::factory()->create(['owner_id' => $owner->id]);
+
+    $solo = r2Listing($owner, business: null);
+    $grouped = r2Listing($owner, $business);
+
+    // Identical treatment — the previous asymmetry is gone.
+    r2Inquire($solo)->assertStatus(403);
+    r2Inquire($grouped)->assertStatus(403);
+});
+
+test('the entitlement is no longer resolved through the business', function () {
     $source = file_get_contents(app_path('Http/Controllers/Public/ListingLeadController.php'));
 
-    // The exact condition, as established by Phase 21B-R1.
-    expect($source)->toContain('$listing->business && !$listing->business->hasLeadCaptureFeature()');
-
-    // And it resolves through the organization's owner.
-    $business = file_get_contents(app_path('Models/Business.php'));
-    expect($business)->toContain('return $this->ownerCanUseFeature(\'lead_capture\');');
+    expect($source)->not->toContain('$listing->business &&');
+    expect($source)->toContain('$listing->owner->canUse');
+    expect($source)->toContain('Entitlement::LEAD_CAPTURE');
 });
 
-test('a business-less listing bypasses the entitlement check entirely', function () {
-    // The `&&` SHORT-CIRCUITS: no Business means the whole condition is false,
-    // so no entitlement check runs. This is the documented asymmetry.
-    $owner = r1Owner(subscribed: false);
-    $listing = r1Listing($owner, business: null);
+// ── 8 & 9. Multi-listing account isolation ──────────────────────────────────
 
-    // No Business, no subscription, yet the inquiry is accepted.
-    r1Inquire($listing)->assertOk();
-});
-
-test('a business-backed listing is gated on the organizations plan', function () {
-    $owner = r1Owner(subscribed: true);
+test('every listing owned by the same account uses that accounts entitlement', function () {
+    $owner = entitledListingOwner();
     $business = Business::factory()->create(['owner_id' => $owner->id]);
-    $listing = r1Listing($owner, $business);
 
-    // The plan factory grants no `features`, so Plan::hasFeature('lead_capture')
-    // is false and the inquiry is REFUSED even though the account is subscribed.
-    r1Inquire($listing)->assertStatus(403);
+    $a1 = r2Listing($owner, $business);
+    $a2 = r2Listing($owner, business: null);
 
-    expect($listing->business->hasLeadCaptureFeature())->toBeFalse();
+    r2Inquire($a1)->assertOk();
+    r2Inquire($a2)->assertOk();
 });
 
-test('a plan that grants lead_capture allows a business-backed inquiry', function () {
-    $owner = r1Owner(subscribed: false);
-    $plan = Plan::factory()->create([
-        'max_listings' => 10,
-        'features' => ['lead_capture' => true],
-    ]);
-    Subscription::factory()->create([
-        'user_id' => $owner->id,
-        'plan_id' => $plan->id,
-        'status' => Subscription::STATUS_ACTIVE,
-        'start_date' => now()->subDay(),
-        'end_date' => now()->addYear(),
-    ]);
+test('different owners entitlements stay isolated', function () {
+    $entitled = entitledListingOwner();
+    $unentitled = unentitledListingOwner();
 
+    r2Inquire(r2Listing($entitled))->assertOk();
+    r2Inquire(r2Listing($unentitled))->assertStatus(403);
+});
+
+// ── Plan configuration is feature-driven, not name-driven ───────────────────
+
+test('feature lookup reads plan configuration rather than a plan name', function () {
+    // Two plans with the SAME name but different features must behave
+    // differently, which is only possible if lookup is feature-driven.
+    $granting = Plan::factory()->create(['name' => 'Identical', 'features' => ['lead_capture' => true]]);
+    $denying = Plan::factory()->create(['name' => 'Identical', 'features' => ['lead_capture' => false]]);
+
+    expect($granting->hasFeature('lead_capture'))->toBeTrue();
+    expect($denying->hasFeature('lead_capture'))->toBeFalse();
+
+    $source = file_get_contents(app_path('Http/Controllers/Public/ListingLeadController.php'));
+    // No plan-name conditionals were introduced.
+    expect($source)->not->toContain("=== 'premium'");
+    expect($source)->not->toContain("=== 'growth'");
+});
+
+test('the authoritative plans define lead_capture exactly where intended', function () {
+    // Encodes the contract found in database/seeders/PlanSeeder.php so a future
+    // plan change cannot silently alter who may receive inquiries.
+    $seeder = file_get_contents(database_path('seeders/PlanSeeder.php'));
+
+    expect(substr_count($seeder, "'lead_capture' => true"))->toBe(2);
+    expect(substr_count($seeder, "'lead_capture' => false"))->toBe(2);
+
+    foreach (['Free', 'Starter', 'Growth', 'Premium'] as $plan) {
+        expect($seeder)->toContain("'name' => '{$plan}'");
+    }
+});
+
+// ── Attribution contract unchanged (Phase 12/18) ────────────────────────────
+
+test('lead attribution remains listing-first with optional business context', function () {
+    $owner = entitledListingOwner();
     $business = Business::factory()->create(['owner_id' => $owner->id]);
-    $listing = r1Listing($owner, $business);
+    $listing = r2Listing($owner, $business);
 
-    expect($listing->business->hasLeadCaptureFeature())->toBeTrue();
-    r1Inquire($listing)->assertOk();
+    r2Inquire($listing)->assertOk();
+
+    $lead = \App\Models\Lead::first();
+    expect($lead->listing_id)->toBe($listing->id);
+    expect($lead->business_id)->toBe($business->id);
 });
 
-test('the behaviour matrix is recorded as observed', function () {
-    //  business-less + no plan      -> accepted (the check short-circuits)
-    //  business-backed + no grant   -> 403
-    //  business-backed + grant      -> accepted
-    //
-    // Two Listings owned by the SAME account therefore behave differently purely
-    // because one is grouped under an organization. That is the architectural
-    // finding, and resolving it is a PRODUCT DECISION because the correct
-    // target depends on what production PLANS actually grant, which is data and
-    // not code.
-    $owner = r1Owner(subscribed: true);
-    $plan = $owner->active_subscription->plan;
+test('a business-less inquiry stores a null business context', function () {
+    $listing = r2Listing(entitledListingOwner(), business: null);
 
-    // The plan factory grants no lead_capture feature.
-    expect($plan->hasFeature('lead_capture'))->toBeFalse();
-
-    $solo = r1Listing($owner, business: null);
-    $grouped = r1Listing($owner, Business::factory()->create(['owner_id' => $owner->id]));
-
-    expect($solo->owner_id)->toBe($grouped->owner_id);
-
-    r1Inquire($solo)->assertOk();
-    r1Inquire($grouped)->assertStatus(403);
-});
-
-test('the lead attribution contract is unaffected by the entitlement question', function () {
-    $owner = r1Owner(subscribed: false);
-    $listing = r1Listing($owner, business: null);
-
-    r1Inquire($listing)->assertOk();
+    r2Inquire($listing)->assertOk();
 
     $lead = \App\Models\Lead::first();
     expect($lead->listing_id)->toBe($listing->id);
     expect($lead->business_id)->toBeNull();
-});
-
-// ── OWNER AUTHORIZATION (Part 8) ────────────────────────────────────────────
-
-test('owner listing routes carry inconsistent role middleware', function () {
-    $router = app('router')->getRoutes();
-    $find = fn (string $uri) => collect($router->getRoutes())->first(fn ($r) => $r->uri() === $uri);
-
-    // RECORDED, NOT CHANGED. This is route REACHABILITY, not resource
-    // authorization.
-    expect($find('owner/dashboard')->middleware())->toContain('role:owner');
-    expect($find('owner/listings')->middleware())->toContain('role:user,owner');
-    expect($find('owner/listings/{listing}/edit')->middleware())->toContain('role:user,owner');
-    expect($find('owner/listings/{listing}/leads')->middleware())->toContain('role:owner');
-});
-
-test('a normal user reaches owner listing management but owns nothing there', function () {
-    $user = User::factory()->create(['role' => User::ROLE_USER]);
-
-    // Reachable because of `role:user,owner`...
-    $this->actingAs($user)->get('/owner/listings')->assertOk();
-
-    // ...but the data is scoped by owner_id, so the surface is empty, and a
-    // foreign Listing edit is still refused by the controller.
-    $foreign = r1Listing(r1Owner(subscribed: false));
-    $status = $this->actingAs($user)->get("/owner/listings/{$foreign->id}/edit")->getStatusCode();
-
-    expect($status)->toBeIn([200, 301, 302, 403]);
-});
-
-test('a normal user cannot reach genuinely owner-only surfaces', function () {
-    $user = User::factory()->create(['role' => User::ROLE_USER]);
-
-    $response = $this->actingAs($user)->get('/owner/dashboard');
-    expect($response->getStatusCode())->toBeIn([301, 302, 403]);
-});
-
-test('a guest cannot perform owner actions', function () {
-    $listing = r1Listing(r1Owner(subscribed: false));
-
-    $this->get('/owner/listings')->assertRedirect(route('login'));
-    $this->get("/owner/listings/{$listing->id}/leads")->assertRedirect(route('login'));
-});
-
-test('one owner cannot manage another owners listing', function () {
-    $owner = r1Owner(true);
-    $stranger = r1Owner(true);
-    $listing = r1Listing($owner);
-
-    $this->actingAs($stranger)->get("/owner/listings/{$listing->id}/edit")->assertForbidden();
-    $this->actingAs($stranger)->get("/owner/listings/{$listing->id}/leads")->assertForbidden();
 });

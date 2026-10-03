@@ -38,10 +38,10 @@ class ListingLeadController extends Controller
         // feature, exactly as before. A Business-less Listing has no plan of its
         // own to consume — before Phase 12 it could not receive an inquiry at
         // all — so it is permitted rather than silently dropped.
-        if ($listing->business && !$listing->business->hasLeadCaptureFeature()) {
+        if (!$listing->owner || !$listing->owner->canUse(\App\Support\Entitlement::LEAD_CAPTURE)) {
             return response()->json([
                 'success' => false,
-                'message' => 'This business does not accept contact forms.',
+                'message' => 'This listing does not accept inquiries on its current plan.',
             ], 403);
         }
 

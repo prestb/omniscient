@@ -5,6 +5,8 @@ use App\Models\Business;
 use App\Models\Favorite;
 use App\Models\Lead;
 use App\Models\Listing;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\ListingContact;
 use App\Models\ListingService;
 use App\Models\User;
@@ -20,9 +22,31 @@ uses(RefreshDatabase::class);
  * journey WITHOUT a Business.
  */
 
+/**
+ * A Professional whose plan grants lead_capture.
+ *
+ * PHASE 21B-R2: inquiries are subscription-gated against the LISTING OWNER's
+ * account. Before R2 a business-less Listing bypassed the check entirely, so
+ * these fixtures passed without any entitlement. They must now hold one.
+ */
 function pro(): User
 {
-    return User::factory()->owner()->create();
+    $owner = User::factory()->owner()->create();
+
+    $plan = Plan::factory()->create([
+        'max_listings' => 3,
+        'features' => ['lead_capture' => true],
+    ]);
+
+    Subscription::factory()->create([
+        'user_id' => $owner->id,
+        'plan_id' => $plan->id,
+        'status' => Subscription::STATUS_ACTIVE,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addYear(),
+    ]);
+
+    return $owner;
 }
 
 function proListing(User $owner, array $attrs = []): Listing
