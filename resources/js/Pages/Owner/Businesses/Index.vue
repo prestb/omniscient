@@ -11,7 +11,7 @@
                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </template>
             <template #title>My Businesses</template>
-            <template #subtitle>Manage all your business listings in one place</template>
+            <template #subtitle>Manage all your organizations in one place</template>
             <template #actions>
                 <span
                     class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -322,7 +322,7 @@
                 </div>
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">No businesses yet</h3>
                 <p class="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
-                    You haven't created any businesses yet. Start by adding your first business listing.
+                    You haven't created an organization yet. An organization is optional - it can group several of your Listings listing.
                 </p>
 
                 <a v-if="canCreate" href="/owner/businesses/create"

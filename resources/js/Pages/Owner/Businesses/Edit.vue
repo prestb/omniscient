@@ -12,7 +12,7 @@
                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </template>
             <template #title>{{ business.name }}</template>
-            <template #subtitle>Manage your business listing</template>
+            <template #subtitle>Manage your organization</template>
             <template #actions>
                 <BusinessStatusToggle :business="business" />
 
@@ -90,20 +90,20 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            Get verified
+                            Featured placement
                             <span
                                 class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold tracking-wide uppercase">Growth+</span>
                         </h3>
                         <p class="text-sm text-gray-600 dark:text-gray-300 mt-0.5">
-                            Add a blue verified badge and stand out in search results.
+                            Highlight your organization so it stands out where it appears.
                         </p>
                     </div>
                 </div>
                 <button @click="showUpgrade('Verified Badge', 'Growth', [
-                    'Blue checkmark on your business profile',
-                    'Build trust with customers',
+                    'Highlighted presentation of your organization',
+                    'Clearer presentation on your organization page',
                     'Stand out in search results',
-                    'Increase conversions by up to 40%',
+                    'Available on higher plans',
                 ])"
                     class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25 hover:-translate-y-0.5 whitespace-nowrap text-sm">
                     Upgrade Now
@@ -118,9 +118,9 @@
                     </svg>
                 </div>
                 <div>
-                    <h3 class="font-bold text-gray-900 dark:text-white">Your business is verified</h3>
+                    <h3 class="font-bold text-gray-900 dark:text-white">Featured placement is active</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-300 mt-0.5">
-                        Your blue verified badge is displayed on your public profile.
+                        Your organization is presented with featured emphasis where it appears.
                     </p>
                 </div>
             </div>
@@ -206,7 +206,7 @@
                     </div>
                     <div>
                         <h2 class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">Business details</h2>
-                        <p class="text-xs text-gray-400 dark:text-gray-500">Update your business profile information</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500">Update your organizatss profile information</p>
                     </div>
                 </div>
 
