@@ -466,11 +466,9 @@ class DirectoryController extends Controller
         // ✅ Calculate overall open status
         $isOpen = $business->locations->contains('is_open_now', true);
 
-        // Check if business has active subscription
-        $owner = $business->owner;
-        $hasActiveSubscription = $owner && $owner->active_subscription !== null;
-
-        if (!$hasActiveSubscription) {
+        // PHASE 21B-F - the reachability rule now lives on the model so the
+        // controller that enforces it and the resource that reports it agree.
+        if (!$business->isPubliclyReachable()) {
             abort(404);
         }
         // Get primary branch

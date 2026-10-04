@@ -137,6 +137,12 @@ class ListingDirectoryResource extends JsonResource
             // was missing. Business branding is a separate concept and is
             // never substituted for Listing media.
             $this->mergeWhen($this->detailed, [
+                // PHASE 21B-F - whether /business/{slug} is actually
+                // reachable, so the public Listing never renders a dead
+                // organization link. Detailed mode only: discovery payloads
+                // stay lean.
+                'business_publicly_reachable' => (bool) ($this->business?->isPubliclyReachable() ?? false),
+
                 'services' => $this->relationLoaded('services')
                     ? $this->services->map(fn($s) => [
                         'id' => $s->id,

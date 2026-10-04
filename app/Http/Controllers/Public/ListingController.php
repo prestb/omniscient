@@ -26,7 +26,10 @@ class ListingController extends Controller
             ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
             ->with([
-                'business:id,name,slug,logo,cover_image,description',
+                'business:id,name,slug,logo,cover_image,description,status,hidden_at,owner_id',
+            // PHASE 21B-F - isPubliclyReachable() reads the owner's active
+            // subscription, so the relation must be present.
+            'business.owner',
                 'location.city',
                 'location.region',
                 'location.country',

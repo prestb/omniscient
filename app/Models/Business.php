@@ -756,6 +756,22 @@ class Business extends Model
     }
 
 
+    /**
+     * PHASE 21B-F — is this organization's public page actually reachable?
+     *
+     * Mirrors Public\DirectoryController::show(), which is the authority:
+     * published, not hidden, and the owner holds an active subscription.
+     *
+     * Lives here so the CONTROLLER that enforces the rule and the RESOURCE that
+     * reports it cannot drift apart, and so Vue never has to reconstruct
+     * subscription rules to know whether a link is safe to render.
+     */
+    public function isPubliclyReachable(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED
+            && $this->hidden_at === null
+            && $this->owner?->active_subscription !== null;
+    }
     public function hasLeadCaptureFeature(): bool
     {
         return $this->ownerCanUseFeature('lead_capture');

@@ -45,8 +45,19 @@ class ListingController extends Controller
             return $listing;
         });
 
+        // PHASE 21B-F - the same canonical shape the dashboard uses. `can_create`
+        // answers the question the UI actually asks, so Vue never reconstructs
+        // plan or limit rules. Plan names and prices are not exposed here.
+        $user = $request->user();
+        $plan = $user->getCurrentPlan();
+
         return Inertia::render('Owner/Listings/Index', [
             'listings' => $listings,
+            'quota' => [
+                'current' => \App\Models\Listing::countFor($user),
+                'limit' => $plan?->max_listings,
+                'can_create' => $user->canAdd('listings'),
+            ],
         ]);
     }
 

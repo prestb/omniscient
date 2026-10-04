@@ -191,7 +191,11 @@
                     </ul>
                 </section>
                 <!-- Organization context: the Listing stays canonical -->
-                <section v-if="listing.business_id" class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                <!-- PHASE 21B-F - omitted entirely when the organization page is not
+                     publicly reachable. Omission over dead navigation: the Listing
+                     stays canonical and fully public either way. -->
+                <section v-if="listing.business_id && listing.business_publicly_reachable"
+                    class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
                     <h2 class="text-label uppercase tracking-widest text-ink-muted dark:text-gray-400 mb-3">Organization</h2>
                     <a :href="`/business/${listing.business_slug}`"
                         class="text-sm font-semibold text-primary-600 hover:text-primary-700">

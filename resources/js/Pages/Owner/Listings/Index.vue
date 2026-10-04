@@ -12,7 +12,7 @@
                         <span class="font-mono">/listing/{slug}</span>.
                     </p>
                 </div>
-                <a href="/owner/listings/create"
+                <a v-if="!quota || quota.can_create !== false" href="/owner/listings/create"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg shadow-primary-500/25 text-sm">
                     Create Listing
                 </a>
@@ -60,7 +60,41 @@
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                                 {{ listing.business?.name || '—' }}
                             </td>
-                            <!-- PHASE 14 - Listing-scoped completeness. Derived from this
+                            <!-- PHASE 21B-F - account capacity. Distinguishes "you cannot create
+             another" from "your Listings are unavailable": existing Listings stay
+             fully editable, publishable and deletable at capacity. -->
+        <div v-if="quota && quota.limit !== null && quota.limit !== undefined"
+            class="rounded-card border p-4 mb-5"
+            :class="quota.can_create
+                ? 'bg-surface dark:bg-gray-800 border-hairline dark:border-hairline-dark'
+                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div class="min-w-0">
+                    <p class="text-body font-semibold text-ink dark:text-white">
+                        <template v-if="quota.limit === -1">
+                            {{ quota.current }} {{ quota.current === 1 ? 'Listing' : 'Listings' }} &middot; unlimited on your plan
+                        </template>
+                        <template v-else>
+                            {{ quota.current }} / {{ quota.limit }} Listings used
+                        </template>
+                    </p>
+                    <p class="text-body-sm text-ink-muted dark:text-gray-400 mt-0.5">
+                        <template v-if="quota.can_create">
+                            You can create another Listing.
+                        </template>
+                        <template v-else>
+                            You've reached your current Listing limit. You can still edit, publish
+                            and remove your existing Listings.
+                        </template>
+                    </p>
+                </div>
+                <a v-if="!quota.can_create" href="/owner/subscription"
+                    class="inline-flex min-h-11 flex-shrink-0 items-center rounded-control bg-primary-600 px-4 text-body font-semibold text-white transition-colors duration-fast hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2">
+                    Upgrade to add another
+                </a>
+            </div>
+        </div>
+        <!-- PHASE 14 - Listing-scoped completeness. Derived from this
                                  Listing only; never persisted and never a search signal. -->
                             <td class="px-4 py-3">
                                 <div v-if="listing.completeness" class="flex items-center gap-2">
@@ -121,6 +155,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
+    // PHASE 21B-F - canonical account capacity. The backend owns this;
+    // the UI only displays it.
+    quota: { type: Object, default: () => ({}) },
     listings: { type: Object, required: true },
 });
 
