@@ -93,6 +93,11 @@ class ListingController extends Controller
         $listing->load(['business:id,name,slug', 'location.city', 'categories:id,name']);
 
         return Inertia::render('Owner/Listings/Edit', [
+            // PHASE 21B-E - the edit page is where an owner can act on completeness,
+            // so it receives the same Listing-scoped score the index shows, including
+            // each missing item's label and hint. The service stays the single source
+            // of truth; no scoring logic is duplicated here.
+            'completeness' => (new \App\Services\ListingCompletenessService())->calculate($listing),
             'listing' => $listing,
             'categories' => Category::orderBy('name')->get(['id', 'name']),
             'types' => $this->typeOptions(),

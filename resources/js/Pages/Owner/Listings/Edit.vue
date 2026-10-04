@@ -26,6 +26,40 @@
                 {{ page.props.flash.success }}
             </div>
 
+            <!-- PHASE 21B-E - what to do next. Driven entirely by
+                 ListingCompletenessService; no scoring logic lives here. -->
+            <section v-if="completeness"
+                class="bg-surface dark:bg-gray-800 rounded-card border border-hairline dark:border-hairline-dark p-6">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div class="min-w-0">
+                        <h2 class="text-heading-md text-ink dark:text-white">
+                            {{ completeness.score }}% complete
+                        </h2>
+                        <p class="text-body-sm text-ink-muted dark:text-gray-400 mt-0.5">
+                            <template v-if="completeness.missing && completeness.missing.length">
+                                Adding the items below gives visitors more to go on.
+                            </template>
+                            <template v-else>
+                                Everything we check for is in place.
+                            </template>
+                        </p>
+                    </div>
+                    <Badge :variant="completeness.score >= 80 ? 'success' : (completeness.score >= 50 ? 'warning' : 'neutral')">
+                        {{ completeness.tier || 'In progress' }}
+                    </Badge>
+                </div>
+
+                <ul v-if="completeness.missing && completeness.missing.length" class="mt-4 space-y-2">
+                    <li v-for="item in completeness.missing" :key="item.key"
+                        class="flex items-start gap-3 rounded-control bg-gray-50 dark:bg-gray-900/40 p-3">
+                        <span class="mt-0.5 h-1.5 w-1.5 rounded-pill bg-amber-500 flex-shrink-0" aria-hidden="true"></span>
+                        <span class="min-w-0">
+                            <span class="block text-body font-semibold text-ink dark:text-white">{{ item.label }}</span>
+                            <span v-if="item.hint" class="block text-body-sm text-ink-muted dark:text-gray-400">{{ item.hint }}</span>
+                        </span>
+                    </li>
+                </ul>
+            </section>
             <form @submit.prevent="submit" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Listing type</label>
@@ -102,9 +136,13 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import CategoryMultiSelect from '@/Components/CategoryMultiSelect.vue';
+// PHASE 21B-E - completeness panel.
+import Badge from '@/Components/Public/ui/Badge.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
+    // PHASE 21B-E - Listing-scoped completeness from ListingCompletenessService.
+    completeness: { type: Object, default: null },
     listing: { type: Object, required: true },
     types: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
