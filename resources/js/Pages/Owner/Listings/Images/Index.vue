@@ -58,8 +58,44 @@
                     Media ({{ images.length }})
                 </h2>
 
-                <div v-if="!images.length" class="text-sm text-gray-500 dark:text-gray-400">
-                    No media on this Listing yet.
+                <!-- PHASE 21B-G-R2 - the empty state explains what this surface is
+                     for and what each media type does, then points at the upload
+                     controls directly above. It does not restate their constraints. -->
+                <div v-if="!images.length"
+                    class="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center">
+                    <div class="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-7 h-7 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+
+                    <h3 class="text-base font-bold text-gray-900 dark:text-white tracking-tight mb-2">
+                        No media on this Listing yet
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                        Images help visitors understand what this Listing is before they get in touch.
+                    </p>
+
+                    <dl class="mt-5 text-sm text-left max-w-md mx-auto space-y-2">
+                        <div class="flex gap-3">
+                            <dt class="font-semibold text-gray-900 dark:text-white w-16 flex-shrink-0">Logo</dt>
+                            <dd class="text-gray-500 dark:text-gray-400 min-w-0">A small mark shown beside the name.</dd>
+                        </div>
+                        <div class="flex gap-3">
+                            <dt class="font-semibold text-gray-900 dark:text-white w-16 flex-shrink-0">Cover</dt>
+                            <dd class="text-gray-500 dark:text-gray-400 min-w-0">The wide image at the top of the Listing.</dd>
+                        </div>
+                        <div class="flex gap-3">
+                            <dt class="font-semibold text-gray-900 dark:text-white w-16 flex-shrink-0">Gallery</dt>
+                            <dd class="text-gray-500 dark:text-gray-400 min-w-0">Photos of your work, products or premises.</dd>
+                        </div>
+                    </dl>
+
+                    <p class="mt-6 text-sm text-gray-500 dark:text-gray-400">
+                        Use the upload controls above to add them. You can change or remove any image later.
+                    </p>
                 </div>
 
                 <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
