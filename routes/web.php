@@ -293,7 +293,23 @@ Route::middleware(['auth', 'role:user,owner'])->group(function () {
     Route::prefix('owner/listings')->name('owner.listings.')->group(function () {
         Route::get('/', [OwnerListingController::class, 'index'])->name('index');
         Route::get('/create', [OwnerListingController::class, 'create'])->name('create');
-        Route::post('/', [OwnerListingController::class, 'store'])->name('store');
+        // PHASE 21B-D-R1 - the LISTING quota was never enforced on direct Listing
+        // creation. `plan.limit:listings` was applied only inside the
+        // owner/businesses group, so the limit was consumed as a side effect of
+        // creating an ORGANIZATION, and a Professional creating Listings
+        // directly had no limit at all. The dashboard displayed a quota the
+        // backend did not apply.
+        //
+        // The quota is account-scoped (`Listing::countFor` -> owner_id), so this
+        // applies identically whether or not the Listing is grouped under a
+        // Business.
+        //
+        // Deliberately on store ONLY. `PUT /owner/listings/{listing}` must never
+        // carry a creation quota: an owner at their limit must still be able to
+        // edit, publish and unpublish what they already have.
+        Route::post('/', [OwnerListingController::class, 'store'])
+            ->name('store')
+            ->middleware('plan.limit:listings');
         Route::get('/{listing}/edit', [OwnerListingController::class, 'edit'])->name('edit');
         Route::put('/{listing}', [OwnerListingController::class, 'update'])->name('update');
         Route::post('/{listing}/publish', [OwnerListingController::class, 'publish'])->name('publish');

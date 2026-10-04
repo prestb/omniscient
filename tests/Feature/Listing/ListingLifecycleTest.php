@@ -36,8 +36,34 @@ function businessWithActiveOwner(array $attributes = []): Business
     );
 }
 
+/**
+ * PHASE 21B-D-R1 - an owner whose plan explicitly grants a Listing allowance.
+ *
+ * Listing creation is now quota-enforced on POST /owner/listings. The test
+ * database has no `tier = free` plan (PlanSeeder supplies that in production),
+ * so a bare owner would have no plan at all and could create nothing. These
+ * fixtures assert Listing lifecycle behaviour, not quota behaviour, so they
+ * establish their account's entitlement explicitly.
+ */
+function lifecycleOwner(): User
+{
+    $owner = User::factory()->owner()->create();
+
+    $plan = Plan::factory()->create(['max_listings' => 10]);
+
+    Subscription::factory()->create([
+        'user_id' => $owner->id,
+        'plan_id' => $plan->id,
+        'status' => Subscription::STATUS_ACTIVE,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addYear(),
+    ]);
+
+    return $owner;
+}
+
 test('an authenticated user can create each listing type', function (string $type) {
-    $user = User::factory()->owner()->create();
+    $user = lifecycleOwner();
 
     $this->actingAs($user)
         ->post('/owner/listings', [
@@ -59,7 +85,7 @@ test('an authenticated user can create each listing type', function (string $typ
 })->with(['professional', 'business', 'store']);
 
 test('a professional listing can be created without a business or a location', function () {
-    $user = User::factory()->owner()->create();
+    $user = lifecycleOwner();
 
     $this->actingAs($user)->post('/owner/listings', [
         'type' => 'professional',
@@ -76,7 +102,7 @@ test('a professional listing can be created without a business or a location', f
 });
 
 test('a store listing can be created without a business', function () {
-    $user = User::factory()->owner()->create();
+    $user = lifecycleOwner();
 
     $this->actingAs($user)->post('/owner/listings', [
         'type' => 'store',
@@ -91,7 +117,7 @@ test('a store listing can be created without a business', function () {
 });
 
 test('a listing can be associated with a business', function () {
-    $user = User::factory()->owner()->create();
+    $user = lifecycleOwner();
     $business = Business::factory()->create(['owner_id' => $user->id]);
 
     $this->actingAs($user)->post('/owner/listings', [
@@ -105,8 +131,8 @@ test('a listing can be associated with a business', function () {
 });
 
 test('a user cannot associate a listing with another users business', function () {
-    $user = User::factory()->owner()->create();
-    $other = User::factory()->owner()->create();
+    $user = lifecycleOwner();
+    $other = lifecycleOwner();
     $foreign = Business::factory()->create(['owner_id' => $other->id]);
 
     $this->actingAs($user)->post('/owner/listings', [
@@ -119,8 +145,8 @@ test('a user cannot associate a listing with another users business', function (
 });
 
 test('a user cannot edit or update another users listing', function () {
-    $owner = User::factory()->owner()->create();
-    $intruder = User::factory()->owner()->create();
+    $owner = lifecycleOwner();
+    $intruder = lifecycleOwner();
 
     $listing = Listing::factory()->forOwner($owner)->create();
 
@@ -142,7 +168,7 @@ test('an unauthenticated user cannot access the listing lifecycle', function () 
 });
 
 test('the owner can publish and unpublish their own listing', function () {
-    $owner = User::factory()->owner()->create();
+    $owner = lifecycleOwner();
     $listing = Listing::factory()->forOwner($owner)->create(['status' => Listing::STATUS_DRAFT]);
 
     $this->actingAs($owner)->post("/owner/listings/{$listing->id}/publish")->assertRedirect();
