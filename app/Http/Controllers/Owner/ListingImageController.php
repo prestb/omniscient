@@ -61,9 +61,17 @@ class ListingImageController extends Controller
                     'max:5120', // 5MB
                     'dimensions:min_width=100,min_height=100',
                     function ($attribute, $value, $fail) {
-                        $imageInfo = getimagesize($value->getPathname());
+                        // PHASE 21B-G-R1 - guard the read. getimagesize() raises a
+                        // PHP warning on anything that is not a raster image, which
+                        // Laravel escalates to an ErrorException: the request 500'd
+                        // instead of reporting a validation failure. The `@` is
+                        // deliberate - the failure IS the check.
+                        $imageInfo = @getimagesize($value->getPathname());
+
                         if ($imageInfo === false) {
                             $fail('The file is not a valid image.');
+
+                            return;
                         }
 
                         $contents = file_get_contents($value->getPathname());
