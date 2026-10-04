@@ -59,6 +59,28 @@
                 </div>
             </div>
 
+        <!-- PHASE 21B-G - the reason for arriving. CheckPlanLimit redirects here
+             with a flash explaining the limit that was reached; it was previously
+             discarded, so the user had no idea why. The message is shown as the
+             server supplied it - nothing is re-worded or recomputed. -->
+        <div v-if="page.props.flash?.error"
+            role="status"
+            class="mx-4 sm:mx-6 lg:mx-8 mb-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-card p-4 flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <div class="min-w-0">
+                <p class="text-body font-semibold text-amber-900 dark:text-amber-200">
+                    {{ page.props.flash.error }}
+                </p>
+                <p class="text-body-sm text-amber-800 dark:text-amber-300 mt-0.5">
+                    Your existing Listings stay available to edit and publish.
+                    Choose a plan with more Listing capacity to create another.
+                </p>
+            </div>
+        </div>
             <!-- ==================== CURRENT SUBSCRIPTION ==================== -->
             <div v-if="subscription" class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
 
@@ -115,6 +137,14 @@
                     <div class="border-t border-gray-100 dark:border-gray-700 pt-6">
                         <p class="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold mb-4">Plan includes</p>
                         <div class="grid grid-cols-3 gap-4">
+                            <!-- PHASE 21B-G - Listings leads: it is the limit that
+                                 most often brings an owner to this page. -->
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ formatLimit(subscription.plan?.max_listings) }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Listings</p>
+                            </div>
                             <div class="text-center">
                                 <p class="text-2xl font-bold text-gray-900 dark:text-white">
                                     {{ formatLimit(subscription.plan?.max_locations) }}
@@ -332,8 +362,9 @@
 </template>
 
 <script setup>
+const page = usePage();
     import { ref, computed, onMounted } from 'vue';
-    import { router } from '@inertiajs/vue3';
+    import { router, usePage } from '@inertiajs/vue3';
     import { useToast } from '@/composables/useToast';
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import axios from 'axios';
