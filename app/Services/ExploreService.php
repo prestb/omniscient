@@ -95,8 +95,8 @@ class ExploreService
                 ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
                 ->whereHas('categories', fn($c) => $c->where('categories.id', $categoryId))
-                ->withCount('businessReviews')
-                ->withAvg('businessReviews', 'rating');
+                ->withCount('reviews')
+                ->withAvg('reviews', 'rating');
 
             if ($cityId) {
                 $q->whereHas('location', fn($x) => $x->where('city_id', $cityId));
@@ -225,8 +225,8 @@ class ExploreService
             // Keep URLs for backwards compatibility / fallbacks
             'cover_image_url' => $cover?->url ?? $listing->business?->cover_image_url,
             'logo_url' => $logo?->url ?? $listing->business?->logo_url,
-            'average_rating' => $listing->business_reviews_avg_rating,
-            'reviews_count' => (int) ($listing->business_reviews_count ?? 0),
+            'average_rating' => $listing->reviews_avg_rating,
+            'reviews_count' => (int) ($listing->reviews_count ?? 0),
             'category' => $category?->name,
             'city' => $location?->city?->name,
         ];

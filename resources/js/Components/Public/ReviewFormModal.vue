@@ -49,7 +49,7 @@
 
                         <!-- Body -->
                         <div class="p-5 overflow-y-auto flex-1">
-                            <ReviewForm :business-id="businessId" @review-submitted="onReviewSubmitted" />
+                            <ReviewForm :listing-slug="listingSlug" @review-submitted="onReviewSubmitted" />
                         </div>
                     </div>
                 </Transition>
@@ -68,7 +68,7 @@
             type: Boolean,
             default: false,
         },
-        businessId: {
+        listingSlug: {
             type: Number,
             required: true,
         },

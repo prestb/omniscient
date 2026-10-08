@@ -42,12 +42,12 @@ class ListingController extends Controller
                 // PHASE 11 — Reviews are BUSINESS-owned. This page does not load a
                 // Listing review collection: no such collection exists. The
                 // Listing's displayed rating/count come from the owning Business's
-                // aggregate via businessReviews() below.
+                // aggregate via reviews() below.
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',
             ])
-            ->withCount(['businessReviews', 'images'])
-            ->withAvg('businessReviews', 'rating')
+            ->withCount(['reviews', 'images'])
+            ->withAvg('reviews', 'rating')
             ->firstOrFail();
 
         return Inertia::render('Public/ListingProfile', [

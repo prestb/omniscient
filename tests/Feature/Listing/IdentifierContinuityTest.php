@@ -50,14 +50,18 @@ class IdentifierContinuityTest extends TestCase
 
     public function test_review_routes_key_on_stable_ids(): void
     {
-        $index = Route::getRoutes()->getByName('business.reviews.index');
-        $store = Route::getRoutes()->getByName('business.reviews.store');
+        // PHASE 21C-R1 - a Review belongs to a LISTING, so the canonical
+        // public review routes are Listing-scoped. The old Business-scoped
+        // routes are deliberately NOT preserved for compatibility.
+        $index = Route::getRoutes()->getByName('listing.reviews.index');
+        $store = Route::getRoutes()->getByName('listing.reviews.store');
 
         $this->assertNotNull($index);
         $this->assertNotNull($store);
-        // Both bind by the stable business id (not slug).
-        $this->assertContains('business', $index->parameterNames());
-        $this->assertContains('business', $store->parameterNames());
+        $this->assertContains('listing', $index->parameterNames());
+        $this->assertContains('listing', $store->parameterNames());
+
+        $this->assertNull(Route::getRoutes()->getByName('business.reviews.store'));
     }
 
     public function test_admin_review_route_keys_on_stable_review_id(): void

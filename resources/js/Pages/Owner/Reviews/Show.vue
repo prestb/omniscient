@@ -266,8 +266,11 @@
                         </div>
                     </div>
 
-                    <!-- Business Info -->
-                    <div
+                    <!-- PHASE 21D - organization context is OPTIONAL. A
+                         Business-less Professional is a first-class Listing, so this
+                         card is omitted entirely rather than rendering an empty shell
+                         with a /business/undefined link. -->
+                    <div v-if="business"
                         class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow">
                         <div
                             class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800/50 flex items-center gap-2">

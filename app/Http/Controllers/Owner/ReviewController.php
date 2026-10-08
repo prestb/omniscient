@@ -2,66 +2,81 @@
 
 namespace App\Http\Controllers\Owner;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Business;
+use App\Models\Listing;
 use App\Models\Review;
 use App\Models\ReviewReply;
-use App\Helpers\NotificationHelper;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+/**
+ * PHASE 21C-R1 — OWNER REVIEW MANAGEMENT, LISTING-SCOPED.
+ *
+ * AUTHORIZATION AUTHORITY IS `listing.owner_id`.
+ *
+ * Deliberately NOT `listing.business.owner_id`. Authorizing through the Business
+ * would let a Business owner reach Reviews on a sibling Listing they do not
+ * own, and would leave a Business-less Professional with no path at all.
+ *
+ * A Business-backed owner with several Listings therefore sees each Listing's
+ * Reviews separately, which is the point of Listing-owned reputation.
+ */
 class ReviewController extends Controller
 {
-    /**
-     * PHASE 11 / WAVE 1D — owner review management is BUSINESS-SPECIFIC.
-     * The Business comes from the route and is authorized against the
-     * authenticated owner. There is no representative-Business selection.
-     */
-    private function authorizeBusiness(Business $business): void
+    private function authorizeListing(Listing $listing): void
     {
-        abort_unless((int) $business->owner_id === (int) auth()->id(), 403);
+        abort_unless((int) $listing->owner_id === (int) auth()->id(), 403);
     }
 
-    public function index(Business $business)
+    public function index(Listing $listing)
     {
-        $this->authorizeBusiness($business);
+        $this->authorizeListing($listing);
 
-        $reviews = $business->allReviews()
+        // Scoped to THIS Listing. Sibling Reviews never appear here.
+        $reviews = $listing->reviews()
             ->with(['user', 'replies.user'])
             ->latest()
             ->paginate(20);
 
         return Inertia::render('Owner/Reviews/Index', [
-            'business' => $business,
+            'listing' => $listing,
+            'business' => $listing->business,
             'reviews' => $reviews,
-            'canReply' => $business->hasReviewResponseFeature(),
+            'rating' => $listing->approvedReviews()->avg('rating'),
+            'reviewsCount' => $listing->approvedReviews()->count(),
+            'canReply' => $listing->owner ? $listing->owner->canUse(\App\Support\Entitlement::RESPOND_TO_REVIEWS) : false,
         ]);
     }
 
-    public function show(Business $business, Review $review)
+    public function show(Listing $listing, Review $review)
     {
-        $this->authorizeBusiness($business);
+        $this->authorizeListing($listing);
 
-        // The Review's Business relationship remains authoritative.
-        abort_unless((int) $review->business_id === (int) $business->id, 403);
+        // The Review must belong to the Listing named in the route. Owning the
+        // Business that contains both Listings is NOT sufficient.
+        abort_unless((int) $review->listing_id === (int) $listing->id, 404);
 
-        $review->load(['user', 'replies.user', 'business']);
+        $review->load(['user', 'replies.user', 'listing.business']);
 
         return Inertia::render('Owner/Reviews/Show', [
-            'business' => $business,
+            'listing' => $listing,
+            'business' => $listing->business,
             'review' => $review,
         ]);
     }
 
-    public function reply(Request $request, Business $business, Review $review)
+    public function reply(Request $request, Listing $listing, Review $review)
     {
-        $this->authorizeBusiness($business);
+        $this->authorizeListing($listing);
 
-        if (!$business->hasReviewResponseFeature()) {
+        abort_unless((int) $review->listing_id === (int) $listing->id, 404);
+
+        $owner = $listing->owner;
+
+        if (!$owner || !$owner->canUse(\App\Support\Entitlement::RESPOND_TO_REVIEWS)) {
             return back()->with('error', 'Reply feature requires Starter plan or higher.');
         }
-
-        abort_unless((int) $review->business_id === (int) $business->id, 403);
 
         $validated = $request->validate([
             'content' => 'required|string|max:1000',
@@ -73,19 +88,15 @@ class ReviewController extends Controller
             'content' => $validated['content'],
         ]);
 
-        // Notify reviewer
-        if ($review->user_id) {
+        if ($review->user_id && $review->user) {
             NotificationHelper::send(
                 $review->user,
-                'Business Owner Replied to Your Review',
-                'The owner of "' . $business->name . '" has replied to your review.',
-                route('business.show', $business->slug),
+                'Listing Owner Replied to Your Review',
+                'The owner of "' . $listing->name . '" has replied to your review.',
+                route('listing.show', $listing->slug),
                 ['reply_id' => $reply->id],
                 'review_reply'
             );
-        } else if ($review->guest_email) {
-            // For guest reviewers, we could send an email notification
-            // Mail::to($review->guest_email)->send(new ReviewReplyMail($reply));
         }
 
         return redirect()->back()->with('success', 'Reply added successfully.');

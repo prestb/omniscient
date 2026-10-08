@@ -33,8 +33,8 @@ class HomeController extends Controller
             ->where('is_featured', true)
             ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withCount(['businessReviews', 'images'])
-            ->withAvg('businessReviews', 'rating')
+            ->withCount(['reviews', 'images'])
+            ->withAvg('reviews', 'rating')
             ->inRandomOrder()
             ->take(6)
             ->get();
@@ -54,8 +54,8 @@ class HomeController extends Controller
         ])
             ->where('status', Listing::STATUS_PUBLISHED)
             ->whereNull('hidden_at')
-            ->withCount(['businessReviews', 'images'])
-            ->withAvg('businessReviews', 'rating')
+            ->withCount(['reviews', 'images'])
+            ->withAvg('reviews', 'rating')
             ->latest()
             ->take(8)
             ->get();
@@ -95,13 +95,16 @@ class HomeController extends Controller
 
         // ============== LATEST REVIEWS (cached 5 min) ==============
         $latestReviews = Cache::remember('home.latest_reviews', now()->addMinutes(5), function () {
+            // PHASE 21C-R1 — a Review belongs to a LISTING. The publicly
+            // reachable entity is the Listing, so the visibility filter applies
+            // to it; the Business is optional context reached through it.
             return Review::query()
                 ->where('status', 'approved')
-                ->whereHas('business', function ($q) {
-                    $q->where('status', Business::STATUS_PUBLISHED)
+                ->whereHas('listing', function ($q) {
+                    $q->where('status', Listing::STATUS_PUBLISHED)
                         ->whereNull('hidden_at');
                 })
-                ->with(['user:id,name', 'business:id,name,slug'])
+                ->with(['user:id,name', 'listing:id,name,slug,business_id', 'listing.business:id,name,slug'])
                 ->latest()
                 ->take(6)
                 ->get()
@@ -113,10 +116,17 @@ class HomeController extends Controller
                         'content' => Str::limit($review->content, 180),
                         'reviewer_name' => $review->reviewer_name,
                         'created_at' => $review->created_at->diffForHumans(),
+                        // The Listing is the reviewed entity; the Business is
+                        // exposed only as optional organization context.
+                        'listing' => [
+                            'id' => $review->listing?->id,
+                            'name' => $review->listing?->name,
+                            'slug' => $review->listing?->slug,
+                        ],
                         'business' => [
-                            'id' => $review->business?->id,
-                            'name' => $review->business?->name,
-                            'slug' => $review->business?->slug,
+                            'id' => $review->listing?->business?->id,
+                            'name' => $review->listing?->business?->name,
+                            'slug' => $review->listing?->business?->slug,
                         ],
                     ];
                 })

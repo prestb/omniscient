@@ -74,8 +74,8 @@ class ListingDirectoryResource extends JsonResource
         // PHASE 11 — these are the OWNING BUSINESS's review metrics shown on a
         // Listing, not a Listing-owned rating. Reviews belong to the Business;
         // this resource merely presents the organization's aggregate.
-        $rating = $this->business_reviews_avg_rating ?? null;
-        $reviewsCount = $this->business_reviews_count ?? null;
+        $rating = $this->reviews_avg_rating ?? null;
+        $reviewsCount = $this->reviews_count ?? null;
 
         return [
             // ── Discoverable identity ────────────────────────────────

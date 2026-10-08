@@ -26,7 +26,7 @@ class ReviewExportController extends Controller
     public function exportCsv(Request $request)
     {
         try {
-            $query = Review::with(['user', 'business']);
+            $query = Review::with(['user', 'listing.business']);
             $this->applyFilters($query, $request);
             $reviews = $query->orderBy('created_at', 'desc')->get();
 
@@ -38,7 +38,7 @@ class ReviewExportController extends Controller
                     $review->id,
                     '"' . str_replace('"', '""', $review->user?->name ?? 'Anonymous') . '"',
                     '"' . str_replace('"', '""', $review->user?->email ?? 'N/A') . '"',
-                    '"' . str_replace('"', '""', $review->business?->name ?? 'Unknown') . '"',
+                    '"' . str_replace('"', '""', $review->listing?->business?->name ?? 'Unknown') . '"',
                     $review->rating,
                     '"' . str_replace('"', '""', $review->content ?? 'No content') . '"',
                     '"' . str_replace('"', '""', $review->reply ?? 'No reply') . '"',
@@ -69,7 +69,7 @@ class ReviewExportController extends Controller
     public function exportJson(Request $request)
     {
         try {
-            $query = Review::with(['user', 'business']);
+            $query = Review::with(['user', 'listing.business']);
             $this->applyFilters($query, $request);
             $reviews = $query->orderBy('created_at', 'desc')->get();
 
@@ -81,7 +81,7 @@ class ReviewExportController extends Controller
                         'email' => $review->user?->email ?? 'N/A',
                     ],
                     'business' => [
-                        'name' => $review->business?->name ?? 'Unknown',
+                        'name' => $review->listing?->business?->name ?? 'Unknown',
                     ],
                     'rating' => $review->rating,
                     'content' => $review->content ?? 'No content',
@@ -112,7 +112,7 @@ class ReviewExportController extends Controller
     public function exportPdf(Request $request)
     {
         try {
-            $query = Review::with(['user', 'business']);
+            $query = Review::with(['user', 'listing.business']);
             $this->applyFilters($query, $request);
             $reviews = $query->orderBy('created_at', 'desc')->get();
 

@@ -66,7 +66,7 @@ final class DiscoverySort
      *
      * `rating` and `reviews_count` are the OWNING BUSINESS's review aggregate —
      * reviews are Business-owned (Phase 11/12) and a Listing displays its
-     * organization's metrics through `Listing::businessReviews()`. A
+     * organization's metrics through `Listing::reviews()`. A
      * Business-less Listing indexes 0.0 / 0, which is the existing zero
      * semantics, not a fabricated rating.
      *
@@ -92,8 +92,8 @@ final class DiscoverySort
     public static function sqlOrder(string $canonical): array
     {
         return match ($canonical) {
-            self::RATING => [['business_reviews_avg_rating', 'desc']],
-            self::REVIEWS => [['business_reviews_count', 'desc']],
+            self::RATING => [['reviews_avg_rating', 'desc']],
+            self::REVIEWS => [['reviews_count', 'desc']],
             self::NEWEST => [['published_at', 'desc']],
             self::FEATURED => [['is_featured', 'desc']],
             default => [],
@@ -109,8 +109,8 @@ final class DiscoverySort
     public static function requiredAggregates(string $canonical): array
     {
         return match ($canonical) {
-            self::RATING => ['businessReviews'],
-            self::REVIEWS => ['businessReviews'],
+            self::RATING => ['reviews'],
+            self::REVIEWS => ['reviews'],
             default => [],
         };
     }

@@ -149,7 +149,7 @@
                                 </svg>
                             </div>
                             <div>
-                                <h2 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Listings</h2>
+                                <h2 id="listings" class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Listings</h2>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">
                                     {{ listings.length }} discoverable
                                     {{ listings.length === 1 ? 'listing' : 'listings' }} from this organization
@@ -158,8 +158,9 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <a v-for="listing in listings" :key="listing.id" :href="`/listing/${listing.slug}`"
-                                class="group block rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-lg transition-all">
+                            <div v-for="listing in listings" :key="listing.id"
+                                class="group rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-lg transition-all">
+                            <a :href="`/listing/${listing.slug}`" class="block">
                                 <div class="h-28 bg-gray-100 dark:bg-gray-900 overflow-hidden">
                                     <OptimizedImage v-if="listing.cover_image" :path="listing.cover_image"
                                         size="medium" :alt="listing.name"
@@ -190,6 +191,21 @@
                                     </span>
                                 </div>
                             </a>
+
+                            <!-- PHASE 21C-R1 - the review subject is chosen EXPLICITLY.
+                                 This Listing is the target; nothing is auto-selected. -->
+                            <div class="px-4 pb-4 -mt-1">
+                                <button type="button" @click="openReviewFor(listing)"
+                                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                        aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.98 10.1c-.783-.57-.38-1.81.588-1.81h4.915a1 1 0 00.95-.69l1.519-4.674z" />
+                                    </svg>
+                                    Review this listing
+                                </button>
+                            </div>
+                            </div>
                         </div>
                     </div>
 
@@ -310,18 +326,21 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
-                                <button type="button" @click="showReviewModal = true"
+                                <!-- PHASE 21C-R1 - a Review belongs to a LISTING. An
+                                     organization may own several, so this does not open a
+                                     form directly; it takes the visitor to the Listings
+                                     where the subject is chosen explicitly. The previous
+                                     "See all" link targeted /business/{id}/reviews, a route
+                                     this phase deleted. -->
+                                <button type="button" @click="scrollToListings()"
                                     class="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-semibold transition-colors inline-flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                        aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                                             d="M12 4v16m8-8H4" />
                                     </svg>
-                                    Write
+                                    Review a listing
                                 </button>
-                                <a :href="`/business/${business.id}/reviews`"
-                                    class="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-semibold transition-colors">
-                                    See all →
-                                </a>
                             </div>
                         </div>
 
@@ -390,16 +409,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <div v-if="business.reviews_count > 3" class="text-center mt-4">
-                                <a :href="`/business/${business.id}/reviews`"
-                                    class="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-semibold transition-colors">
-                                    View all {{ business.reviews_count }} reviews
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </a>
-                            </div>
+<!-- PHASE 21C-R1 - "view all reviews for this organization" was removed:
+                                 it linked to /business/{id}/reviews, a route this phase deleted.
+                                 Reviews belong to Listings, so each Listing's own page is the
+                                 destination; the organization figure above is an aggregate. -->
                         </div>
 
                         <div v-else class="text-center py-8">
@@ -549,7 +562,9 @@
                     </div>
 
                     <!-- ✅ REVIEW TRIGGER -->
-                    <ReviewTriggerCard @open="showReviewModal = true" />
+                    <!-- PHASE 21C-R1 - directs to the Listings rather than opening an
+                         organization-level form, which could not name a subject. -->
+                    <ReviewTriggerCard @open="scrollToListings()" />
 
                     <!-- ✅ LEAD TRIGGER (when feature enabled) -->
                     <!-- PHASE 12 — no organization-level inquiry trigger. An inquiry
@@ -714,7 +729,10 @@
         </div>
 
         <!-- ==================== FORM MODALS ==================== -->
-        <ReviewFormModal v-model:show="showReviewModal" :business-id="business.id" :business-name="business.name"
+        <!-- PHASE 21C-R1 - the form targets the LISTING the visitor chose from the
+             cards above. The Business is organization context only. -->
+        <ReviewFormModal v-if="reviewListing" v-model:show="showReviewModal"
+            :listing-slug="reviewListing.slug" :listing-name="reviewListing.name"
             @submitted="handleReviewSubmitted" />
 
         <!-- PHASE 12 — the organization page no longer hosts an inquiry form.
@@ -1100,6 +1118,30 @@
 
     // ============== Modal State ==============
     const showReviewModal = ref(false);
+
+/**
+ * PHASE 21C-R1 - the Listing the review form is currently targeting.
+ *
+ * Reviews belong to Listings. A Business may own several, so the subject is
+ * chosen explicitly by the visitor; it is never auto-selected.
+ */
+const reviewListing = ref(null);
+
+/**
+ * Take the visitor to the Listings so they can pick the review subject.
+ *
+ * Deliberately does NOT select a Listing on their behalf: a Business may own
+ * several, and guessing which one a review describes would be inventing
+ * ownership.
+ */
+const scrollToListings = () => {
+    document.getElementById('listings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+const openReviewFor = (listing) => {
+    reviewListing.value = listing;
+    showReviewModal.value = true;
+};
     const showLeadModal = ref(false);
 
     // ============== Handlers ==============

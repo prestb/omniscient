@@ -81,9 +81,12 @@
                             {{ favorited ? 'Saved' : 'Save' }}
                         </button>
 
-                        <RatingSummary v-if="listing.business_id"
-                            :rating="listing.average_rating" :review-count="listing.reviews_count"
-                            mode="compact" attribution />
+                        <!-- PHASE 21C-R1 - the LISTING's own approved reviews. Previously gated on
+                         `listing.business_id`, so a Business-less Professional showed
+                         no rating at all even with approved reviews. -->
+                    <RatingSummary v-if="listing.reviews_count > 0"
+                            :rating="listing.rating" :review-count="listing.reviews_count"
+                            mode="compact" owner="listing" attribution />
                     </div>
                 </div>
             </div>

@@ -18,10 +18,10 @@ class FixRatings extends Command
         $count = 0;
         
         foreach ($businesses as $business) {
-            $total = $business->reviews()->where('status', 'approved')->count();
+            $total = $business->approvedReviews()->count();
             
             if ($total > 0) {
-                $average = $business->reviews()->where('status', 'approved')->avg('rating');
+                $average = $business->approvedReviews()->avg('rating');
                 $business->update([
                     'average_rating' => round($average, 1),
                     'total_reviews' => $total,

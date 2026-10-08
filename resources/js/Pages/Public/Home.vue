@@ -59,18 +59,19 @@
                         </a>
                     </div> -->
 
-                        <!-- Trust stat strip -->
-                        <div
+                        <!-- PHASE 21D - a real-discovery strip, not a trust claim. Each
+                             figure renders only when the database actually supports it. -->
+                        <div v-if="hasStats"
                             class="mt-8 sm:mt-12 grid grid-cols-3 max-w-lg mx-auto divide-x divide-white/15 border-t border-white/15 pt-5 sm:pt-6">
-                            <div class="px-3">
+                            <div v-if="stats.listings !== null" class="px-3">
                                 <p class="text-2xl font-bold text-white">{{ stats.listings }}+</p>
                                 <p class="text-xs uppercase tracking-wide text-primary-200 mt-0.5">Listings</p>
                             </div>
-                            <div class="px-3">
+                            <div v-if="stats.reviews !== null" class="px-3">
                                 <p class="text-2xl font-bold text-white">{{ stats.reviews }}+</p>
                                 <p class="text-xs uppercase tracking-wide text-primary-200 mt-0.5">Reviews</p>
                             </div>
-                            <div class="px-3">
+                            <div v-if="stats.categories !== null" class="px-3">
                                 <p class="text-2xl font-bold text-white">{{ stats.categories }}+</p>
                                 <p class="text-xs uppercase tracking-wide text-primary-200 mt-0.5">Categories</p>
                             </div>
@@ -355,7 +356,7 @@
                                     Create a Listing Today
                                 </h2>
                                 <p class="text-primary-100 text-sm sm:text-lg mb-5 sm:mb-8">
-                                    Join thousands of businesses getting discovered by customers across Cameroon.
+                                    Publish a Listing and let people find you through search and discovery.
                                 </p>
                                 <div class="flex flex-wrap gap-2 sm:gap-3">
                                     <a href="/register"
@@ -428,18 +429,26 @@
     });
 
     /**
-     * Stats shown in the hero strip.
-     * If the controller doesn't pass `stats`, we derive safe fallbacks from
-     * what we already have so nothing renders as "undefined".
+     * PHASE 21D - REAL figures only.
+     *
+     * This previously defaulted to '1000' / '5000' / '20' when the controller
+     * supplied no counts, which displayed fabricated social proof in the hero.
+     * A figure the application cannot source is now `null`, and the template
+     * omits it rather than inventing one.
      */
     const stats = computed(() => ({
-        listings: props.stats?.listings ?? '1000',
-        reviews: props.stats?.reviews ?? '5000',
-        categories: props.stats?.categories ?? (props.popularCategories?.length || '20'),
+        listings: props.stats?.listings ?? null,
+        reviews: props.stats?.reviews ?? null,
+        categories: props.stats?.categories ?? null,
     }));
 
+    /** Render the strip only when at least one real figure exists. */
+    const hasStats = computed(() =>
+        Object.values(stats.value).some((v) => v !== null && v !== undefined)
+    );
+
     const ctaFeatures = [
-        'Reach thousands of local customers',
+        'Be discoverable through search and discovery',
         'Showcase photos, hours & services',
         'Respond to reviews & capture leads',
         'Featured placement on premium plans',

@@ -5,77 +5,86 @@ namespace App\Observers;
 use App\Models\Review;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * PHASE 21C-R1 — the Business rating projection is DERIVED, not owned.
+ *
+ * This observer used to read `$review->business` and `$review->business_id`,
+ * both of which described the retired review-ownership model, so every review
+ * create/update/delete raised BadMethodCallException.
+ *
+ * The Business no longer owns Reviews. Its stored `average_rating` /
+ * `total_reviews` columns are now a PROJECTION of the approved reviews belonging
+ * to its LISTINGS — the same aggregate `Business::reviews()` computes on demand.
+ * The projection is kept because the public frontend still reads those columns,
+ * but it carries no ownership semantics.
+ *
+ * A Business-less Listing has no projection to update, which is correct: its own
+ * reputation is read from its own reviews.
+ */
 class ReviewObserver
 {
-    /**
-     * Handle the Review "created" event.
-     */
     public function created(Review $review): void
     {
-        Log::info('Review created, updating rating for business: ' . $review->business_id);
-        $this->updateBusinessRating($review);
+        $this->syncBusinessRating($review);
     }
 
-    /**
-     * Handle the Review "updated" event.
-     */
     public function updated(Review $review): void
     {
-        // Only update if status changed or rating changed
         if ($review->isDirty('status') || $review->isDirty('rating')) {
-            Log::info('Review updated, updating rating for business: ' . $review->business_id);
-            $this->updateBusinessRating($review);
+            $this->syncBusinessRating($review);
         }
     }
 
-    /**
-     * Handle the Review "deleted" event.
-     */
     public function deleted(Review $review): void
     {
-        Log::info('Review deleted, updating rating for business: ' . $review->business_id);
-        $this->updateBusinessRating($review);
+        $this->syncBusinessRating($review);
     }
 
     /**
-     * Update the business rating after review changes.
+     * Refresh the owning Business's derived rating projection.
+     *
+     * The Business is resolved THROUGH THE LISTING — the only ownership path.
+     * The aggregate spans every Listing the Business owns.
      */
-    private function updateBusinessRating(Review $review): void
+    private function syncBusinessRating(Review $review): void
     {
-        $business = $review->business;
-        
-        if (!$business) {
-            Log::warning('Business not found for review: ' . $review->id);
+        // The Listing is the owner. A Business-less Listing has none.
+        $listing = $review->listing;
+
+        if (!$listing || !$listing->business_id) {
+            // Nothing to project. The Listing's own reputation is derived from
+            // its own reviews and needs no stored copy.
             return;
         }
 
-        // Calculate approved reviews count and average
-        $total = $business->reviews()->where('status', 'approved')->count();
-        
-        Log::info('Calculating rating for business: ' . $business->id, [
-            'total_reviews' => $total,
-        ]);
+        $business = $listing->business;
+
+        if (!$business) {
+            return;
+        }
+
+        // Derived across ALL of the Business's Listings.
+        $total = $business->reviews()->count();
 
         if ($total === 0) {
             $business->update([
                 'average_rating' => 0,
                 'total_reviews' => 0,
             ]);
-            Log::info('Business rating reset to 0', ['business_id' => $business->id]);
+
             return;
         }
 
-        $average = $business->reviews()->where('status', 'approved')->avg('rating');
-        
+        $average = $business->reviews()->avg('reviews.rating');
+
         $business->update([
-            'average_rating' => round($average, 1),
+            'average_rating' => round((float) $average, 1),
             'total_reviews' => $total,
         ]);
 
-        Log::info('Business rating updated', [
+        Log::info('Business rating projection refreshed', [
             'business_id' => $business->id,
-            'average_rating' => $business->average_rating,
-            'total_reviews' => $business->total_reviews,
+            'total_reviews' => $total,
         ]);
     }
 }

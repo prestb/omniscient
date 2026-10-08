@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Business;
+use App\Models\Listing;
 use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Review;
@@ -41,70 +42,106 @@ function ownerWithPlan(): User
     return $owner;
 }
 
-// ── Reviews ─────────────────────────────────────────────────────────────────
-test('the review index contains only the routed business reviews', function () {
+// ── Reviews (LISTING-scoped) ────────────────────────────────────────────────
+test('the review index contains only the routed listing reviews', function () {
     $owner = ownerWithPlan();
+
+    // Two Businesses, each with one Listing. The Listing is the reviewed entity.
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
+    $listingA = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $a->id]);
+    $listingB = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $b->id]);
 
-    Review::create(['user_id' => User::factory()->create()->id, 'business_id' => $a->id, 'rating' => 5, 'content' => 'A review', 'status' => Review::STATUS_APPROVED]);
-    Review::create(['user_id' => User::factory()->create()->id, 'business_id' => $b->id, 'rating' => 1, 'content' => 'B review', 'status' => Review::STATUS_APPROVED]);
+    Review::factory()->for($listingA)->approved()->create(['rating' => 5, 'content' => 'A review']);
+    Review::factory()->for($listingB)->approved()->create(['rating' => 1, 'content' => 'B review']);
 
-    $response = $this->actingAs($owner)->get("/owner/businesses/{$a->id}/reviews");
+    $response = $this->actingAs($owner)->get("/owner/listings/{$listingA->id}/reviews");
     $response->assertOk();
 
     $props = $response->viewData('page')['props'];
 
-    expect($props['business']['id'])->toBe($a->id);
+    expect($props['listing']['id'])->toBe($listingA->id);
+    // Only THIS Listing's reviews, never its sibling's.
     expect(collect($props['reviews']['data'])->pluck('content')->all())->toBe(['A review']);
 });
 
-test('sibling business reviews are isolated from each other', function () {
+test('sibling listing reviews are isolated from each other', function () {
     $owner = ownerWithPlan();
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
+    $listingA = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $a->id]);
+    $listingB = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $b->id]);
 
-    Review::create(['user_id' => User::factory()->create()->id, 'business_id' => $a->id, 'rating' => 5, 'content' => 'Only A', 'status' => Review::STATUS_APPROVED]);
-    Review::create(['user_id' => User::factory()->create()->id, 'business_id' => $b->id, 'rating' => 4, 'content' => 'Only B', 'status' => Review::STATUS_APPROVED]);
+    Review::factory()->for($listingA)->approved()->create(['rating' => 5, 'content' => 'Only A']);
+    Review::factory()->for($listingB)->approved()->create(['rating' => 4, 'content' => 'Only B']);
 
-    $propsB = $this->actingAs($owner)->get("/owner/businesses/{$b->id}/reviews")
+    $propsB = $this->actingAs($owner)->get("/owner/listings/{$listingB->id}/reviews")
         ->viewData('page')['props'];
 
     expect(collect($propsB['reviews']['data'])->pluck('content')->all())->toBe(['Only B']);
 });
 
-test('a review cannot be shown through a sibling business context', function () {
+test('sibling listings under the SAME business remain isolated', function () {
+    // The central invariant: sharing an organization must not merge reputation.
     $owner = ownerWithPlan();
-    $a = Business::factory()->create(['owner_id' => $owner->id]);
-    $b = Business::factory()->create(['owner_id' => $owner->id]);
+    $business = Business::factory()->create(['owner_id' => $owner->id]);
 
-    $reviewA = Review::create(['user_id' => User::factory()->create()->id, 'business_id' => $a->id, 'rating' => 5, 'content' => 'A', 'status' => Review::STATUS_APPROVED]);
+    $listingA = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $business->id]);
+    $listingB = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $business->id]);
 
-    $this->actingAs($owner)->get("/owner/businesses/{$b->id}/reviews/{$reviewA->id}")->assertForbidden();
+    Review::factory()->for($listingA)->approved()->create(['rating' => 5, 'content' => 'Only A1']);
+
+    $propsB = $this->actingAs($owner)->get("/owner/listings/{$listingB->id}/reviews")
+        ->viewData('page')['props'];
+
+    expect($propsB['listing']['id'])->toBe($listingB->id);
+    expect($propsB['reviews']['data'])->toBe([]);
+    expect((int) $propsB['reviewsCount'])->toBe(0);
 });
 
-test('a review cannot be replied to through a sibling business context', function () {
+test('a review cannot be shown through a sibling listing context', function () {
     $owner = ownerWithPlan();
     $a = Business::factory()->create(['owner_id' => $owner->id]);
     $b = Business::factory()->create(['owner_id' => $owner->id]);
+    $listingB = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $b->id]);
 
-    $reviewA = Review::create(['user_id' => User::factory()->create()->id, 'business_id' => $a->id, 'rating' => 5, 'content' => 'A', 'status' => Review::STATUS_APPROVED]);
+    $reviewA = Review::factory()->for(
+        Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $a->id])
+    )->approved()->create(['rating' => 5, 'content' => 'A']);
+
+    // Review A does not belong to listingB.
+    $this->actingAs($owner)
+        ->get("/owner/listings/{$listingB->id}/reviews/{$reviewA->id}")
+        ->assertNotFound();
+});
+
+test('a review cannot be replied to through a sibling listing context', function () {
+    $owner = ownerWithPlan();
+    $a = Business::factory()->create(['owner_id' => $owner->id]);
+    $b = Business::factory()->create(['owner_id' => $owner->id]);
+    $listingB = Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $b->id]);
+
+    $reviewA = Review::factory()->for(
+        Listing::factory()->create(['owner_id' => $owner->id, 'business_id' => $a->id])
+    )->approved()->create(['rating' => 5, 'content' => 'A']);
 
     $this->actingAs($owner)
-        ->post("/owner/businesses/{$b->id}/reviews/{$reviewA->id}/reply", ['content' => 'Intrusion'])
-        ->assertForbidden();
+        ->post("/owner/listings/{$listingB->id}/reviews/{$reviewA->id}/reply", ['content' => 'Intrusion'])
+        ->assertNotFound();
 
     expect(\App\Models\ReviewReply::where('review_id', $reviewA->id)->count())->toBe(0);
 });
 
-test('another owners business cannot be accessed for reviews', function () {
+test('another owners listing cannot be accessed for reviews', function () {
     $owner = ownerWithPlan();
-    $other = ownerWithPlan();
-    $foreign = Business::factory()->create(['owner_id' => $other->id]);
+    $foreign = ownerWithPlan();
+    $foreignListing = Listing::factory()->create(['owner_id' => $foreign->id, 'business_id' => null]);
 
-    $this->actingAs($owner)->get("/owner/businesses/{$foreign->id}/reviews")->assertForbidden();
+    // authorization is listing.owner_id, NOT business ownership.
+    $this->actingAs($owner)
+        ->get("/owner/listings/{$foreignListing->id}/reviews")
+        ->assertForbidden();
 });
-
 // ── Leads ───────────────────────────────────────────────────────────────────
 test('the lead index contains only the routed business leads', function () {
     $owner = ownerWithPlan();
@@ -205,6 +242,7 @@ test('another owners business cannot be accessed for leads', function () {
 
 // ── Source guard ────────────────────────────────────────────────────────────
 test('the affected owner controllers no longer select a representative business', function () {
+    // Reviews are LISTING-owned after 21C-R1; leads remain Business-scoped.
     foreach ([
         app_path('Http/Controllers/Owner/ReviewController.php'),
         app_path('Http/Controllers/Owner/LeadController.php'),
@@ -218,6 +256,18 @@ test('the affected owner controllers no longer select a representative business'
 
         expect(str_contains($code, 'businesses()->first'))
             ->toBeFalse(basename($path) . ' must not select a representative Business.');
-        expect(str_contains($code, 'Business $business'))->toBeTrue();
+
+        // No controller may resolve its route entity by selecting a Business.
+        expect(str_contains($code, '$owner->businesses()'))
+            ->toBeFalse(basename($path) . ' must not select from the owners Businesses.');
     }
+
+    // PHASE 21C-R1 — the route entity differs by ownership:
+    //   Review -> Listing (canonical), Lead -> Business (unchanged).
+    $reviewCode = File::get(app_path('Http/Controllers/Owner/ReviewController.php'));
+    expect(str_contains($reviewCode, 'Listing $listing'))->toBeTrue();
+    expect(str_contains($reviewCode, 'Business $business'))->toBeFalse();
+
+    $leadCode = File::get(app_path('Http/Controllers/Owner/LeadController.php'));
+    expect(str_contains($leadCode, 'Business $business'))->toBeTrue();
 });

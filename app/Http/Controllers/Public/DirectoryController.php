@@ -82,8 +82,8 @@ class DirectoryController extends Controller
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags per owner
             ])
-            ->withCount(['images', 'businessReviews'])        // ✅ always load for the accessors
-            ->withAvg('businessReviews', 'rating')            // ✅ always load for the accessors
+            ->withCount(['images', 'reviews'])        // ✅ always load for the accessors
+            ->withAvg('reviews', 'rating')            // ✅ always load for the accessors
             ->where('status', 'published')
             ->whereNull('hidden_at');   // ✅ skip hidden listings
 
@@ -204,11 +204,12 @@ class DirectoryController extends Controller
         // ============== MIN RATING ==============
         if ($request->filled('min_rating')) {
             $minRating = (float) $request->min_rating;
-            // PHASE 11 — Reviews are BUSINESS-owned, so the rating filter matches
-            // against the LISTING's OWNING BUSINESS aggregate. `reviews.listing_id`
-            // no longer exists; joining on `business_id` is the canonical path.
+            // PHASE 21C-R1 - a Review belongs to a LISTING, so a minimum-rating
+            // filter matches the LISTING's own approved aggregate. The previous
+            // raw SQL referenced `reviews.business_id`, a column this phase
+            // dropped, so any min_rating request raised a SQL error.
             $query->whereRaw(
-                '(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE reviews.business_id = listings.business_id AND reviews.status = ?) >= ?',
+                '(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE reviews.listing_id = listings.id AND reviews.status = ? AND reviews.deleted_at IS NULL) >= ?',
                 ['approved', $minRating]
             );
         }
@@ -231,12 +232,12 @@ class DirectoryController extends Controller
 
         switch ($sort) {
             case DiscoverySort::RATING:
-                $query->withAvg('businessReviews', 'rating')
-                    ->orderByDesc('business_reviews_avg_rating');
+                $query->withAvg('reviews', 'rating')
+                    ->orderByDesc('reviews_avg_rating');
                 break;
             case DiscoverySort::REVIEWS:
-                $query->withCount('businessReviews')
-                    ->orderByDesc('business_reviews_count');
+                $query->withCount('reviews')
+                    ->orderByDesc('reviews_count');
                 break;
             case 'name':
                 $query->orderBy('name', 'asc');
@@ -361,8 +362,8 @@ class DirectoryController extends Controller
             'latitude' => (float) $location->latitude,
             'longitude' => (float) $location->longitude,
             'category' => $listing->categories->first()?->name ?? 'Uncategorized',
-            'rating' => round((float) ($listing->business_reviews_avg_rating ?? 0), 1),
-            'reviews_count' => (int) ($listing->business_reviews_count ?? 0),
+            'rating' => round((float) ($listing->reviews_avg_rating ?? 0), 1),
+            'reviews_count' => (int) ($listing->reviews_count ?? 0),
             'cover_image_url' => $cover?->url ?? $listing->business?->cover_image_url,
             'logo_url' => $logo?->url ?? $listing->business?->logo_url,
             'is_featured' => (bool) $listing->is_featured,
@@ -424,11 +425,11 @@ class DirectoryController extends Controller
                     $query->where('status', Listing::STATUS_PUBLISHED)
                         ->whereNull('listings.hidden_at')
                         ->with(['location.city', 'categories', 'images'])
-                        ->withCount('businessReviews')
-                        ->withAvg('businessReviews', 'rating');
+                        ->withCount('reviews')
+                        ->withAvg('reviews', 'rating');
                 },
                 'reviews' => function ($query) {
-                    $query->where('status', 'approved')
+                    $query->where('reviews.status', 'approved')
                         ->with(['user', 'replies.user'])
                         ->latest()
                         ->take(10);
@@ -437,9 +438,14 @@ class DirectoryController extends Controller
             ->where('slug', $slug)
             ->where('status', 'published')
             ->whereNull('hidden_at')   // ✅ 404 if business is hidden
-            ->withCount('reviews')
-            ->withAvg('reviews', 'rating')
             ->firstOrFail();
+
+        // PHASE 21C-R1 - the organization aggregate is DERIVED, and it is
+        // computed WITHOUT the hasManyThrough: withCount/withAvg rebuild the
+        // relation and emit an unqualified `status` next to the joined
+        // `listings` table -> "Column 'status' in where clause is ambiguous".
+        $business->setAttribute('reviews_count', $business->reviewsCount());
+        $business->setAttribute('reviews_avg_rating', $business->averageRating());
 
 
         // ✅ Round the withAvg result so `business.reviews_avg_rating` matches
@@ -483,10 +489,18 @@ class DirectoryController extends Controller
             1 => 0,
         ];
 
-        $ratings = $business->reviews()
-            ->where('status', 'approved')
-            ->select('rating', \DB::raw('count(*) as count'))
-            ->groupBy('rating')
+        // PHASE 21C-R1 — the aggregate traverses Listings, so every column must
+        // be qualified: `status` and `rating` exist on the joined table too.
+        // PHASE 21C-R1 - a grouped aggregate must not traverse the hasManyThrough
+        // join: MariaDB (ONLY_FULL_GROUP_BY) rejects it with
+        //   1055 'listings.business_id' isn't in GROUP BY
+        // Scoping by the Business's Listing ids avoids the join entirely
+        // while producing exactly the same breakdown.
+        $ratings = \App\Models\Review::query()
+            ->whereIn('listing_id', $business->listings()->select('id'))
+            ->where('reviews.status', 'approved')
+            ->select('reviews.rating', \DB::raw('count(*) as count'))
+            ->groupBy('reviews.rating')
             ->get();
 
         foreach ($ratings as $r) {

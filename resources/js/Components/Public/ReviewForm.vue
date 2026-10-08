@@ -200,7 +200,7 @@
                 </label>
                 <textarea v-model="form.content" rows="4" maxlength="2000"
                     class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors resize-none text-sm"
-                    placeholder="Share your experience with this business…" required></textarea>
+                    placeholder="Share your experience with this Listing…" required></textarea>
                 <div class="flex justify-between mt-1.5">
                     <p v-if="errors.content" class="text-red-500 text-xs font-medium">{{ errors.content }}</p>
                     <span class="text-[11px] text-gray-400 dark:text-gray-500 ml-auto font-medium">{{ form.content ?
@@ -293,7 +293,11 @@
     const MAX_SIZE_MB = 5;
 
     const props = defineProps({
-        businessId: {
+        /**
+     * PHASE 21C-R1 - the LISTING being reviewed. A Review belongs to a Listing;
+     * a Business may contain several, so it can never be the subject.
+     */
+    listingSlug: {
             type: Number,
             required: true
         },
@@ -452,7 +456,7 @@
             data.append(`images[${i}]`, img.file);
         });
 
-        router.post(`/business/${props.businessId}/reviews`, data, {
+        router.post(`/listing/${props.listingSlug}/reviews`, data, {
             forceFormData: true,
             onFinish: () => { submitting.value = false; },
             onSuccess: () => {

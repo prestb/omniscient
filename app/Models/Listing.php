@@ -191,7 +191,7 @@ class Listing extends Model
      * a Listing-owned feature. Removed with the column, not replaced.
      *
      * Listings DISPLAY the owning Business's aggregate through
-     * {@see businessReviews()} below.
+     * {@see reviews()} below.
      */
 
 
@@ -211,21 +211,28 @@ class Listing extends Model
      * `reviews()` above is the obsolete Listing-owned relation; it is scheduled
      * for removal in Step 2 once every consumer has moved here.
      */
-    public function businessReviews()
-    {
-        return $this->hasManyThrough(
-            Review::class,
-            Business::class,
-            'id',          // businesses.id          (intermediate key)
-            'business_id', // reviews.business_id    (final model key)
-            'business_id', // listings.business_id   (local key)
-            'id'           // businesses.id          (intermediate local key)
-        );
-    }
-
-    public function allReviews()
+    /**
+     * PHASE 21C-R1 - CANONICAL LISTING REVIEWS.
+     *
+     * A Review belongs to the Listing it describes. This replaces the old
+     * `reviews()` hasManyThrough, which made a Listing display its
+     * organization's reviews — so sibling Listings inherited each other's
+     * reputation and a business-less Listing could have none at all.
+     */
+    public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Reviews that may contribute to PUBLIC reputation.
+     *
+     * Pending, rejected and soft-deleted reviews never count. Defined once here
+     * so no consumer can invent a slightly different filter.
+     */
+    public function approvedReviews()
+    {
+        return $this->reviews()->where('status', Review::STATUS_APPROVED);
     }
 
     public function analytics()
@@ -368,12 +375,12 @@ class Listing extends Model
             // 	otal_reviews accessors were NOT usable here: they read
             // withCount/withAvg attributes and never query on their own, so they
             // silently reported 0 during indexing.
-            'rating' => $this->business_id
-                ? round((float) $this->businessReviews()->avg('rating'), 1)
-                : 0.0,
-            'reviews_count' => $this->business_id
-                ? (int) $this->businessReviews()->count()
-                : 0,
+            // PHASE 21C-R1 - the LISTING's own approved reviews. The previous version
+            // read the owning Business's aggregate AND returned 0 for a
+            // business-less Listing, so a Professional could never be indexed
+            // with a rating.
+            'rating' => round((float) $this->approvedReviews()->avg('rating'), 1),
+            'reviews_count' => (int) $this->approvedReviews()->count(),
             // Explicit numeric promotion signal. is_featured stays a boolean
             // filter; this is what the ranking rule reads.
             'is_featured_rank' => $this->is_featured ? 1 : 0,

@@ -158,10 +158,14 @@ Route::post('/listing/{listing:slug}/contact', [ListingLeadController::class, 's
     ->name('listing.contact');
 
 // Public reviews
-Route::prefix('business/{business}/reviews')->name('business.reviews.')->group(function () {
+// PHASE 21C-R1 — A Review is a review of a LISTING. The Business is context
+// reached through the Listing, never the reviewed entity. Submission requires
+// authentication: the previous implementation silently created a User for a
+// submitted email, which was never a real guest architecture.
+Route::prefix('listing/{listing:slug}/reviews')->name('listing.reviews.')->group(function () {
     Route::get('/', [PublicReviewController::class, 'index'])->name('index');
     Route::post('/', [PublicReviewController::class, 'store'])
-        ->middleware('throttle:review')
+        ->middleware(['auth', 'throttle:review'])
         ->name('store');
 });
 
@@ -464,7 +468,11 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
     // Reviews — PHASE 11 / WAVE 1D: EXPLICIT Business context.
     // A Review is Business-owned, so the Business is identified by the route,
     // never selected from the owner's Businesses.
-    Route::prefix('businesses/{business}/reviews')->name('businesses.reviews.')->group(function () {
+    // PHASE 21C-R1 — Reviews are LISTING-owned. The owner manages the Reviews of
+    // a specific Listing, so a Business-backed owner with several Listings never
+    // sees sibling Reviews mixed together, and a Business-less Professional has
+    // the same capability. Authorization resolves through review.listing.owner_id.
+    Route::prefix('listings/{listing}/reviews')->name('listings.reviews.')->group(function () {
         Route::get('/', [OwnerReviewController::class, 'index'])->name('index');
         Route::get('/{review}', [OwnerReviewController::class, 'show'])->name('show');
         Route::post('/{review}/reply', [OwnerReviewController::class, 'reply'])

@@ -219,9 +219,12 @@
                         <div class="flex items-start gap-3">
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <a :href="`/business/${review.business?.slug}`"
+                                    <!-- PHASE 21C-R1 - a Review describes a LISTING,
+                                         so it links to the Listing. The Business is optional
+                                         context reached through the Listing. -->
+                                    <a :href="`/listing/${review.listing?.slug}`"
                                        class="text-sm font-semibold text-primary-600 hover:text-primary-800">
-                                        {{ review.business?.name }}
+                                        {{ review.listing?.name || 'Listing' }}
                                     </a>
                                     <div class="flex text-yellow-400 text-xs">
                                         <span v-for="i in 5" :key="i">

@@ -104,9 +104,10 @@ test('sort input is normalized from aliases to canonical keys', function (string
     ['', DiscoverySort::RELEVANCE],
 ]);
 
-test('rating and review sorts require the business review aggregate', function () {
-    expect(DiscoverySort::requiredAggregates(DiscoverySort::RATING))->toBe(['businessReviews']);
-    expect(DiscoverySort::requiredAggregates(DiscoverySort::REVIEWS))->toBe(['businessReviews']);
+test('rating and review sorts require the listing review aggregate', function () {
+    // PHASE 21C-R1 - sorting a Listing ranks it by its OWN reviews.
+    expect(DiscoverySort::requiredAggregates(DiscoverySort::RATING))->toBe(['reviews']);
+    expect(DiscoverySort::requiredAggregates(DiscoverySort::REVIEWS))->toBe(['reviews']);
     expect(DiscoverySort::requiredAggregates(DiscoverySort::NEWEST))->toBe([]);
 });
 

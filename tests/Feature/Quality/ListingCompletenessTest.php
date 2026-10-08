@@ -240,21 +240,27 @@ test('completeness is not a search signal', function () {
 
 // ── 6. Regression guards ────────────────────────────────────────────────────
 
-test('reviews remain business-owned and listing reputation is labelled', function () {
-    // PHASE 16E - the reputation is still shown only when an owning Business
-    // exists, and it is still explicitly attributed. The rendering moved from
-    // inline markup into the shared RatingSummary primitive, so the contract is
-    // asserted where it now lives.
+test('listing reputation is listing-owned and correctly attributed', function () {
+    // PHASE 21C-R1 - the Listing page shows the LISTING's own approved reviews.
+    // It is no longer gated on the existence of an owning Business, so a
+    // Business-less Professional displays its own reputation.
     $profile = file_get_contents(resource_path('js/Pages/Public/ListingProfile.vue'));
     $summary = file_get_contents(resource_path('js/Components/Public/ui/RatingSummary.vue'));
 
-    expect($profile)->toContain('listing.business_id');
+    // PHASE 21C-R1 - the rating shown is the LISTING's own, so it is no longer
+    // gated on the existence of a Business, and it is attributed to the Listing.
     expect($profile)->toContain('<RatingSummary');
     expect($profile)->toContain('attribution');
-    expect($summary)->toContain('Business rating');
+    // The organization section still legitimately keys off business_id;
+    // the RATING must not. So assert on the RatingSummary binding itself.
+    expect($profile)->not->toContain('<RatingSummary v-if="listing.business_id"');
+    expect($profile)->toContain('v-if="listing.reviews_count > 0"');
+    expect($summary)->toContain('ownerLabel');
+    expect($summary)->not->toContain('Business rating: ');
 
-    // Still Business-owned.
-    expect(Schema::hasColumn('reviews', 'listing_id'))->toBeFalse();
+    // PHASE 21C-R1 - ownership inverted: a Review belongs to a LISTING.
+    expect(Schema::hasColumn('reviews', 'listing_id'))->toBeTrue();
+    expect(Schema::hasColumn('reviews', 'business_id'))->toBeFalse();
 });
 
 test('no representative listing selection exists in completeness or owner listings', function () {

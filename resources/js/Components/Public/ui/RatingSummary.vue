@@ -8,7 +8,7 @@
   BUSINESS-owned. A Listing displays its owning organization's aggregate. This
   component therefore NEVER presents the number as the Listing's own rating —
   the accessible name always attributes it, and `attribution` controls whether
-  the visible "Business rating" label is shown.
+  the visible attribution label is shown.
 
   No review data, route or query is touched by this consolidation.
 -->
@@ -30,10 +30,19 @@ const props = defineProps({
         validator: (v) => ['sm', 'md'].includes(v),
     },
     /**
-     * Show the visible "Business rating" label. On a Listing page this must be
-     * true so a visitor cannot mistake the aggregate for a Listing-owned score.
+     * Show the visible attribution label alongside the number.
      */
     attribution: { type: Boolean, default: false },
+    /**
+     * WHICH entity this number describes. Canonical is 'listing' — a Review
+     * belongs to a Listing. 'business' is used on the organization page, where
+     * the value is genuinely an aggregate across that Business's Listings.
+     */
+    owner: {
+        type: String,
+        default: 'listing',
+        validator: (v) => ['listing', 'business'].includes(v),
+    },
 });
 
 const value = computed(() => {
@@ -54,9 +63,11 @@ const filled = computed(() => Math.round(value.value));
  * The ONLY rating text a screen reader receives. Stars alone are not
  * accessible, and the ownership attribution is part of the name.
  */
+const ownerLabel = computed(() => (props.owner === 'business' ? 'Business' : 'Listing'));
+
 const accessibleLabel = computed(() => {
     if (!hasRating.value) {
-        return 'No business reviews yet';
+        return 'No reviews yet';
     }
 
     const stars = value.value.toFixed(1);
@@ -64,7 +75,7 @@ const accessibleLabel = computed(() => {
         ? ''
         : ` from ${count.value} review${count.value === 1 ? '' : 's'}`;
 
-    return `Business rating: ${stars} out of 5${reviews}`;
+    return `${ownerLabel.value} rating: ${stars} out of 5${reviews}`;
 });
 
 const starSize = computed(() => (props.size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5'));
@@ -103,7 +114,7 @@ const textSize = computed(() => (props.size === 'sm' ? 'text-caption' : 'text-bo
             :class="['text-ink-subtle dark:text-gray-500', textSize]"
             aria-hidden="true"
         >
-            Business rating
+            {{ ownerLabel }} rating
         </span>
     </span>
 

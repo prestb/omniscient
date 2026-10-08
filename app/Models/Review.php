@@ -11,7 +11,7 @@ class Review extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'business_id',
+        'listing_id',
         'user_id',
         'rating',
         'title',
@@ -34,9 +34,15 @@ class Review extends Model
     const STATUS_APPROVED = 'approved';
     const STATUS_REJECTED = 'rejected';
 
-    public function business()
+    /**
+     * PHASE 21C-R1 - the Listing being reviewed is the CANONICAL owner.
+     *
+     * Business context, where it exists, is reached THROUGH the Listing
+     * (`$review->listing->business`) so there is exactly one ownership path.
+     */
+    public function listing()
     {
-        return $this->belongsTo(Business::class);
+        return $this->belongsTo(Listing::class);
     }
 
     /**
@@ -86,12 +92,14 @@ class Review extends Model
 
     public function scopeApproved($query)
     {
-        return $query->where('status', self::STATUS_APPROVED);
+        // PHASE 21C-R1 - qualified: the derived Business aggregate joins
+        // `listings`, which also has a `status` column.
+        return $query->where('reviews.status', self::STATUS_APPROVED);
     }
 
     public function scopePending($query)
     {
-        return $query->where('status', self::STATUS_PENDING);
+        return $query->where('reviews.status', self::STATUS_PENDING);
     }
 
     public function isApproved()

@@ -466,14 +466,70 @@ class Business extends Model
         return $this->hasActiveSubscription();
     }
 
+    /**
+     * PHASE 21C-R1 - ORGANIZATION REPUTATION, DERIVED FROM ITS LISTINGS.
+     *
+     * The Business does NOT own Reviews. This traverses
+     * Business → Listings → Reviews so `withAvg('reviews', 'rating')` and
+     * `withCount('reviews')` aggregate at SQL level — no duplicated rows and no
+     * second stored rating.
+     *
+     * Only approved reviews count, so no consumer can accidentally include
+     * pending, rejected or soft-deleted rows.
+     */
     public function reviews()
     {
-        return $this->hasMany(Review::class)->approved();
+        return $this->hasManyThrough(
+            Review::class,
+            Listing::class,
+            'business_id', // listings.business_id  (intermediate key)
+            'listing_id',  // reviews.listing_id    (final model key)
+            'id',          // businesses.id         (local key)
+            'id'           // listings.id           (intermediate local key)
+        );
     }
 
-    public function allReviews()
+    /**
+     * Approved reviews across this organization's Listings.
+     *
+     * Kept SEPARATE from `reviews()` on purpose. Constraining the hasManyThrough
+     * itself with `->where('reviews.status', ...)` makes Laravel rebuild that
+     * filter into the aggregate subquery used by `withCount`/`withAvg` WITHOUT
+     * the table qualification, producing:
+     *
+     *   SQLSTATE[23000]: Column 'status' in where clause is ambiguous
+     *
+     * because `listings` (the intermediate table) also has a `status` column.
+     * Applying the filter at the CALL SITE keeps it qualified and correct.
+     */
+    public function approvedReviews()
     {
-        return $this->hasMany(Review::class);
+        // JOIN-FREE by design. Constraining the hasManyThrough and then
+        // aggregating (avg/count) makes Laravel emit
+        //   select avg(`rating`) from `reviews` inner join `listings`
+        //     ... where `status` = ?
+        // with NO table qualification on `status`, and `listings` also has
+        // a `status` column:
+        //   SQLSTATE[23000]: Column 'status' in where clause is ambiguous
+        // Scoping by listing ids avoids the join entirely and is
+        // semantically identical.
+        return Review::query()
+            ->whereIn('listing_id', $this->listings()->select('id'))
+            ->where('reviews.status', Review::STATUS_APPROVED);
+    }
+
+    /** Organization average across its Listings' approved reviews. */
+    public function averageRating(): ?float
+    {
+        $avg = $this->approvedReviews()->avg('rating');
+
+        return $avg === null ? null : round((float) $avg, 1);
+    }
+
+    /** Organization approved review count across its Listings. */
+    public function reviewsCount(): int
+    {
+        return (int) $this->approvedReviews()->count();
     }
 
     // ============== SCOPES ==============
@@ -544,7 +600,10 @@ class Business extends Model
             return $this->memoizedAverageRating;
         }
 
-        $avg = $this->reviews()->where('status', 'approved')->avg('rating');
+        // PHASE 21C-R1 - join-free. Aggregating through `reviews()` produced
+        // "Column 'status' in where clause is ambiguous" because the
+        // hasManyThrough joins `listings`, which also has a `status` column.
+        $avg = $this->approvedReviews()->avg('rating');
 
         $this->memoizedAverageRating = $avg ? round((float) $avg, 1) : 0.0;
 
@@ -564,9 +623,8 @@ class Business extends Model
             return $this->memoizedTotalReviews;
         }
 
-        $this->memoizedTotalReviews = $this->reviews()
-            ->where('status', 'approved')
-            ->count();
+        // PHASE 21C-R1 - join-free, same reason as above.
+        $this->memoizedTotalReviews = $this->approvedReviews()->count();
 
         return $this->memoizedTotalReviews;
     }

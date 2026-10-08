@@ -12,7 +12,7 @@
                     d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
             </template>
             <template #title>Review #{{ review.id }}</template>
-            <template #subtitle>{{ review.business?.name }}</template>
+            <template #subtitle>{{ review.listing?.name }}</template>
             <template #actions>
                 <span :class="statusClass(review.status)">
                     {{ review.status.charAt(0).toUpperCase() + review.status.slice(1) }}
@@ -201,9 +201,9 @@
                             <h3 class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">Business</h3>
                         </div>
                         <div class="p-5">
-                            <a :href="`/admin/businesses/${review.business?.id}`"
+                            <a :href="`/admin/businesses/${review.listing?.id}`"
                                 class="text-sm font-bold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors flex items-center gap-1 group">
-                                {{ review.business?.name }}
+                                {{ review.listing?.name }}
                                 <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -213,16 +213,16 @@
                             <div class="mt-2 flex items-center gap-3">
                                 <div class="flex items-center gap-1">
                                     <span class="text-amber-400 text-sm">★</span>
-                                    <span class="text-sm font-bold text-gray-900 dark:text-white">{{ review.business?.average_rating ||
+                                    <span class="text-sm font-bold text-gray-900 dark:text-white">{{ review.listing?.average_rating ||
                                         0
                                     }}</span>
                                 </div>
                                 <span class="text-gray-300 dark:text-gray-600">•</span>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ review.business?.total_reviews || 0 }}
+                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ review.listing?.total_reviews || 0 }}
                                     reviews</span>
                             </div>
                             <div class="mt-2 flex flex-wrap gap-1">
-                                <span v-for="category in review.business?.categories?.slice(0, 2)" :key="category.id"
+                                <span v-for="category in review.listing?.business?.categories?.slice(0, 2)" :key="category.id"
                                     class="inline-flex items-center px-2 py-0.5 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-[10px] font-semibold rounded-full">
                                     {{ category.name }}
                                 </span>
@@ -247,11 +247,11 @@
                             <div class="flex items-center gap-3">
                                 <div
                                     class="w-10 h-10 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-sm flex-shrink-0">
-                                    {{ getInitials(review.business?.owner?.name) }}
+                                    {{ getInitials(review.listing?.owner?.name) }}
                                 </div>
                                 <div class="min-w-0">
                                     <p class="text-sm font-bold text-gray-900 dark:text-white truncate">
-                                        {{ review.business?.owner?.name || 'N/A' }}
+                                        {{ review.listing?.owner?.name || 'N/A' }}
                                     </p>
                                     <p class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 truncate">
                                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor"
@@ -259,11 +259,11 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                                         </svg>
-                                        {{ review.business?.owner?.email }}
+                                        {{ review.listing?.owner?.email }}
                                     </p>
                                 </div>
                             </div>
-                            <a :href="`/admin/owners/${review.business?.owner?.id}`"
+                            <a :href="`/admin/owners/${review.listing?.owner?.id}`"
                                 class="mt-3 inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors font-semibold">
                                 View owner profile
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

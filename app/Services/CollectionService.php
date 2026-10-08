@@ -121,8 +121,8 @@ class CollectionService
             ->whereNull('hidden_at')
             ->whereHas('categories', fn($q) => $q->where('categories.id', $category->id))
             ->whereHas('location', fn($q) => $q->where('city_id', $city->id))
-            ->withCount(['businessReviews', 'images'])
-            ->withAvg('businessReviews', 'rating');
+            ->withCount(['reviews', 'images'])
+            ->withAvg('reviews', 'rating');
     }
 
     /**

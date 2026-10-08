@@ -12,7 +12,7 @@ class ReviewController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Review::with(['business', 'user']);
+        $query = Review::with(['listing.business', 'user']);
 
         if ($request->status) {
             $query->where('status', $request->status);
@@ -29,8 +29,8 @@ class ReviewController extends Controller
                         $uq->where('name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
                     })
-                    ->orWhereHas('business', function ($bq) use ($search) {
-                        $bq->where('name', 'like', "%{$search}%");
+                    ->orWhereHas('listing', function ($lq) use ($search) {
+                        $lq->where('name', 'like', "%{$search}%");
                     });
             });
         }
@@ -45,7 +45,7 @@ class ReviewController extends Controller
 
     public function show(Review $review)
     {
-        $review->load(['business.owner', 'user', 'replies.user']);
+        $review->load(['listing.business', 'listing.owner', 'user', 'replies.user']);
 
         return Inertia::render('Admin/Reviews/Show', [
             'review' => $review,
@@ -67,8 +67,8 @@ class ReviewController extends Controller
             NotificationHelper::send(
                 $reviewer,
                 'Your Review Has Been Approved',
-                'Your review for "' . $review->business->name . '" has been approved and is now visible.',
-                route('business.show', $review->business->slug),
+                'Your review for "' . $review->listing->name . '" has been approved and is now visible.',
+                route('listing.show', $review->listing->slug),
                 ['review_id' => $review->id],
                 'review_approved'
             );
@@ -95,8 +95,8 @@ class ReviewController extends Controller
             NotificationHelper::send(
                 $reviewer,
                 'Your Review Was Not Approved',
-                'Your review for "' . $review->business->name . '" was not approved. You can submit a new review that follows our guidelines.',
-                route('business.show', $review->business->slug),
+                'Your review for "' . $review->listing->name . '" was not approved. You can submit a new review that follows our guidelines.',
+                route('listing.show', $review->listing->slug),
                 ['review_id' => $review->id],
                 'review_rejected'
             );

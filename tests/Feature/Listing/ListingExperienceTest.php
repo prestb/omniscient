@@ -136,9 +136,10 @@ test('no verification implication was introduced on the listing page', function 
     expect($page)->not->toContain('Verified');
 });
 
-test('reviews remain business-owned after the correction', function () {
-    expect(Schema::hasColumn('reviews', 'listing_id'))->toBeFalse();
-    expect(Schema::hasColumn('reviews', 'business_id'))->toBeTrue();
+test('reviews are listing-owned after the correction', function () {
+    // PHASE 21C-R1 inverted this assertion: a Review belongs to a Listing.
+    expect(Schema::hasColumn('reviews', 'listing_id'))->toBeTrue();
+    expect(Schema::hasColumn('reviews', 'business_id'))->toBeFalse();
 });
 
 test('the listing page uses no browser APIs at render or setup scope', function () {

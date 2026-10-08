@@ -1,6 +1,6 @@
 <!-- resources/js/Components/Public/ReviewCardCompact.vue -->
 <template>
-    <Link :href="businessUrl" class="block group h-full">
+    <Link :href="reviewedUrl" class="block group h-full">
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden h-full p-4 sm:p-5 flex flex-col">
 
             <!-- Header: Avatar + Name + Stars -->
@@ -26,10 +26,10 @@
                 {{ review.content }}
             </p>
 
-            <!-- Footer: business name + time -->
+            <!-- Footer: the REVIEWED entity (the Listing) + time -->
             <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
                 <span class="text-[10px] sm:text-xs font-semibold text-primary-600 dark:text-primary-400 truncate group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
-                    {{ review.business?.name || 'Business' }}
+                    {{ review.listing?.name || review.business?.name || 'Listing' }}
                 </span>
                 <span class="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
                     {{ review.created_at }}
@@ -50,9 +50,21 @@ const props = defineProps({
     },
 });
 
-const businessUrl = computed(() => {
-    const slug = props.review.business?.slug;
-    return slug ? `/business/${slug}#reviews` : '/directory';
+/**
+ * PHASE 21C-R1 - a Review describes a LISTING, so the card navigates to the
+ * Listing. The old target was the organization page, which presented the
+ * Business as the reviewed entity.
+ */
+const reviewedUrl = computed(() => {
+    const listingSlug = props.review.listing?.slug;
+
+    if (listingSlug) {
+        return `/listing/${listingSlug}`;
+    }
+
+    // Fall back to the organization only when the payload carries no Listing.
+    const businessSlug = props.review.business?.slug;
+    return businessSlug ? `/business/${businessSlug}#reviews` : '/directory';
 });
 
 const getInitials = (name) => {

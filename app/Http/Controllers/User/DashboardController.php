@@ -38,16 +38,18 @@ class DashboardController extends Controller
                 'categories',
                 'owner.activeSubscription.plan',
             ])
-            ->withCount('businessReviews')
-            ->withAvg('businessReviews', 'rating')
+            ->withCount('reviews')
+            ->withAvg('reviews', 'rating')
             ->take(6)
             ->get()
             ->map(fn($listing) => (new \App\Http\Resources\ListingDirectoryResource($listing))->resolve())
             ->map(fn(array $data) => array_merge($data, ['is_favorited' => true]));
 
         // Recent reviews
+        // PHASE 21C-R1 - a Review belongs to a LISTING; `business` was removed
+        // from the model, so eager-loading it raised BadMethodCallException.
         $recentReviews = Review::where('user_id', $user->id)
-            ->with(['business:id,name,slug'])
+            ->with(['listing:id,name,slug'])
             ->latest()
             ->take(5)
             ->get();

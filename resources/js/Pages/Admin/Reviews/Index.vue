@@ -216,9 +216,9 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ review.business?.name ||
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ review.listing?.name ||
                                         'Unknown' }}</p>
-                                    <p class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ review.business?.category?.name || ''
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ review.listing?.category?.name || ''
                                     }}</p>
                                 </td>
                                 <td class="px-6 py-4">
