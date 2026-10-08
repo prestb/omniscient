@@ -13,11 +13,11 @@ use Inertia\Inertia;
 
 class HourController extends Controller
 {
-    public function index(Business $business, Location $location)
+    public function index(?Business $business, Location $location)
     {
         try {
             Log::info('Hours index accessed', [
-                'business_id' => $business->id,
+                'business_id' => $business?->id,
                 'location_id' => $location->id,
                 'user_id' => auth()->id()
             ]);
@@ -29,7 +29,7 @@ class HourController extends Controller
                 $this->authorizeHours($business, $location);
             } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
                 Log::warning('Unauthorized hours access attempt', [
-                    'business_id' => $business->id,
+                    'business_id' => $business?->id,
                     'location_id' => $location->id,
                     'user_id' => auth()->id(),
                 ]);
@@ -96,7 +96,7 @@ class HourController extends Controller
      *
      * ✅ Replaces the old per-day `store()` which fired one request per day.
      */
-    public function storeBatch(Request $request, Business $business, Location $location)
+    public function storeBatch(Request $request, ?Business $business, Location $location)
     {
         $this->authorizeHours($business, $location);
 
@@ -150,7 +150,7 @@ class HourController extends Controller
                 ->with('success', 'Hours saved successfully.');
         } catch (\Throwable $e) {
             Log::error('Error saving hours batch:', [
-                'business_id' => $business->id,
+                'business_id' => $business?->id,
                 'location_id' => $location->id,
                 'error' => $e->getMessage(),
             ]);
@@ -160,7 +160,7 @@ class HourController extends Controller
         }
     }
 
-    public function destroy(Business $business, Location $location, LocationHour $hour)
+    public function destroy(?Business $business, Location $location, LocationHour $hour)
     {
         try {
             $this->authorizeHours($business, $location);
@@ -179,7 +179,7 @@ class HourController extends Controller
     }
     // ============== DATE OVERRIDES ==============
 
-    public function storeOverride(Request $request, Business $business, Location $location)
+    public function storeOverride(Request $request, ?Business $business, Location $location)
     {
         $this->authorizeHours($business, $location);
 
@@ -213,7 +213,7 @@ class HourController extends Controller
             return redirect()->back();
         } catch (\Throwable $e) {
             Log::error('Failed to create hour override', [
-                'business_id' => $business->id,
+                'business_id' => $business?->id,
                 'location_id' => $location->id,
                 'error' => $e->getMessage(),
             ]);
@@ -222,7 +222,7 @@ class HourController extends Controller
         }
     }
 
-    public function destroyOverride(Business $business, Location $location, LocationHourOverride $override)
+    public function destroyOverride(?Business $business, Location $location, LocationHourOverride $override)
     {
         $this->authorizeHours($business, $location);
 
@@ -235,7 +235,7 @@ class HourController extends Controller
         return redirect()->back();
     }
 
-    public function status(Business $business, Location $location)
+    public function status(?Business $business, Location $location)
     {
         try {
             $this->authorizeHours($business, $location);

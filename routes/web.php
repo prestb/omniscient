@@ -289,6 +289,26 @@ Route::middleware(['auth', 'role:user,admin,super_admin'])
 // =============================================================
 Route::middleware(['auth', 'role:user,owner'])->group(function () {
 
+    // =====================================================================
+    // PHASE 22C - OWNER-SCOPED LOCATION HOURS.
+    //
+    // Hours belong to the LOCATION and authorization resolves through
+    // `location.owner_id`. The Business-scoped family is retained for
+    // navigation, but a Business-less Professional has no Business to name,
+    // so these reach the SAME controller methods without one.
+    //
+    // No second hours implementation exists: routing surface only.
+    // =====================================================================
+    Route::prefix('owner/locations/{location}/hours')->name('owner.locations.hours.')->group(function () {
+        Route::get('/', [HourController::class, 'index'])->name('index');
+        Route::post('/batch', [HourController::class, 'storeBatch'])->name('batch');
+        Route::get('/status', [HourController::class, 'status'])->name('status');
+        Route::post('/overrides', [HourController::class, 'storeOverride'])->name('overrides.store');
+        Route::delete('/overrides/{override}', [HourController::class, 'destroyOverride'])->name('overrides.destroy');
+        Route::delete('/{hour}', [HourController::class, 'destroy'])->name('destroy');
+    });
+
+
     // =========================================================
     // PHASE 11 / WAVE 1D-2 — THE LISTING LIFECYCLE
     // A Listing is created directly as the discoverable entity. Business

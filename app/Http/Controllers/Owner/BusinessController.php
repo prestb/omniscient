@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Helpers\NotificationHelper;
 use App\Traits\GuardsHiddenItems;
@@ -301,6 +302,49 @@ class BusinessController extends Controller
         ]);
 
                 // ✅ Soft-delete all related records
+        // =====================================================================
+        // PHASE 22C - LOCATION LIFECYCLE INTEGRITY.
+        //
+        // This path previously deleted the Business's Locations as a BULK
+        // soft-delete, bypassing the in-use protection enforced by the
+        // explicit Location endpoints. A Location referenced by Listings was
+        // deleted silently and those Listings were left with a dangling
+        // location_id.
+        //
+        // The invariant is checked BEFORE anything is mutated, so a rejected
+        // operation leaves no partial destructive state.
+        // =====================================================================
+        $locationsInUse = \App\Models\Location::where('business_id', $business->id)
+            ->whereHas('listings')
+            ->withCount('listings')
+            ->get();
+
+        if ($locationsInUse->isNotEmpty()) {
+            $listingsBlocked = (int) $locationsInUse->sum('listings_count');
+            $locationCount = $locationsInUse->count();
+
+            \Log::warning('Business deletion blocked: Locations still in use', [
+                'business_id' => $business->id,
+                'owner_id' => $user->id,
+                'locations_in_use' => $locationsInUse->pluck('id')->all(),
+                'listings_affected' => $listingsBlocked,
+            ]);
+
+            $message = $locationCount === 1
+                ? 'This business has 1 location still used by ' . $listingsBlocked
+                    . ' Listing(s). Detach it from those Listings before deleting the business.'
+                : 'This business has ' . $locationCount . ' locations still used by '
+                    . $listingsBlocked . ' Listing(s). Detach them from those Listings '
+                    . 'before deleting the business.';
+
+            return back()->with('error', $message);
+        }
+
+        // PHASE 22C - the remaining mutations are transactional so a partial
+        // failure cannot leave a half-deleted business.
+        \DB::transaction(function () use ($business) {
+        // Safe now: every Location on this Business is unreferenced, so removing
+        // them cannot orphan a Listing.
         $business->locations()->delete();
         $business->services()->delete();
         $business->contacts()->delete();       // ✅ Now works with SoftDeletes
@@ -311,6 +355,7 @@ class BusinessController extends Controller
 
         // ✅ Soft-delete the business
         $business->delete();
+        }); // end PHASE 22C transaction
 
         // ✅ Notify admins
         \App\Helpers\NotificationHelper::sendToAdmins(

@@ -518,6 +518,23 @@ class Business extends Model
             ->where('reviews.status', Review::STATUS_APPROVED);
     }
 
+    /**
+     * ALL reviews across this organization's Listings, regardless of status.
+     *
+     * PHASE 22C — this relationship was removed when reviews became
+     * Listing-owned (21C-R1) but SEVEN call sites were left calling it, so
+     * Business deletion and the owner dashboard both threw
+     * BadMethodCallException. Restored JOIN-FREE for the same reason as
+     * approvedReviews(): constraining a hasManyThrough makes Laravel emit an
+     * UNQUALIFIED `status` beside the joined `listings` table, which also has
+     * a `status` column.
+     */
+    public function allReviews()
+    {
+        return Review::query()
+            ->whereIn('listing_id', $this->listings()->select('id'));
+    }
+
     /** Organization average across its Listings' approved reviews. */
     public function averageRating(): ?float
     {

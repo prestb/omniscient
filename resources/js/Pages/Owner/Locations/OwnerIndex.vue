@@ -79,8 +79,14 @@
                             <template v-else>Not used by any Listing</template>
                         </p>
                     </div>
-                    <a :href="`/owner/locations/${location.id}/edit`"
-                        class="text-sm font-semibold text-primary-600 hover:text-primary-700">Edit</a>
+                    <div class="flex items-center gap-3">
+                        <!-- PHASE 22C - hours are Location-owned, so a Professional
+                             with no Business can reach them from here. -->
+                        <a :href="`/owner/locations/${location.id}/hours`"
+                            class="text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Hours</a>
+                        <a :href="`/owner/locations/${location.id}/edit`"
+                            class="text-sm font-semibold text-primary-600 hover:text-primary-700">Edit</a>
+                    </div>
                 </li>
             </ul>
         </div>
