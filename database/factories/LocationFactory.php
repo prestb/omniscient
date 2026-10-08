@@ -7,6 +7,7 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\Location;
 use App\Models\Region;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -25,6 +26,21 @@ class LocationFactory extends Factory
     public function definition(): array
     {
         return [
+            // PHASE 22A - a Location is ACCOUNT-owned. Business ownership is
+            // optional context and is never the authorization relationship.
+            //
+            // When a scenario supplies `business_id`, the canonical owner is
+            // derived from that Business so `owner_id` and the organization
+            // agree — mirroring how the application itself creates a Location.
+            'owner_id' => function (array $attributes) {
+                $businessId = $attributes['business_id'] ?? null;
+
+                if ($businessId !== null) {
+                    return Business::find($businessId)?->owner_id ?? User::factory();
+                }
+
+                return User::factory();
+            },
             'business_id' => null,
             'name' => fake()->city() . ' Location',
             'is_primary' => false,
@@ -52,7 +68,18 @@ class LocationFactory extends Factory
 
     public function forBusiness(Business $business): static
     {
-        return $this->state(fn () => ['business_id' => $business->id]);
+        // PHASE 22A - the canonical owner stays authoritative even when an
+        // organization is supplied as context.
+        return $this->state(fn () => [
+            'business_id' => $business->id,
+            'owner_id' => $business->owner_id ?? User::factory(),
+        ]);
+    }
+
+    /** PHASE 22A - an account-owned Location with no organization. */
+    public function forOwner(User $user): static
+    {
+        return $this->state(fn () => ['owner_id' => $user->id]);
     }
 
     public function standalone(): static

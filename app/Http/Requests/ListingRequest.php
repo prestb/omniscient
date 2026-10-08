@@ -44,11 +44,11 @@ class ListingRequest extends FormRequest
             'location_id' => [
                 'nullable',
                 Rule::exists('locations', 'id')->where(
-                    fn($q) => $q->where('business_id', null)->orWhereIn(
-                        'business_id',
-                        Business::where('owner_id', $userId)->pluck('id')
-                    )
-                ),
+            // PHASE 22A - ownership is the ACCOUNT, not the Business. A
+            // Business-less Professional Location is valid here, which the
+            // previous Business-based check could only express unreachably.
+            fn($q) => $q->where('owner_id', $userId)
+        ),
             ],
 
             // Creation may publish immediately; otherwise the Listing is a draft.

@@ -47,6 +47,7 @@ class Location extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'owner_id',
         'business_id',
         'name',
         'is_primary',
@@ -84,6 +85,22 @@ class Location extends Model
     /**
      * The organization this place MAY belong to. NULLABLE — a Location does
      * not require a Business.
+     */
+    /**
+     * PHASE 22A - CANONICAL OWNERSHIP.
+     *
+     * A Location is an account-owned resource. Authorization derives from
+     * `owner_id`, NOT from `business_id`. A Business-less Professional owns
+     * its Location exactly as a Business-backed owner owns theirs.
+     */
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * OPTIONAL organization context. `business_id` may be NULL, and is never
+     * the ownership or authorization check.
      */
     public function business()
     {

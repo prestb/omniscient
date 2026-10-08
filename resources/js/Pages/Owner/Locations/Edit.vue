@@ -300,8 +300,14 @@
     import LocationPicker from '@/Components/Owner/LocationPicker.vue';
     import { useStatusBadge } from '@/composables/useStatusBadge';
 
+    /**
+     * PHASE 22A — `business` is the OPTIONAL organization context. Present on the
+     * Business-scoped routes, absent on the account-scoped routes, so one form
+     * serves both a Business-backed owner and a Business-less Professional.
+     */
     const props = defineProps({
-        business: Object,
+        business: { type: Object, default: null },
+        businesses: { type: Array, default: () => [] },
         location: Object,
         countries: Array,
     });
@@ -387,7 +393,12 @@
 
     const submit = () => {
         processing.value = true;
-        router.put(`/owner/businesses/${props.business.id}/locations/${props.location.id}`, form, {
+        // PHASE 22A — see Create.vue: same form, context-appropriate endpoint.
+        router.put(
+            props.business
+                ? `/owner/businesses/${props.business.id}/locations/${props.location.id}`
+                : `/owner/locations/${props.location.id}`,
+            form, {
             preserveScroll: true,
             onFinish: () => { processing.value = false; },
             // ✅ No onSuccess toast — the controller flashes

@@ -39,15 +39,31 @@ class LocationSchemaTest extends TestCase
 
     public function test_locations_table_does_not_own_listing_identity(): void
     {
+        // PHASE 22A - `owner_id` was removed from this forbidden list. It is no
+        // longer confused with Listing identity: it is the CANONICAL Location
+        // owner (a User), not a Listing-type/slug/description column.
         foreach ([
             'slug', 'type', 'listing_type', 'description',
-            'owner_id',
+            'listing_id',
         ] as $forbidden) {
             $this->assertFalse(
                 Schema::hasColumn('locations', $forbidden),
                 "locations must NOT own listing identity: {$forbidden}"
             );
         }
+    }
+
+    public function test_locations_are_account_owned_and_business_is_optional(): void
+    {
+        // PHASE 22A - USER owns LOCATION; BUSINESS optionally contextualizes it.
+        $this->assertTrue(Schema::hasColumn('locations', 'owner_id'));
+        $this->assertTrue(Schema::hasColumn('locations', 'business_id'));
+
+        $owner = \App\Models\User::factory()->create();
+        $location = Location::factory()->forOwner($owner)->standalone()->create();
+
+        $this->assertSame($owner->id, $location->fresh()->owner_id);
+        $this->assertNull($location->fresh()->business_id);
     }
 
     public function test_business_id_is_nullable_so_location_is_independent(): void

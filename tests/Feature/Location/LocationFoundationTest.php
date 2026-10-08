@@ -162,12 +162,16 @@ class LocationFoundationTest extends TestCase
         // The schema must not require business_id for a Location.
         $this->assertTrue(Schema::hasColumn('locations', 'business_id'));
 
+        // PHASE 22A - a Location is ACCOUNT-owned. `business_id` is still
+        // optional, but `owner_id` is now the canonical owner.
         $location = Location::create([
+            'owner_id' => \App\Models\User::factory()->create()->id,
             'name' => 'Independent Place',
             'status' => Location::STATUS_ACTIVE,
         ]);
 
         $this->assertNull($location->business_id);
+        $this->assertNotNull($location->owner_id);
     }
 
     public function test_location_is_not_searchable_identity(): void

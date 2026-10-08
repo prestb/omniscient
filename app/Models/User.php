@@ -532,4 +532,10 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->favorites()->count();
     }
+
+    /** PHASE 22A - Locations owned by this account. */
+    public function locations()
+    {
+        return $this->hasMany(Location::class, 'owner_id');
+    }
 }

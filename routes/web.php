@@ -465,6 +465,22 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
         Route::get('/{coupon}/analytics', [CouponController::class, 'analytics'])->name('analytics');
     });
 
+    // =========================================================================
+    // PHASE 22A — OWNER-SCOPED LOCATIONS.
+    //
+    // A Location is an ACCOUNT-owned resource, so this family takes NO Business.
+    // It is the canonical path for a Business-less Professional, for whom the
+    // Business-scoped routes below are unreachable.
+    // =========================================================================
+    Route::prefix('locations')->name('locations.')->group(function () {
+        Route::get('/', [OwnerLocationController::class, 'ownerIndex'])->name('index');
+        // Declared BEFORE /{location} so 'create' is never bound as a model id.
+        Route::get('/create', [OwnerLocationController::class, 'ownerCreate'])->name('create');
+        Route::post('/', [OwnerLocationController::class, 'ownerStore'])->name('store');
+        Route::get('/{location}/edit', [OwnerLocationController::class, 'ownerEdit'])->name('edit');
+        Route::put('/{location}', [OwnerLocationController::class, 'ownerUpdate'])->name('update');
+        Route::delete('/{location}', [OwnerLocationController::class, 'ownerDestroy'])->name('destroy');
+    });
     // Reviews — PHASE 11 / WAVE 1D: EXPLICIT Business context.
     // A Review is Business-owned, so the Business is identified by the route,
     // never selected from the owner's Businesses.

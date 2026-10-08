@@ -223,8 +223,14 @@
     import StickyFormActions from '@/Components/Owner/StickyFormActions.vue';
     import LocationPicker from '@/Components/Owner/LocationPicker.vue';
 
+    /**
+     * PHASE 22A — `business` is the OPTIONAL organization context. It is present
+     * on the Business-scoped routes and absent on the account-scoped routes, so a
+     * Business-less Professional uses the very same form.
+     */
     const props = defineProps({
-        business: Object,
+        business: { type: Object, default: null },
+        businesses: { type: Array, default: () => [] },
         countries: Array,
     });
 
@@ -323,7 +329,14 @@
 
     const submit = () => {
         processing.value = true;
-        router.post(`/owner/businesses/${props.business.id}/locations`, form, {
+        // PHASE 22A — the endpoint follows the context that rendered this page:
+        // Business-scoped when an organization is present, account-scoped
+        // otherwise. One Location form serves both families.
+        router.post(
+            props.business
+                ? `/owner/businesses/${props.business.id}/locations`
+                : '/owner/locations',
+            form, {
             preserveScroll: true,
             onFinish: () => { processing.value = false; },
             // ✅ No onSuccess — the controller returns

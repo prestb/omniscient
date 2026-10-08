@@ -42,11 +42,13 @@ uses(RefreshDatabase::class);
 
 // ── The ownership model, from the schema ────────────────────────────────────
 
-test('locations are owned through a business, not directly by an account', function () {
+test('locations are owned by an account; a business is optional context', function () {
+    // PHASE 22A inverted this: Location ownership is the ACCOUNT.
+    expect(Schema::hasColumn('locations', 'owner_id'))->toBeTrue();
     expect(Schema::hasColumn('locations', 'business_id'))->toBeTrue();
 
     // There is no direct account or Listing ownership on a Location.
-    expect(Schema::hasColumn('locations', 'owner_id'))->toBeFalse();
+    // A Location must never own Listing identity.
     expect(Schema::hasColumn('locations', 'listing_id'))->toBeFalse();
 
     // A Listing REFERENCES a Location...
@@ -65,7 +67,8 @@ test('location creation exists only under a business', function () {
     expect($businessScoped->contains(fn ($u) => str_starts_with($u, 'owner/listings/{listing}/locations')))->toBeFalse();
 });
 
-test('a professional with no business cannot create a location', function () {
+test('a professional with no business CAN create a location', function () {
+    // PHASE 22A removed the limitation this test used to document.
     $owner = \App\Models\User::factory()->owner()->create();
     $listing = Listing::factory()->create([
         'owner_id' => $owner->id,
@@ -85,16 +88,15 @@ test('a professional with no business cannot create a location', function () {
 
 // ── The count is therefore business-mediated ────────────────────────────────
 
-test('the location count is derived from the accounts businesses', function () {
+test('the location count is derived from the account, not its businesses', function () {
     $source = file_get_contents(app_path('Traits/HasPlanFeatures.php'));
 
-    // getLocationsCount() counts Locations whose business_id is among the
-    // account's businesses - i.e. it CANNOT see a Location that is not attached
-    // to a Business. Asserted semantically rather than by exact formatting.
+    // PHASE 22A inverted this. getLocationsCount() previously counted only
+    // Locations whose business_id was among the account's Businesses, so a
+    // Business-less Professional's own Locations were invisible to the quota.
     expect($source)->toContain('function getLocationsCount');
-    expect($source)->toContain('business_id');
-    expect($source)->toContain("businesses()->pluck('id')");
-    expect($source)->toContain('Location::whereIn');
+    expect($source)->toContain("where('owner_id'");
+    expect($source)->not->toContain("businesses()->pluck('id')");
 });
 
 test('a location attached to a business still counts for the owner account', function () {

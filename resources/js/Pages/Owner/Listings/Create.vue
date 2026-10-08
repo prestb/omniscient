@@ -63,6 +63,16 @@
                             <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
                         </select>
                         <p v-if="form.errors.location_id" class="text-xs text-rose-600 mt-1">{{ form.errors.location_id }}</p>
+
+                        <!-- PHASE 22A — a Business-less Professional previously saw an
+                             empty and inert selector here. Locations are account-owned, so
+                             this now offers a real create path. Business is never required. -->
+                        <p v-if="!locations.length" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            No locations yet.
+                            <a :href="'/owner/locations/create'"
+                                class="font-semibold text-primary-600 hover:text-primary-700">Add a physical location</a>
+                            for this Listing.
+                        </p>
                     </div>
                 </div>
 

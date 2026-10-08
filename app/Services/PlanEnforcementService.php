@@ -305,11 +305,13 @@ class PlanEnforcementService
 
     private function restoreAllLocations(int $ownerId): int
     {
+        // PHASE 22A - Locations are ACCOUNT-owned. The previous version
+        // joined `businesses` through `locations.business_id`, so a
+        // Business-less Professional's Locations were never restored.
         return DB::table('locations')
-            ->join('businesses', 'businesses.id', '=', 'locations.business_id')
-            ->where('businesses.owner_id', $ownerId)
-            ->whereNotNull('locations.hidden_at')
-            ->update(['locations.hidden_at' => null]);
+            ->where('owner_id', $ownerId)
+            ->whereNotNull('hidden_at')
+            ->update(['hidden_at' => null]);
     }
 
         private function restoreAllChildren(int $ownerId, string $modelClass): int

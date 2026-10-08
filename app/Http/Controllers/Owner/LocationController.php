@@ -11,6 +11,7 @@ use App\Models\Location;
 use App\Models\Region;
 use App\Traits\GuardsHiddenItems;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 /**
@@ -121,6 +122,9 @@ class LocationController extends Controller
             $validated['is_primary'] = true;
         }
 
+        // PHASE 22A - the canonical owner is always the authenticated account.
+        // `business_id` is optional context only and is never the ownership check.
+        $validated['owner_id'] = $user->id;
         $validated['business_id'] = $business->id;
         $validated['sort_order'] = $business->locations()->count() + 1;
 
@@ -233,5 +237,133 @@ class LocationController extends Controller
 
         return redirect()->route('owner.businesses.locations.index', $business)
             ->with('success', 'Location deleted successfully.');
+    }
+
+    // =========================================================================
+    // PHASE 22A — OWNER-SCOPED LOCATION DOMAIN
+    //
+    // A Location is an ACCOUNT-owned resource. These methods deliberately take no
+    // Business: a Business-less Professional must be able to create, edit and
+    // remove its own Location, which the Business-scoped routes cannot express.
+    //
+    // Authorization is `location.owner_id`, via LocationPolicy.
+    // =========================================================================
+
+    public function ownerIndex(Request $request)
+    {
+        Gate::authorize('viewAny', Location::class);
+
+        $locations = Location::where('owner_id', $request->user()->id)
+            ->with('business:id,name')
+            ->ordered()
+            ->get();
+
+        return Inertia::render('Owner/Locations/OwnerIndex', [
+            'locations' => $locations,
+            'businesses' => $request->user()->businesses()->get(['id', 'name']),
+        ]);
+    }
+
+    public function ownerCreate(Request $request)
+    {
+        Gate::authorize('create', Location::class);
+
+        return Inertia::render('Owner/Locations/Create', [
+            // Optional organization context. Never required to save.
+            'businesses' => $request->user()->businesses()->get(['id', 'name']),
+        ]);
+    }
+
+    public function ownerStore(Request $request)
+    {
+        Gate::authorize('create', Location::class);
+
+        $user = $request->user();
+
+        if (method_exists($user, 'canAdd') && !$user->canAdd('locations')) {
+            return back()->with('error', 'You have reached the maximum number of locations.');
+        }
+
+        $validated = $request->validate($this->ownerLocationRules());
+
+        // PHASE 22A — Business is OPTIONAL context. When supplied it must be one
+        // the authenticated user actually owns; it never grants ownership.
+        if (!empty($validated['business_id'])) {
+            $ownsBusiness = $user->businesses()->whereKey($validated['business_id'])->exists();
+            abort_unless($ownsBusiness, 403);
+        }
+
+        $validated['owner_id'] = $user->id;
+        $validated['is_primary'] = false;
+        $validated['sort_order'] = Location::where('owner_id', $user->id)->count() + 1;
+
+        Location::create($validated);
+
+        return redirect()->route('owner.locations.index')
+            ->with('success', 'Location added successfully.');
+    }
+
+    public function ownerEdit(Request $request, Location $location)
+    {
+        Gate::authorize('update', $location);
+
+        return Inertia::render('Owner/Locations/Edit', [
+            'location' => $location,
+            'businesses' => $request->user()->businesses()->get(['id', 'name']),
+        ]);
+    }
+
+    public function ownerUpdate(Request $request, Location $location)
+    {
+        Gate::authorize('update', $location);
+
+        $validated = $request->validate($this->ownerLocationRules());
+
+        if (!empty($validated['business_id'])) {
+            $ownsBusiness = $request->user()->businesses()->whereKey($validated['business_id'])->exists();
+            abort_unless($ownsBusiness, 403);
+        }
+
+        // owner_id is immutable through this endpoint.
+        unset($validated['owner_id']);
+        $location->update($validated);
+
+        return redirect()->route('owner.locations.index')
+            ->with('success', 'Location updated successfully.');
+    }
+
+    public function ownerDestroy(Location $location)
+    {
+        Gate::authorize('delete', $location);
+
+        // PHASE 22A — deletion is preserved as-is (soft delete). Resolving what
+        // should happen to a Listing whose Location is removed while attached is
+        // Phase 22B; this phase does not introduce a destructive cascade.
+        $location->delete();
+
+        return redirect()->route('owner.locations.index')
+            ->with('success', 'Location removed successfully.');
+    }
+
+    /** Shared validation for the owner-scoped family. */
+    private function ownerLocationRules(): array
+    {
+        return [
+            // Business is OPTIONAL context, never an ownership requirement.
+            'business_id' => 'nullable|exists:businesses,id',
+            'name' => 'nullable|string|max:100',
+            'country_id' => 'required|exists:countries,id',
+            'region_id' => 'required|exists:regions,id',
+            'city_id' => 'required|exists:cities,id',
+            'area_id' => 'nullable|exists:areas,id',
+            'address' => 'nullable|string|max:150',
+            'landmark' => 'nullable|string|max:150',
+            'postal_code' => 'nullable|string|max:20',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'phone' => 'nullable|string|max:50',
+            'whatsapp' => 'nullable|string|max:50',
+            'status' => 'nullable|in:active,temporarily_unavailable,unlisted',
+        ];
     }
 }

@@ -80,14 +80,11 @@ trait HasPlanFeatures
 
                 protected function getLocationsCount(): int
     {
-        if (!method_exists($this, 'businesses'))
-            return 0;
-        // Locations are physical places; count all physical locations
         // belonging to the account's organizations.
-        return \App\Models\Location::whereIn(
-            'business_id',
-            $this->businesses()->pluck('id')
-        )->count();
+        // PHASE 22A - Locations are ACCOUNT-owned. Counting them through the
+        // account's Business ids made a Business-less Professional's own
+        // Locations invisible to the quota, so it could exceed the limit.
+        return \App\Models\Location::where('owner_id', $this->id)->count();
     }
 
         protected function getServicesCount(): int

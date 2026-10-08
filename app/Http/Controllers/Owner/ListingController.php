@@ -208,14 +208,21 @@ class ListingController extends Controller
      */
     private function ownerLocations(Request $request): array
     {
-        $businessIds = Business::where('owner_id', $request->user()->id)->pluck('id');
-
-        return Location::whereIn('business_id', $businessIds)
+        // PHASE 22A - the picker returns LOCATIONS OWNED BY THIS ACCOUNT.
+        //
+        // It previously filtered by the owner's Business ids, so a
+        // Business-less Professional saw an empty list and the field was
+        // inert. Ownership is the account, so Business membership must never
+        // restrict the result. Business is returned only as UI context.
+        return Location::where('owner_id', $request->user()->id)
+            ->with('business:id,name')
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'business_id'])
             ->map(fn($location) => [
                 'id' => $location->id,
                 'name' => $location->name ?: ('Location #' . $location->id),
+                'business_id' => $location->business_id,
+                'business_name' => $location->business?->name,
             ])
             ->all();
     }
