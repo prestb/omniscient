@@ -66,6 +66,18 @@
                         <p class="text-xs text-gray-400 mt-1">
                             {{ location.business?.name || 'Independent' }}
                         </p>
+                        <!-- PHASE 22B - communicate usage. A Location still
+                             attached to Listings cannot be deleted; the backend
+                             enforces that, this only warns first. -->
+                        <p class="text-xs mt-1"
+                            :class="location.listings_count ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'">
+                            <template v-if="location.listings_count">
+                                Used by {{ location.listings_count }}
+                                {{ location.listings_count === 1 ? 'Listing' : 'Listings' }}
+                                &middot; detach before deleting
+                            </template>
+                            <template v-else>Not used by any Listing</template>
+                        </p>
                     </div>
                     <a :href="`/owner/locations/${location.id}/edit`"
                         class="text-sm font-semibold text-primary-600 hover:text-primary-700">Edit</a>

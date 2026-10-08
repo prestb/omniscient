@@ -11,6 +11,7 @@ use App\Models\Location;
 use App\Models\Region;
 use App\Traits\GuardsHiddenItems;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -233,6 +234,11 @@ class LocationController extends Controller
             }
         }
 
+        // PHASE 22B - refuse while any Listing still references this Location.
+        // A shared Location must be explicitly detached first; nothing
+        // cascades into Listings.
+        $this->guardLocationInUse($location);
+
         $location->delete();
 
         return redirect()->route('owner.businesses.locations.index', $business)
@@ -253,8 +259,12 @@ class LocationController extends Controller
     {
         Gate::authorize('viewAny', Location::class);
 
+        // PHASE 22B - the Listings count lets the UI communicate that a Location
+        // is still in use. The BACKEND remains authoritative on deletion; this
+        // is convenience and context only.
         $locations = Location::where('owner_id', $request->user()->id)
             ->with('business:id,name')
+            ->withCount('listings')
             ->ordered()
             ->get();
 
@@ -284,7 +294,14 @@ class LocationController extends Controller
             return back()->with('error', 'You have reached the maximum number of locations.');
         }
 
-        $validated = $request->validate($this->ownerLocationRules());
+        try {
+            $validated = $request->validate(
+                $this->ownerLocationRules($request),
+                $this->ownerLocationMessages()
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
 
         // PHASE 22A — Business is OPTIONAL context. When supplied it must be one
         // the authenticated user actually owns; it never grants ownership.
@@ -317,7 +334,14 @@ class LocationController extends Controller
     {
         Gate::authorize('update', $location);
 
-        $validated = $request->validate($this->ownerLocationRules());
+        try {
+            $validated = $request->validate(
+                $this->ownerLocationRules($request),
+                $this->ownerLocationMessages()
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
 
         if (!empty($validated['business_id'])) {
             $ownsBusiness = $request->user()->businesses()->whereKey($validated['business_id'])->exists();
@@ -339,31 +363,103 @@ class LocationController extends Controller
         // PHASE 22A — deletion is preserved as-is (soft delete). Resolving what
         // should happen to a Listing whose Location is removed while attached is
         // Phase 22B; this phase does not introduce a destructive cascade.
+        // PHASE 22B - refuse while any Listing still references this Location.
+        // A shared Location must be explicitly detached first; nothing
+        // cascades into Listings.
+        $this->guardLocationInUse($location);
+
         $location->delete();
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location removed successfully.');
     }
 
-    /** Shared validation for the owner-scoped family. */
-    private function ownerLocationRules(): array
+    /**
+     * PHASE 22B — canonical Location validation.
+     *
+     * Shared by BOTH route families so a Business-backed Location and an
+     * account-owned Location obey exactly the same integrity rules.
+     *
+     *  COORDINATES are an optional PAIR. Latitude without longitude (or the
+     *  reverse) is a state no map can render, so it is rejected rather than
+     *  stored and silently degraded later.
+     *
+     *  GEOGRAPHY is validated for COHERENCE, not completeness. Region, City and
+     *  Area are independently nullable, but a submitted combination may not
+     *  contradict the hierarchy the models already define:
+     *      Region -> Country, City -> Region, Area -> City
+     */
+    private function ownerLocationRules(Request $request): array
     {
         return [
             // Business is OPTIONAL context, never an ownership requirement.
             'business_id' => 'nullable|exists:businesses,id',
             'name' => 'nullable|string|max:100',
+
             'country_id' => 'required|exists:countries,id',
-            'region_id' => 'required|exists:regions,id',
-            'city_id' => 'required|exists:cities,id',
-            'area_id' => 'nullable|exists:areas,id',
+            'region_id' => [
+                'required',
+                // Coherence: the region must belong to the submitted country.
+                Rule::exists('regions', 'id')->where(
+                    fn ($q) => $q->where('country_id', $request->input('country_id'))
+                ),
+            ],
+            'city_id' => [
+                'required',
+                // Coherence: the city must belong to the submitted region.
+                Rule::exists('cities', 'id')->where(
+                    fn ($q) => $q->where('region_id', $request->input('region_id'))
+                ),
+            ],
+            'area_id' => [
+                'nullable',
+                // Coherence: the area must belong to the submitted city.
+                Rule::exists('areas', 'id')->where(
+                    fn ($q) => $q->where('city_id', $request->input('city_id'))
+                ),
+            ],
+
             'address' => 'nullable|string|max:150',
             'landmark' => 'nullable|string|max:150',
             'postal_code' => 'nullable|string|max:20',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+
+            // Coordinates: optional as a PAIR, never individually.
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
+
             'phone' => 'nullable|string|max:50',
             'whatsapp' => 'nullable|string|max:50',
             'status' => 'nullable|in:active,temporarily_unavailable,unlisted',
         ];
+    }
+
+    /** Human-readable messages for the integrity rules. */
+    private function ownerLocationMessages(): array
+    {
+        return [
+            'region_id.exists' => 'That region does not belong to the selected country.',
+            'city_id.exists' => 'That city does not belong to the selected region.',
+            'area_id.exists' => 'That area does not belong to the selected city.',
+            'latitude.required_with' => 'Latitude and longitude must be provided together.',
+            'longitude.required_with' => 'Latitude and longitude must be provided together.',
+        ];
+    }
+
+    /**
+     * PHASE 22B — DELETION PROTECTION.
+     *
+     * A Location may be shared by several Listings. Deleting it while attached
+     * would silently strip the physical place from every one of them, so the
+     * owner must explicitly detach first. Nothing cascades into Listings.
+     */
+    private function guardLocationInUse(Location $location): void
+    {
+        $inUse = $location->listings()->count();
+
+        if ($inUse > 0) {
+            abort(422, $inUse === 1
+                ? 'This location is still used by 1 Listing. Detach it before deleting.'
+                : "This location is still used by {$inUse} Listings. Detach them before deleting.");
+        }
     }
 }

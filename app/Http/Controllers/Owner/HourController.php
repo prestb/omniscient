@@ -22,12 +22,18 @@ class HourController extends Controller
                 'user_id' => auth()->id()
             ]);
 
-            if ($business->owner_id !== auth()->id()) {
+            // PHASE 22B - hours are Location-owned data. Authorization resolves
+            // through the LOCATION owner, so a Business-less Professional is not
+            // blocked merely because its Location has no `business_id`.
+            try {
+                $this->authorizeHours($business, $location);
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
                 Log::warning('Unauthorized hours access attempt', [
                     'business_id' => $business->id,
-                    'user_id' => auth()->id()
+                    'location_id' => $location->id,
+                    'user_id' => auth()->id(),
                 ]);
-                abort(403);
+                throw $e;
             }
 
             $hours = $location->hours()->orderBy('day_of_week')->orderBy('sort_order')->get();
@@ -70,7 +76,14 @@ class HourController extends Controller
             ]);
 
             // Redirect back with error
-            return redirect()->back()->with('error', 'Failed to load hours: ' . $e->getMessage());
+            // PHASE 22B - an authorization failure is not a recoverable payload error.
+            // Re-throw it so the caller receives a 403 rather than a redirect
+            // that also echoed the exception message back to the user.
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                throw $e;
+            }
+
+            return redirect()->back()->with('error', 'Failed to load hours.');
         }
     }
 
@@ -85,9 +98,7 @@ class HourController extends Controller
      */
     public function storeBatch(Request $request, Business $business, Location $location)
     {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeHours($business, $location);
 
         $validated = $request->validate([
             'hours' => 'required|array|min:1',
@@ -152,9 +163,7 @@ class HourController extends Controller
     public function destroy(Business $business, Location $location, LocationHour $hour)
     {
         try {
-            if ($business->owner_id !== auth()->id()) {
-                abort(403);
-            }
+            $this->authorizeHours($business, $location);
 
             $hour->delete();
 
@@ -172,9 +181,7 @@ class HourController extends Controller
 
     public function storeOverride(Request $request, Business $business, Location $location)
     {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeHours($business, $location);
 
         $validated = $request->validate([
             'date' => 'required|date|after_or_equal:today',
@@ -217,9 +224,7 @@ class HourController extends Controller
 
     public function destroyOverride(Business $business, Location $location, LocationHourOverride $override)
     {
-        if ($business->owner_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeHours($business, $location);
 
         if ($override->location_id !== $location->id) {
             abort(404);
@@ -233,9 +238,7 @@ class HourController extends Controller
     public function status(Business $business, Location $location)
     {
         try {
-            if ($business->owner_id !== auth()->id()) {
-                abort(403);
-            }
+            $this->authorizeHours($business, $location);
 
             $isOpen = $location->is_open_now;
             $hours = $location->hours_summary;
@@ -253,6 +256,36 @@ class HourController extends Controller
             return response()->json([
                 'error' => 'Failed to get status: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * PHASE 22B — Location hours authorization.
+     *
+     * The LOCATION owner is authoritative. Business ownership is accepted only
+     * as context, so hours are never blocked purely because a Location has no
+     * `business_id`. The Location must also belong to the routed Business when
+     * one is named, so a Business route cannot reach an unrelated Location.
+     */
+    private function authorizeHours(?\App\Models\Business $business, \App\Models\Location $location): void
+    {
+        $user = auth()->user();
+
+        // PHASE 22B - the LOCATION OWNER is the sole authority.
+        $ownsLocation = $user !== null
+            && (int) $location->owner_id === (int) $user->id;
+
+        //
+        // Business ownership must NOT substitute for it: a stranger who owns
+        // their OWN Business could otherwise reach another account's Location
+        // by naming their business in the route. The route's Business is
+        // navigation context only, and when it names an organization the
+        // Location must actually belong to that organization (an independent
+        // Location is acceptable).
+        abort_unless($ownsLocation, 403);
+
+        if ($business && $location->business_id !== null) {
+            abort_unless((int) $location->business_id === (int) $business->id, 403);
         }
     }
 }
