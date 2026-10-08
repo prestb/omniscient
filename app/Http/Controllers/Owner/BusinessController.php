@@ -301,63 +301,72 @@ class BusinessController extends Controller
             'owner_id' => $user->id,
         ]);
 
-                // ✅ Soft-delete all related records
-        // =====================================================================
-        // PHASE 22C - LOCATION LIFECYCLE INTEGRITY.
-        //
-        // This path previously deleted the Business's Locations as a BULK
-        // soft-delete, bypassing the in-use protection enforced by the
-        // explicit Location endpoints. A Location referenced by Listings was
-        // deleted silently and those Listings were left with a dangling
-        // location_id.
-        //
-        // The invariant is checked BEFORE anything is mutated, so a rejected
-        // operation leaves no partial destructive state.
-        // =====================================================================
-        $locationsInUse = \App\Models\Location::where('business_id', $business->id)
-            ->whereHas('listings')
-            ->withCount('listings')
-            ->get();
+        // PHASE 22C hardening: lock the Business and its Location rows before
+        // checking references. Listing writes acquire the same Location row
+        // lock before assigning location_id, so either the Listing commits
+        // first and deletion is blocked, or deletion commits first and the
+        // attaching request rechecks the now-deleted Location and is rejected.
+        $blocked = \DB::transaction(function () use ($business, $user) {
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($locationsInUse->isNotEmpty()) {
-            $listingsBlocked = (int) $locationsInUse->sum('listings_count');
-            $locationCount = $locationsInUse->count();
+            $locationIds = \App\Models\Location::query()
+                ->where('business_id', $lockedBusiness->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->pluck('id');
 
+            $locationsInUse = $locationIds->isEmpty()
+                ? collect()
+                : \App\Models\Location::query()
+                    ->whereIn('id', $locationIds)
+                    ->whereHas('listings')
+                    ->withCount('listings')
+                    ->get();
+
+            if ($locationsInUse->isNotEmpty()) {
+                return [
+                    'location_count' => $locationsInUse->count(),
+                    'listing_count' => (int) $locationsInUse->sum('listings_count'),
+                    'location_ids' => $locationsInUse->pluck('id')->all(),
+                ];
+            }
+
+            // Every existing Location row is locked and confirmed unused before
+            // any related records are mutated.
+            $lockedBusiness->locations()->delete();
+            $lockedBusiness->services()->delete();
+            $lockedBusiness->contacts()->delete();
+            $lockedBusiness->images()->delete();
+            $lockedBusiness->allReviews()->delete();
+            \App\Models\Coupon::where('business_id', $lockedBusiness->id)->delete();
+            \App\Models\Lead::where('business_id', $lockedBusiness->id)->delete();
+            $lockedBusiness->delete();
+
+            return null;
+        });
+
+        if ($blocked !== null) {
             \Log::warning('Business deletion blocked: Locations still in use', [
                 'business_id' => $business->id,
                 'owner_id' => $user->id,
-                'locations_in_use' => $locationsInUse->pluck('id')->all(),
-                'listings_affected' => $listingsBlocked,
+                'locations_in_use' => $blocked['location_ids'],
+                'listings_affected' => $blocked['listing_count'],
             ]);
 
-            $message = $locationCount === 1
-                ? 'This business has 1 location still used by ' . $listingsBlocked
+            $message = $blocked['location_count'] === 1
+                ? 'This business has 1 location still used by ' . $blocked['listing_count']
                     . ' Listing(s). Detach it from those Listings before deleting the business.'
-                : 'This business has ' . $locationCount . ' locations still used by '
-                    . $listingsBlocked . ' Listing(s). Detach them from those Listings '
+                : 'This business has ' . $blocked['location_count'] . ' locations still used by '
+                    . $blocked['listing_count'] . ' Listing(s). Detach them from those Listings '
                     . 'before deleting the business.';
 
             return back()->with('error', $message);
         }
 
-        // PHASE 22C - the remaining mutations are transactional so a partial
-        // failure cannot leave a half-deleted business.
-        \DB::transaction(function () use ($business) {
-        // Safe now: every Location on this Business is unreferenced, so removing
-        // them cannot orphan a Listing.
-        $business->locations()->delete();
-        $business->services()->delete();
-        $business->contacts()->delete();       // ✅ Now works with SoftDeletes
-        $business->images()->delete();
-        $business->allReviews()->delete();
-        \App\Models\Coupon::where('business_id', $business->id)->delete();
-        \App\Models\Lead::where('business_id', $business->id)->delete();
-
-        // ✅ Soft-delete the business
-        $business->delete();
-        }); // end PHASE 22C transaction
-
-        // ✅ Notify admins
+        // Notify admins only after the deletion transaction commits.
         \App\Helpers\NotificationHelper::sendToAdmins(
             'Business Deleted',
             "{$user->name} deleted their business '{$business->name}'.",
