@@ -335,16 +335,24 @@ class LocationController extends Controller
 
         // PHASE 22A — Business is OPTIONAL context. When supplied it must be one
         // the authenticated user actually owns; it never grants ownership.
-        if (!empty($validated['business_id'])) {
-            $ownsBusiness = $user->businesses()->whereKey($validated['business_id'])->exists();
-            abort_unless($ownsBusiness, 403);
-        }
+        // Lock that Business in the same transaction used by Business deletion.
+        DB::transaction(function () use ($validated, $user) {
+            if (!empty($validated['business_id'])) {
+                $business = Business::query()
+                    ->whereKey($validated['business_id'])
+                    ->where('owner_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
 
-        $validated['owner_id'] = $user->id;
-        $validated['is_primary'] = false;
-        $validated['sort_order'] = Location::where('owner_id', $user->id)->count() + 1;
+                abort_unless($business, 403);
+            }
 
-        Location::create($validated);
+            $validated['owner_id'] = $user->id;
+            $validated['is_primary'] = false;
+            $validated['sort_order'] = Location::where('owner_id', $user->id)->count() + 1;
+
+            Location::create($validated);
+        });
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location added successfully.');
@@ -373,14 +381,42 @@ class LocationController extends Controller
             throw $e;
         }
 
-        if (!empty($validated['business_id'])) {
-            $ownsBusiness = $request->user()->businesses()->whereKey($validated['business_id'])->exists();
-            abort_unless($ownsBusiness, 403);
-        }
+        $user = $request->user();
 
-        // owner_id is immutable through this endpoint.
-        unset($validated['owner_id']);
-        $location->update($validated);
+        // Lock current/target Business rows in stable order before locking the
+        // Location. This matches deletion's Business -> Location lock order and
+        // prevents reassignment into a Business while it is being deleted.
+        DB::transaction(function () use ($validated, $location, $user) {
+            $businessIds = collect([
+                $location->business_id,
+                $validated['business_id'] ?? null,
+            ])->filter()->map(fn ($id) => (int) $id)->unique()->sort()->values();
+
+            foreach ($businessIds as $businessId) {
+                $business = Business::query()
+                    ->whereKey($businessId)
+                    ->where('owner_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                // The previous Business may have been deleted concurrently; in
+                // that case its Location should also have been soft-deleted.
+                // A requested target, however, must still exist and be owned.
+                if ((int) ($validated['business_id'] ?? 0) === $businessId) {
+                    abort_unless($business, 403);
+                }
+            }
+
+            $lockedLocation = Location::query()
+                ->whereKey($location->id)
+                ->where('owner_id', $user->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // owner_id is immutable through this endpoint.
+            unset($validated['owner_id']);
+            $lockedLocation->update($validated);
+        });
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location updated successfully.');
