@@ -10,7 +10,9 @@ use App\Models\Listing;
 use App\Models\Location;
 use App\Support\ListingType;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
@@ -79,16 +81,26 @@ class ListingController extends Controller
         $validated = $request->validated();
         $publish = (bool) ($validated['publish'] ?? false);
 
-        $listing = Listing::create([
-            'owner_id' => $request->user()->id,
-            'business_id' => $validated['business_id'] ?? null,
-            'location_id' => $validated['location_id'] ?? null,
-            'type' => $validated['type'],
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'status' => $publish ? Listing::STATUS_PUBLISHED : Listing::STATUS_DRAFT,
-            'published_at' => $publish ? now() : null,
-        ]);
+        // PHASE 22C hardening: serialize Location attachment against Location
+        // deletion. The row lock is shared with Business/Location deletion paths;
+        // rechecking after acquiring it closes the validation-to-write race.
+        $listing = DB::transaction(function () use ($request, $validated, $publish) {
+            $this->lockOwnedLocation(
+                isset($validated['location_id']) ? (int) $validated['location_id'] : null,
+                (int) $request->user()->id
+            );
+
+            return Listing::create([
+                'owner_id' => $request->user()->id,
+                'business_id' => $validated['business_id'] ?? null,
+                'location_id' => $validated['location_id'] ?? null,
+                'type' => $validated['type'],
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'status' => $publish ? Listing::STATUS_PUBLISHED : Listing::STATUS_DRAFT,
+                'published_at' => $publish ? now() : null,
+            ]);
+        });
 
         return redirect()
             ->route('owner.listings.edit', $listing)
@@ -123,13 +135,23 @@ class ListingController extends Controller
 
         $validated = $request->validated();
 
-        $listing->update([
-            'business_id' => $validated['business_id'] ?? null,
-            'location_id' => $validated['location_id'] ?? null,
-            'type' => $validated['type'],
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-        ]);
+        // Serialize reattachment against Location deletion, and recheck the
+        // target after acquiring its row lock (request validation may have run
+        // before a concurrent deletion committed).
+        DB::transaction(function () use ($request, $listing, $validated) {
+            $this->lockOwnedLocation(
+                isset($validated['location_id']) ? (int) $validated['location_id'] : null,
+                (int) $request->user()->id
+            );
+
+            $listing->update([
+                'business_id' => $validated['business_id'] ?? null,
+                'location_id' => $validated['location_id'] ?? null,
+                'type' => $validated['type'],
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+            ]);
+        });
 
         // PHASE 11 / WAVE 1D-3 — categories are LISTING-owned
         // (`listing_categories`). The Listing named in the route is the only
@@ -142,6 +164,29 @@ class ListingController extends Controller
         return redirect()
             ->route('owner.listings.edit', $listing)
             ->with('success', 'Listing updated successfully.');
+    }
+
+    /**
+     * Must be called inside a DB transaction. Locks the target Location and
+     * rechecks ownership/existence after any competing delete has completed.
+     */
+    private function lockOwnedLocation(?int $locationId, int $ownerId): void
+    {
+        if ($locationId === null) {
+            return;
+        }
+
+        $location = Location::query()
+            ->whereKey($locationId)
+            ->where('owner_id', $ownerId)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$location) {
+            throw ValidationException::withMessages([
+                'location_id' => 'That location is no longer available. Please choose another location.',
+            ]);
+        }
     }
 
     /**

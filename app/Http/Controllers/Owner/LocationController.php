@@ -12,6 +12,7 @@ use App\Models\Region;
 use App\Traits\GuardsHiddenItems;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -117,19 +118,32 @@ class LocationController extends Controller
             'status' => 'required|in:active,temporarily_unavailable,unlisted',
         ]);
 
-        // If this is the first location or marked primary, set is_primary
-        if ($business->locations()->count() === 0 || $request->boolean('is_primary')) {
-            $business->locations()->update(['is_primary' => false]);
-            $validated['is_primary'] = true;
-        }
+        // Serialize Location creation against Business deletion. Both paths
+        // lock the Business row, so a location cannot be inserted after the
+        // deletion path has enumerated and removed the Business's Locations.
+        DB::transaction(function () use ($business, $user, $request, $validated) {
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->where('owner_id', $user->id)
+                ->lockForUpdate()
+                ->first();
 
-        // PHASE 22A - the canonical owner is always the authenticated account.
-        // `business_id` is optional context only and is never the ownership check.
-        $validated['owner_id'] = $user->id;
-        $validated['business_id'] = $business->id;
-        $validated['sort_order'] = $business->locations()->count() + 1;
+            abort_unless($lockedBusiness, 404);
 
-        Location::create($validated);
+            // If this is the first location or marked primary, set is_primary.
+            if ($lockedBusiness->locations()->count() === 0 || $request->boolean('is_primary')) {
+                $lockedBusiness->locations()->update(['is_primary' => false]);
+                $validated['is_primary'] = true;
+            }
+
+            // PHASE 22A - the canonical owner is always the authenticated account.
+            // `business_id` is optional context only and is never the ownership check.
+            $validated['owner_id'] = $user->id;
+            $validated['business_id'] = $lockedBusiness->id;
+            $validated['sort_order'] = $lockedBusiness->locations()->count() + 1;
+
+            Location::create($validated);
+        });
 
         return redirect()->route('owner.businesses.locations.index', $business)
             ->with('success', 'Location added successfully.');
@@ -224,22 +238,38 @@ class LocationController extends Controller
             abort(403);
         }
 
-        if ($location->is_primary) {
-            $newPrimary = $business->locations()
-                ->where('id', '!=', $location->id)
-                ->first();
+        // Use the same lock order as Business deletion (Business, then Location
+        // rows ordered by id) so primary-location updates cannot race deletion.
+        DB::transaction(function () use ($business, $location) {
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->where('owner_id', auth()->id())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-            if ($newPrimary) {
-                $newPrimary->update(['is_primary' => true]);
+            $locations = Location::query()
+                ->where('business_id', $lockedBusiness->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $lockedLocation = $locations->firstWhere('id', $location->id);
+            abort_unless($lockedLocation, 404);
+
+            // Check while holding the Location lock. Listing create/update takes
+            // this same lock before assigning location_id.
+            $this->guardLocationInUse($lockedLocation);
+
+            if ($lockedLocation->is_primary) {
+                $newPrimary = $locations->first(fn ($candidate) => $candidate->id !== $lockedLocation->id);
+
+                if ($newPrimary) {
+                    $newPrimary->update(['is_primary' => true]);
+                }
             }
-        }
 
-        // PHASE 22B - refuse while any Listing still references this Location.
-        // A shared Location must be explicitly detached first; nothing
-        // cascades into Listings.
-        $this->guardLocationInUse($location);
-
-        $location->delete();
+            $lockedLocation->delete();
+        });
 
         return redirect()->route('owner.businesses.locations.index', $business)
             ->with('success', 'Location deleted successfully.');
@@ -305,16 +335,24 @@ class LocationController extends Controller
 
         // PHASE 22A — Business is OPTIONAL context. When supplied it must be one
         // the authenticated user actually owns; it never grants ownership.
-        if (!empty($validated['business_id'])) {
-            $ownsBusiness = $user->businesses()->whereKey($validated['business_id'])->exists();
-            abort_unless($ownsBusiness, 403);
-        }
+        // Lock that Business in the same transaction used by Business deletion.
+        DB::transaction(function () use ($validated, $user) {
+            if (!empty($validated['business_id'])) {
+                $business = Business::query()
+                    ->whereKey($validated['business_id'])
+                    ->where('owner_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
 
-        $validated['owner_id'] = $user->id;
-        $validated['is_primary'] = false;
-        $validated['sort_order'] = Location::where('owner_id', $user->id)->count() + 1;
+                abort_unless($business, 403);
+            }
 
-        Location::create($validated);
+            $validated['owner_id'] = $user->id;
+            $validated['is_primary'] = false;
+            $validated['sort_order'] = Location::where('owner_id', $user->id)->count() + 1;
+
+            Location::create($validated);
+        });
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location added successfully.');
@@ -343,14 +381,42 @@ class LocationController extends Controller
             throw $e;
         }
 
-        if (!empty($validated['business_id'])) {
-            $ownsBusiness = $request->user()->businesses()->whereKey($validated['business_id'])->exists();
-            abort_unless($ownsBusiness, 403);
-        }
+        $user = $request->user();
 
-        // owner_id is immutable through this endpoint.
-        unset($validated['owner_id']);
-        $location->update($validated);
+        // Lock current/target Business rows in stable order before locking the
+        // Location. This matches deletion's Business -> Location lock order and
+        // prevents reassignment into a Business while it is being deleted.
+        DB::transaction(function () use ($validated, $location, $user) {
+            $businessIds = collect([
+                $location->business_id,
+                $validated['business_id'] ?? null,
+            ])->filter()->map(fn ($id) => (int) $id)->unique()->sort()->values();
+
+            foreach ($businessIds as $businessId) {
+                $business = Business::query()
+                    ->whereKey($businessId)
+                    ->where('owner_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                // The previous Business may have been deleted concurrently; in
+                // that case its Location should also have been soft-deleted.
+                // A requested target, however, must still exist and be owned.
+                if ((int) ($validated['business_id'] ?? 0) === $businessId) {
+                    abort_unless($business, 403);
+                }
+            }
+
+            $lockedLocation = Location::query()
+                ->whereKey($location->id)
+                ->where('owner_id', $user->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // owner_id is immutable through this endpoint.
+            unset($validated['owner_id']);
+            $lockedLocation->update($validated);
+        });
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location updated successfully.');
@@ -360,15 +426,19 @@ class LocationController extends Controller
     {
         Gate::authorize('delete', $location);
 
-        // PHASE 22A — deletion is preserved as-is (soft delete). Resolving what
-        // should happen to a Listing whose Location is removed while attached is
-        // Phase 22B; this phase does not introduce a destructive cascade.
-        // PHASE 22B - refuse while any Listing still references this Location.
-        // A shared Location must be explicitly detached first; nothing
-        // cascades into Listings.
-        $this->guardLocationInUse($location);
+        // The in-use check and soft delete must share a transaction and Location
+        // row lock with Listing attachment, otherwise an attach can land between
+        // the count and delete.
+        DB::transaction(function () use ($location) {
+            $lockedLocation = Location::query()
+                ->whereKey($location->id)
+                ->where('owner_id', auth()->id())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $location->delete();
+            $this->guardLocationInUse($lockedLocation);
+            $lockedLocation->delete();
+        });
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location removed successfully.');
@@ -393,7 +463,13 @@ class LocationController extends Controller
     {
         return [
             // Business is OPTIONAL context, never an ownership requirement.
-            'business_id' => 'nullable|exists:businesses,id',
+            // PHASE 22C - a soft-deleted Business must not become a Location's
+            // organization context. `ListingRequest` already guards this for
+            // Listings; the Location rules did not.
+            'business_id' => [
+                'nullable',
+                Rule::exists('businesses', 'id')->whereNull('deleted_at'),
+            ],
             'name' => 'nullable|string|max:100',
 
             'country_id' => 'required|exists:countries,id',

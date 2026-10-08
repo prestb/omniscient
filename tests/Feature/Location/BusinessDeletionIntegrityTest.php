@@ -221,6 +221,24 @@ test('after detaching the listing the business can be deleted', function () {
     expect(Business::find($business->id))->toBeNull();
 });
 
+test('a listing cannot be attached to a location deleted after request validation', function () {
+    $owner = bcOwner();
+    $listing = bcListing($owner);
+    $location = Location::factory()->forOwner($owner)->standalone()->create();
+
+    // ListingRequest's table-level exists rule can pass for a soft-deleted row.
+    // The controller must recheck under the Location row lock before writing.
+    $location->delete();
+
+    $this->actingAs($owner)->put("/owner/listings/{$listing->id}", [
+        'type' => 'professional',
+        'name' => $listing->name,
+        'location_id' => $location->id,
+    ])->assertSessionHasErrors('location_id');
+
+    expect($listing->fresh()->location_id)->toBeNull();
+});
+
 // ═══ §7 PROFESSIONAL LOCATION HOURS ═════════════════════════════════════════
 
 test('a business-less professional can open the hours interface for its owned location', function () {
