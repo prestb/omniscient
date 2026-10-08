@@ -238,22 +238,38 @@ class LocationController extends Controller
             abort(403);
         }
 
-        if ($location->is_primary) {
-            $newPrimary = $business->locations()
-                ->where('id', '!=', $location->id)
-                ->first();
+        // Use the same lock order as Business deletion (Business, then Location
+        // rows ordered by id) so primary-location updates cannot race deletion.
+        DB::transaction(function () use ($business, $location) {
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->where('owner_id', auth()->id())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-            if ($newPrimary) {
-                $newPrimary->update(['is_primary' => true]);
+            $locations = Location::query()
+                ->where('business_id', $lockedBusiness->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $lockedLocation = $locations->firstWhere('id', $location->id);
+            abort_unless($lockedLocation, 404);
+
+            // Check while holding the Location lock. Listing create/update takes
+            // this same lock before assigning location_id.
+            $this->guardLocationInUse($lockedLocation);
+
+            if ($lockedLocation->is_primary) {
+                $newPrimary = $locations->first(fn ($candidate) => $candidate->id !== $lockedLocation->id);
+
+                if ($newPrimary) {
+                    $newPrimary->update(['is_primary' => true]);
+                }
             }
-        }
 
-        // PHASE 22B - refuse while any Listing still references this Location.
-        // A shared Location must be explicitly detached first; nothing
-        // cascades into Listings.
-        $this->guardLocationInUse($location);
-
-        $location->delete();
+            $lockedLocation->delete();
+        });
 
         return redirect()->route('owner.businesses.locations.index', $business)
             ->with('success', 'Location deleted successfully.');
@@ -374,15 +390,19 @@ class LocationController extends Controller
     {
         Gate::authorize('delete', $location);
 
-        // PHASE 22A — deletion is preserved as-is (soft delete). Resolving what
-        // should happen to a Listing whose Location is removed while attached is
-        // Phase 22B; this phase does not introduce a destructive cascade.
-        // PHASE 22B - refuse while any Listing still references this Location.
-        // A shared Location must be explicitly detached first; nothing
-        // cascades into Listings.
-        $this->guardLocationInUse($location);
+        // The in-use check and soft delete must share a transaction and Location
+        // row lock with Listing attachment, otherwise an attach can land between
+        // the count and delete.
+        DB::transaction(function () use ($location) {
+            $lockedLocation = Location::query()
+                ->whereKey($location->id)
+                ->where('owner_id', auth()->id())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $location->delete();
+            $this->guardLocationInUse($lockedLocation);
+            $lockedLocation->delete();
+        });
 
         return redirect()->route('owner.locations.index')
             ->with('success', 'Location removed successfully.');
