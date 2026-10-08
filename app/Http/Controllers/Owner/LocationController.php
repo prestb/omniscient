@@ -463,7 +463,13 @@ class LocationController extends Controller
     {
         return [
             // Business is OPTIONAL context, never an ownership requirement.
-            'business_id' => 'nullable|exists:businesses,id',
+            // PHASE 22C - a soft-deleted Business must not become a Location's
+            // organization context. `ListingRequest` already guards this for
+            // Listings; the Location rules did not.
+            'business_id' => [
+                'nullable',
+                Rule::exists('businesses', 'id')->whereNull('deleted_at'),
+            ],
             'name' => 'nullable|string|max:100',
 
             'country_id' => 'required|exists:countries,id',
