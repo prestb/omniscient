@@ -12,6 +12,7 @@ use App\Models\Region;
 use App\Traits\GuardsHiddenItems;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -117,19 +118,32 @@ class LocationController extends Controller
             'status' => 'required|in:active,temporarily_unavailable,unlisted',
         ]);
 
-        // If this is the first location or marked primary, set is_primary
-        if ($business->locations()->count() === 0 || $request->boolean('is_primary')) {
-            $business->locations()->update(['is_primary' => false]);
-            $validated['is_primary'] = true;
-        }
+        // Serialize Location creation against Business deletion. Both paths
+        // lock the Business row, so a location cannot be inserted after the
+        // deletion path has enumerated and removed the Business's Locations.
+        DB::transaction(function () use ($business, $user, $request, $validated) {
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->where('owner_id', $user->id)
+                ->lockForUpdate()
+                ->first();
 
-        // PHASE 22A - the canonical owner is always the authenticated account.
-        // `business_id` is optional context only and is never the ownership check.
-        $validated['owner_id'] = $user->id;
-        $validated['business_id'] = $business->id;
-        $validated['sort_order'] = $business->locations()->count() + 1;
+            abort_unless($lockedBusiness, 404);
 
-        Location::create($validated);
+            // If this is the first location or marked primary, set is_primary.
+            if ($lockedBusiness->locations()->count() === 0 || $request->boolean('is_primary')) {
+                $lockedBusiness->locations()->update(['is_primary' => false]);
+                $validated['is_primary'] = true;
+            }
+
+            // PHASE 22A - the canonical owner is always the authenticated account.
+            // `business_id` is optional context only and is never the ownership check.
+            $validated['owner_id'] = $user->id;
+            $validated['business_id'] = $lockedBusiness->id;
+            $validated['sort_order'] = $lockedBusiness->locations()->count() + 1;
+
+            Location::create($validated);
+        });
 
         return redirect()->route('owner.businesses.locations.index', $business)
             ->with('success', 'Location added successfully.');
