@@ -342,6 +342,37 @@ class SearchIndexNameTest extends TestCase
         $this->assertTrue(ConfigureMeilisearch::hasUsableEngine());
     }
 
+    // ═══ NO CONFIGURED INDEX SETTINGS MAY BYPASS THE RESOLVER (F3) ══════════
+
+    /**
+     * `scout:sync-index-settings` resolves a settings key through
+     * `indexableAs()` ONLY when the key is a model class; a bare string is
+     * turned into `prefix . name` directly. The stale `businesses` entry in
+     * `config/scout.php` did exactly that — a hardcoded index name living
+     * outside App\Support\SearchIndexName, which is the defect 23C-R4 closed.
+     */
+    public function test_no_configured_index_settings_bypass_the_resolver(): void
+    {
+        $settings = config('scout.meilisearch.index-settings', []);
+
+        $this->assertIsArray($settings);
+        $this->assertArrayNotHasKey(
+            'businesses',
+            $settings,
+            'The stale `businesses` index-settings entry must not return: Business is '
+            . 'not searchable, the index does not exist, and a bare string key bypasses '
+            . 'App\Support\SearchIndexName.'
+        );
+
+        foreach (array_keys($settings) as $key) {
+            $this->assertTrue(
+                class_exists($key),
+                "Index settings key '{$key}' is not a model class, so Scout would build "
+                . 'the index name from the literal string and bypass the resolver.'
+            );
+        }
+    }
+
     // ── helpers ────────────────────────────────────────────────────────────
 
     private function assertGuardRejects(string $index): void

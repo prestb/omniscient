@@ -6,7 +6,8 @@
 > A separate, **pre-existing** CI defect (F8) was then found, which kept the
 > verdict at NO-GO. Option (b) was taken and CI now runs a real Meilisearch —
 > **§11** — so F8 is closed and the verdict is **GO**, conditional only on the
-> first CI run on a branch the workflow actually triggers.
+> first CI run on a branch the workflow actually triggers. Finally, a scope call
+> cleared the two dead-code findings, **F2 and F3 — §12**.
 
 This phase changed **no code, no configuration, no index, and no git state.** It
 executed **no test suite** (running it triggers the Phase 23C-R4 bootstrap's
@@ -489,6 +490,8 @@ four settings tasks to `test_listings` against a real Meilisearch.
 **F2–F4 remain recorded, not fixed**; they do not endanger `listings` or
 `categories`. **F5–F6 remain accepted residual risk.**
 
+> **Superseded by §12:** F2 and F3 were subsequently cleaned up.
+
 **Phase 24 readiness: GO.**
 
 The only outstanding item is administrative, not technical: the CI change must be
@@ -501,3 +504,98 @@ If the first CI run fails on the container itself, the fallback is already
 available and requires no code change: `skip_if_no_meilisearch()` in
 `tests/Pest.php` for the one live-search test, plus the `hasUsableEngine()` skip
 that §10.2 already added.
+
+## 12. Deferred cleanup — F2 and F3 closed
+
+An explicit scope call was made to clear the two findings that were dead code
+rather than index-safety defects. Both had **zero live references** before the
+change, verified first.
+
+### 12.1 F3 — the stale `index-settings.businesses` block (removed)
+
+`config/scout.php` held one live `meilisearch.index-settings` key, `businesses`.
+Nothing about it was true any more: Business does not use the `Searchable` trait
+(`0` matches in `app/Models/Business.php`), the index does not exist on the
+server, and `scout:sync-index-settings` resolves a key through `indexableAs()`
+**only when the key is a model class** — a bare string becomes `prefix . name`
+directly, so this was the last hardcoded index name in configuration.
+
+Proven by execution, before and after:
+
+```
+before : would target  'businesses' (dev) / 'test_businesses' (test)
+after  : php artisan scout:sync-index-settings
+         → "No index settings found for the \"meilisearch\" engine."
+         → task uid 81046 before and after: NO MEILISEARCH TASK CREATED
+```
+
+The block is replaced by a comment stating the invariant — **live keys must be
+model classes** — so the removal cannot be silently undone.
+
+### 12.2 F2 — the dead `UpdateMeilisearchSettings` command (deleted)
+
+`app/Console/Commands/UpdateMeilisearchSettings.php` hardcoded
+`$indexName = 'businesses'`, built its own raw `Client`, and carried a comment
+claiming *"must match ConfigureMeilisearch exactly. Both commands write to the
+same index; whichever runs last wins."* That was false: it wrote to
+`businesses`, never to `listings`. A dead command that documents itself as
+configuring the discovery index is precisely the kind of footgun this whole line
+of work exists to remove, so it was deleted rather than repaired.
+
+Nothing referenced it — no scheduler entry, no `Artisan::call`, no test, no
+deployment script (the repository has no ops scripts at all). It was auto-loaded
+by `$this->load(__DIR__.'/Commands')`, so deletion needed no registration
+change. `php artisan list` still shows `meilisearch:configure`; the removed
+`meilisearch:update-settings` now fails loudly as an unknown command instead of
+silently writing to an index nobody reads.
+
+### 12.3 Regression guard
+
+`tests/Unit/Support/SearchIndexNameTest.php` gains
+`test_no_configured_index_settings_bypass_the_resolver()`, which asserts the
+`businesses` key is absent and that every live key is a model class — the exact
+invariant F3 violated. It extends the file that already covers
+`ConfigureMeilisearch`, rather than creating a new home.
+
+### 12.4 Verification
+
+```
+unit tests            : 24 passed (54 assertions)      [was 23]
+php artisan list      : meilisearch:configure present, meilisearch:update-settings gone
+scout:sync-index-settings : no-op, zero Meilisearch tasks
+full suite            : 1056 passed, 2 failed, 1 incomplete   (see §12.5)
+development indexes   : unchanged - see §12.5
+```
+
+### 12.5 Full-suite and index evidence
+
+```
+php artisan test  →  1056 passed, 2 failed, 1 incomplete  (3666 assertions)
+```
+
+1055 before the cleanup + 1 new guard test = 1056. The same two pre-existing
+`ImagePipelineTest` failures, untouched.
+
+Development indexes, marker uid 81046 before the run (81805 after — 759 tasks,
+every one of them on `test_listings` / `test_categories`):
+
+```
+tasks on listings   : NONE
+tasks on categories : NONE
+counts              : 298 / 72 before and after
+```
+
+### 12.6 Final state after the cleanup
+
+| Finding | Status |
+|---|---|
+| F1 — bootstrap aborted with no Meilisearch engine | **RESOLVED** (§10) |
+| F8 — one live-search test under a null driver | **CLOSED** (§11) |
+| F2 — dead `UpdateMeilisearchSettings` command | **CLOSED** (§12.2) |
+| F3 — stale `index-settings.businesses` key | **CLOSED** (§12.1), guarded (§12.3) |
+| F4 — `scout:delete-all-indexes` deletes everything under an empty prefix | **OPEN, documented.** Vendor behaviour; fixing it means overriding a Scout command, which was judged out of scope |
+| F5 — `scout:flush` / `import` / `delete-index` are prefix-aware but unguarded | **accepted residual risk** |
+| F6 — no host allow-list for `APP_ENV=testing` | **accepted residual risk** |
+
+**Phase 24: GO**, unchanged, still conditional only on the first CI run on a
+branch the workflow triggers.

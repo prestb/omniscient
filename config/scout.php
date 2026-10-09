@@ -141,30 +141,24 @@ return [
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
 
-        'businesses' => [
-                'searchableAttributes' => [
-                    'name',
-                    'description',
-                    'categories_names',
-                    'services_names',
-                    'city',
-                    'region',
-                    'address',
-                ],
-                'filterableAttributes' => [
-                    'status',
-                    'is_featured',
-                    'city_id',
-                    'region_id',
-                    'category_ids',
-                ],
-                'sortableAttributes' => [
-                    'created_at',
-                    'published_at',
-                    'average_rating',
-                ],
-            ],
-            
+            // PHASE 23C-R5 (F3) — the stale `businesses` block was removed here.
+            //
+            // It was the last hardcoded index name in configuration: Business is
+            // NOT a searchable entity (it does not use the Searchable trait), the
+            // index does not exist on the server, and `scout:sync-index-settings`
+            // would have targeted the literal `businesses` / `test_businesses`,
+            // bypassing App\Support\SearchIndexName entirely.
+            //
+            // Scout resolves a key here through `searchableAs()` only when the key
+            // is a MODEL CLASS; a bare string is turned into `prefix . name`
+            // directly. Adding one back would reintroduce exactly the defect
+            // Phase 23C-R4 closed, so the rule is: live keys must be model classes.
+            //
+            // The Listing index settings live in ONE place —
+            // App\Console\Commands\ConfigureMeilisearch — and are applied by
+            // `php artisan meilisearch:configure` in development and by
+            // tests/bootstrap.php in the suite.
+
             // 'users' => [
             //     'filterableAttributes' => ['id', 'name', 'email'],
             //     'embedders' => [
