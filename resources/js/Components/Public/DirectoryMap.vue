@@ -490,6 +490,31 @@ const setDistance = async (value) => {
         }
     }
     distance.value = value;
+
+    // PHASE 22E-3 — apply the radius on the SERVER.
+    //
+    // This used to narrow the pins in the browser, after every matching listing
+    // had already been fetched and serialized. The origin and radius are now
+    // sent so SQL does the culling. The current query string is carried over, so
+    // existing category/location filters are preserved rather than reset.
+    const url = new URL(window.location.href);
+
+    if (value !== null && coords.value) {
+        url.searchParams.set('view', 'map');
+        url.searchParams.set('latitude', String(coords.value.lat));
+        url.searchParams.set('longitude', String(coords.value.lng));
+        url.searchParams.set('radius', String(value));
+    } else {
+        // "Any" clears the radius filter server-side too.
+        url.searchParams.delete('latitude');
+        url.searchParams.delete('longitude');
+        url.searchParams.delete('radius');
+    }
+
+    router.get(url.pathname + url.search, {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
 };
 
 // ============== WATCH: RE-RENDER ON FILTER / DATA CHANGE ==============

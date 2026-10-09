@@ -11,6 +11,7 @@ use App\Models\Country;
 use App\Models\Listing;
 use App\Support\DiscoverySort;
 use App\Models\Region;
+use App\Support\LocationDistance;
 use App\Services\SearchIntentParser;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -255,6 +256,40 @@ class DirectoryController extends Controller
         // ============== APPLY VERIFIED FILTER (post-query) ==============
 
         if ($viewMode === 'map') {
+            // =================================================================
+            // PHASE 22E-3 — SERVER-SIDE RADIUS FILTERING.
+            //
+            // Radius narrowing used to happen only in the browser, AFTER every
+            // matching listing had already been fetched and serialized. It now
+            // runs in SQL through the shared LocationDistance primitive, so the
+            // database does the culling. No radius => no change in behaviour.
+            // =================================================================
+            $origin = $this->validatedMapOrigin($request);
+
+            if ($origin !== null) {
+                [$originLat, $originLng, $radiusKm] = $origin;
+
+                // Reuse the Phase 22E-2 primitive; never re-implement the SQL.
+                [$distanceSql, $distanceBindings] = LocationDistance::kmExpression(
+                    $originLat,
+                    $originLng
+                );
+
+                $query->whereHas('location', function ($q) use ($distanceSql, $distanceBindings, $radiusKm) {
+                    // A Location with no coordinate pair has no distance, so it
+                    // is excluded rather than sorted arbitrarily.
+                    $q->whereNotNull('locations.latitude')
+                        ->whereNotNull('locations.longitude');
+
+                    // Binding order is preserved from the helper, with the radius
+                    // appended for the comparison.
+                    $q->whereRaw(
+                        $distanceSql . ' <= ?',
+                        array_merge($distanceBindings, [$radiusKm])
+                    );
+                });
+            }
+
             // MAP MODE — fetch all matching listings with coordinates,
             // no pagination, minimal payload.
             $allListings = $query->get();
@@ -828,4 +863,43 @@ class DirectoryController extends Controller
         )->resolve();
     }
 
+
+    /**
+     * PHASE 22E-3 — validate and resolve a map radius origin.
+     *
+     * Returns `[latitude, longitude, radiusKm]` only when the visitor selected a
+     * radius AND supplied a complete, in-range origin. Returns null otherwise,
+     * which leaves map mode behaving exactly as it did before.
+     *
+     * Validation follows the project's existing conventions — a
+     * `ValidationException` surfaces through the standard error channel rather
+     * than silently accepting a half-specified origin.
+     */
+    private function validatedMapOrigin(Request $request): ?array
+    {
+        // Nothing radius-related supplied: no filtering.
+        if (! $request->filled('radius') && ! $request->filled('latitude') && ! $request->filled('longitude')) {
+            return null;
+        }
+
+        // The supported radius choices are the ones the map UI offers
+        // (`DirectoryMap.vue`): 1, 5, 10, 25 and 50 km.
+        $validated = $request->validate([
+            // A radius without a usable origin is meaningless, and one coordinate
+            // without the other is not a place — both are rejected.
+            'radius' => ['required', 'numeric', 'in:1,5,10,25,50'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ], [
+            'radius.in' => 'That distance is not available.',
+            'latitude.required' => 'A location is required to filter by distance.',
+            'longitude.required' => 'A location is required to filter by distance.',
+        ]);
+
+        return [
+            (float) $validated['latitude'],
+            (float) $validated['longitude'],
+            (float) $validated['radius'],
+        ];
+    }
 }
