@@ -108,6 +108,13 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    // PHASE 22E-4 — the selected radius is URL state owned by the Directory
+    // page. It is passed down rather than held locally because the map/list
+    // toggle unmounts this component, which previously discarded it.
+    radius: {
+        type: [Number, String],
+        default: null,
+    },
 });
 
 const mapEl = ref(null);
@@ -119,7 +126,12 @@ let userMarker = null;
 
 // ✅ Geolocation
 const { coords, loading: locating, error: locationError, locate } = useGeolocation();
-const distance = ref(null); // km, or null = "Any"
+
+// km, or null = "Any". Seeded from the URL-owned prop so the selection survives
+// a remount.
+const distance = ref(
+    props.radius === null || props.radius === '' ? null : Number(props.radius)
+);
 
 const distanceOptions = [
     { value: 1, label: '1 km' },
@@ -133,31 +145,16 @@ const distanceOptions = [
 const hasLocation = computed(() => coords.value !== null);
 
 // ============== FILTERED BUSINESSES ==============
-const visibleBusinesses = computed(() => {
-    if (!distance.value || !coords.value) return props.businesses;
-    const { lat: userLat, lng: userLng } = coords.value;
-    return props.businesses.filter((b) => {
-        const lat = Number(b.latitude);
-        const lng = Number(b.longitude);
-        if (isNaN(lat) || isNaN(lng)) return false;
-        return haversineKm(userLat, userLng, lat, lng) <= distance.value;
-    });
-});
+// PHASE 22E-4 — the SERVER is the only radius authority.
+//
+// This list used to re-filter the server's response with a browser-side
+// Haversine, so two authorities could disagree and the client silently dropped
+// rows the server had deliberately included. Radius narrowing now happens once,
+// in SQL (22E-3); whatever the server returns is what is drawn.
+const visibleBusinesses = computed(() => props.businesses);
 
 const totalCount = computed(() => props.businesses.length);
 const visibleCount = computed(() => visibleBusinesses.value.length);
-
-// ============== HAVERSINE ==============
-const haversineKm = (lat1, lng1, lat2, lng2) => {
-    const R = 6371;
-    const toRad = (deg) => (deg * Math.PI) / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLng = toRad(lng2 - lng1);
-    const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(a));
-};
 
 // ============== MAP INIT ==============
 const DEFAULT_CENTER = [4.6, 12.5];

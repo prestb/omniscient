@@ -72,7 +72,10 @@
 
                     <!-- ==================== MAP VIEW ==================== -->
                     <div v-if="viewMode === 'map'">
-                        <DirectoryMap :businesses="mapListings" />
+                        <!-- PHASE 22E-4 — the radius is owned here (URL state) and
+                             passed down, so it survives the unmount that this
+                             v-if performs when the visitor switches to list. -->
+                        <DirectoryMap :businesses="mapListings" :radius="activeRadius" />
                     </div>
 
                     <!-- ==================== ERROR ==================== -->
@@ -187,6 +190,32 @@
 
     const viewMode = computed(() => props.viewMode || 'list');
 
+/**
+ * PHASE 22E-4 — the selected map radius, read from the current URL.
+ *
+ * The URL is already the single source of truth for directory filters, so the
+ * radius follows the same contract rather than becoming a second, component-local
+ * authority. Reading it here lets the map be seeded with the current selection
+ * after the mode switch remounts it.
+ *
+ * The query string comes from Inertia's `page.url`, never the global location
+ * object: this page must introduce no browser API into setup, so it stays
+ * server-renderable.
+ */
+const activeRadius = computed(() => {
+    const value = directoryQuery().get('radius');
+
+    return value === null || value === '' ? null : Number(value);
+});
+
+/** The current directory query string, sourced from Inertia rather than `window`. */
+const directoryQuery = () => {
+    const url = page.url || '';
+    const start = url.indexOf('?');
+
+    return new URLSearchParams(start === -1 ? '' : url.slice(start + 1));
+};
+
     const page = usePage();
 
     /**
@@ -273,6 +302,21 @@
         writeDirectoryViewMode(mode);
 
         const params = { ...(props.filters || {}) };
+
+        // PHASE 22E-4 — carry the map radius across the mode switch.
+        //
+        // `props.filters` holds the listing filters only, so radius used to be
+        // dropped here and the visitor silently lost their selection on
+        // map -> list -> map. These parameters are read back from the current
+        // URL — via Inertia, never `window` — which is the single source of
+        // truth for the radius.
+        {
+            const current = directoryQuery();
+            ['latitude', 'longitude', 'radius'].forEach((key) => {
+                const value = current.get(key);
+                if (value !== null && value !== '') params[key] = value;
+            });
+        }
 
         // Clean up empty values
         Object.keys(params).forEach((k) => {
