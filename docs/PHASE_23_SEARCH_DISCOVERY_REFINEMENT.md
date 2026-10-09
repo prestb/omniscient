@@ -345,3 +345,273 @@ full suite:             NOT RE-RUN in this pass
 The full suite passed at 1034 passed / 0 failed / 1 incomplete immediately before
 this recovery (commit `2fb5cbd`). No source file was modified by this phase, so
 that result stands for the code as committed.
+
+---
+
+# Phase 23C-R4 — Meilisearch Test-Index Isolation
+
+**Status: COMPLETE.**
+
+## Correction to 23C-R1 — the diagnosis was incomplete
+
+23C-R1 concluded that the blocker was `ConfigureMeilisearch`: a hardcoded
+`const INDEX = 'listings'` and a raw Meilisearch client that never consulted
+Scout. That was real, but it was **not the whole defect, and not the most
+important part of it**.
+
+**23C-R1 missed `Listing::searchableAs()`.**
+
+```
+app/Models/Listing.php:392        return 'listings';        <-- bare literal
+```
+
+Scout's own default is `config('scout.prefix') . $this->getTable()`
+(`vendor/laravel/scout/src/Searchable.php:385`). The override therefore
+**silently discarded `scout.prefix`** — for the one entity that is actually
+searchable. Setting `SCOUT_PREFIX` alone did nothing for `Listing`, which is
+why 23C-R1's proposed step 1 ("make `ConfigureMeilisearch` resolve through
+Scout") could never have been sufficient on its own.
+
+There were **three** hardcoded/implicit sites, not one:
+
+| # | Site | Defect |
+|---|------|--------|
+| 1 | `app/Models/Listing.php:392` | bare literal `'listings'` — discarded `scout.prefix` |
+| 2 | `app/Console/Commands/ConfigureMeilisearch.php:24` | `const INDEX = 'listings'` plus a raw `Client` (L30-35) — **0** references to scout/prefix |
+| 3 | `app/Models/Category.php` | no `searchableAs()` at all — implicit Scout default (the only site that did honour the prefix) |
+
+23C-R1 also cited "nothing in the test bootstrap configures index settings" as
+a reason to stop. That observation was correct, but the conclusion was not: it
+is the reason the bootstrap had to be **written**, not a reason isolation was
+impossible.
+
+## What 23C-R1 also missed: a test run does not only WRITE the shared index
+
+The shared index is not merely polluted with test documents. Because
+`RefreshDatabase` runs `migrate:fresh`, the test database's auto-increment
+restarts at 1 while the **development index still holds documents 1..N**. A
+test that creates Listing id 2 in a non-discoverable state makes Scout issue a
+**deletion** for document id 2 — a real development document.
+
+Measured during this phase: one non-isolated run of
+`tests/Feature/Images/ImagePipelineTest` (4 tests, each creating draft
+Listings) produced four `documentDeletion` tasks against the development
+`listings` index (`GET /tasks?indexUids=listings`), and the document count fell
+**302 → 298**. Tests had been silently deleting real development documents.
+
+## Architecture
+
+### `app/Support/SearchIndexName.php` (new) — single source of truth
+
+```php
+SearchIndexName::listing();   // 'listings'      | 'test_listings'
+SearchIndexName::category();  // 'categories'    | 'test_categories'
+SearchIndexName::prefix();    // config('scout.prefix')
+SearchIndexName::assertSafeForMutation(string $index);
+```
+
+The prefix is read from `config('scout.prefix')` — the **same** value Scout
+itself uses — so there is exactly one place that decides which indexes this
+application talks to, and `Listing` can no longer discard the prefix by writing
+a literal. Because it is Scout's prefix, `SCOUT_PREFIX` alone is now
+sufficient.
+
+### The guard is fail-closed
+
+```
+assertSafeForMutation($index)
+  always    : reject an empty / whitespace-only name
+  testing   : reject 'listings' or 'categories'                (by NAME, not by prefix)
+  testing   : reject anything not in managedIndexes()          (typo / stray index)
+  otherwise : inert — meilisearch:configure MUST be able to target
+              the development index
+```
+
+`prefix presence` is deliberately **not** the check. An empty prefix would make
+`'listings'` look "prefixed"; the guard tests the **complete resolved name**
+against the development names and against the managed set. If the prefix is
+missing or wrong, the resolved name *is* a development name and the write is
+refused.
+
+There is no override. An escape hatch would have to admit a name the guard
+exists to reject.
+
+### The three sites are wired through it
+
+* `Listing::searchableAs()` → `SearchIndexName::listing()`
+* `Category::searchableAs()` → `SearchIndexName::category()` (new method)
+* `ConfigureMeilisearch::targetIndex()` → `SearchIndexName::listing()`;
+  `const INDEX` is **gone**, and the command now builds its client from
+  `config('scout.meilisearch.*')` so it behaves under `config:cache`.
+
+### One definition of the index settings
+
+`ConfigureMeilisearch` exposes its vocabulary as
+`filterableAttributes()` / `sortableAttributes()` / `rankingRules()` /
+`searchableAttributes()`. The command and the test bootstrap read the **same**
+methods; the previous duplication (attribute lists written once for the
+`updateX()` call and again for the echo loop) is gone. The values are byte for
+byte the Phase 13 ones — no ranking policy changed.
+
+### `tests/bootstrap.php` (new) — guarded, ordered, and verified
+
+phpunit.xml now uses `bootstrap="tests/bootstrap.php"`. It:
+
+1. boots **only** `LoadEnvironmentVariables` + `LoadConfiguration` (booting the
+   console kernel there installs Laravel's global error/exception handlers
+   outside any test, so PHPUnit's per-test snapshot still contains them while
+   the teardown removes them — and every single test is then reported as risky:
+   *"Test code or tested code removed error handlers other than its own"*);
+2. **fails closed** unless `APP_ENV=testing` — checked *first*, because outside
+   `testing` the guard is deliberately inert and an unpinned run could
+   reconfigure the development index;
+3. resolves the index, and passes it through `assertSafeForMutation()` **before
+   any client is constructed**;
+4. writes the settings, **waits** for the Meilisearch tasks
+   (`waitForCompletion`), and aborts on any task that is not `succeeded` —
+   otherwise an early search test would fail with a confusing
+   "attribute is not filterable".
+
+`test_categories` is deliberately **not** configured. The development
+`categories` index runs on Meilisearch defaults (no filterable/sortable
+attributes, `searchableAttributes: ["*"]`) and nothing in `app/` searches
+Category through Meilisearch — it is queried in SQL. A fresh `test_categories`
+index already matches it exactly; writing the Listing vocabulary into it would
+have *created* a divergence.
+
+### `SearchConvergenceTest` — the one necessary assertion update
+
+Two assertions pinned the literal `'listings'`. They now assert the resolved
+name **and** the literal, which is strictly stronger:
+
+```php
+expect($listing->searchableAs())->toBe(SearchIndexName::listing());
+expect($listing->searchableAs())->toBe('test_listings');   // phpunit.xml pins SCOUT_PREFIX=test_
+```
+
+Nothing was weakened, deleted or skipped.
+
+## Out of scope (reported, not changed)
+
+* `app/Console/Commands/UpdateMeilisearchSettings.php` still hardcodes
+  `$indexName = 'businesses'` and drives a raw client. It is a **fourth**
+  hardcoded-index site of the same family, but it targets the dead `businesses`
+  index (Business is no longer searchable and the index does not exist on the
+  running server). It never touches `listings` or `categories`, so it was left
+  alone rather than silently widening this phase's blast radius.
+* `scout:import` / `scout:flush` were **not** run against `listings` or
+  `categories`. They route through Scout and are therefore prefix-aware, but
+  exercising them was out of scope.
+* The development `listings` index still holds documents written by
+  pre-isolation runs, and lost 4 documents to the non-isolated reproduction
+  described above. **Nothing was deleted, imported or reconfigured to repair
+  this** — the phase forbids destructive commands against the development
+  index. Cleanup is a separate, explicit decision.
+
+## Verification performed
+
+Ordered as the phase required.
+
+### 1. Resolver + guard unit tests
+
+```
+php artisan test tests/Unit/Support/SearchIndexNameTest.php
+  → 17 passed (41 assertions)
+```
+
+Includes the spy proof: with `SCOUT_PREFIX=test_` configured (so the *only*
+reason to refuse is the name), `ConfigureMeilisearch::applyTo('listings', $spy)`
+throws and the spy factory is **never invoked** — `constructions === 0` and the
+index double recorded no writes. The anti-vacuous control is in the same file:
+the same spy *does* fire once and records all four setting blocks for
+`test_listings`.
+
+### 2. Development index baseline (READ-ONLY)
+
+Captured before any change, and again before and after the full suite, with GET
+requests only (`/indexes`, `/indexes/{uid}/settings`, `/indexes/{uid}/stats`,
+`/tasks`). No `scout:flush`, no `scout:import`, no deletion, no settings update
+was ever issued against `listings` or `categories`.
+
+```
+php artisan test tests/Feature/Search
+  → 123 passed (416 assertions)      [count unchanged; +2 assertions]
+```
+
+### 3. Full suite
+
+```
+php artisan test
+  → 1049 passed, 2 failed, 1 incomplete  (3653 assertions, 568.83s)
+```
+
+Baseline arithmetic: the stated baseline is 1034 passed. 1034 + 17 new
+resolver/guard tests = 1051, and 1049 passed + 2 failed = 1051. **No test was
+lost, skipped or weakened.**
+
+### 4. The two failures are PRE-EXISTING, not caused by this phase
+
+`Tests\Feature\Images\ImagePipelineTest` — *"uploading a logo generates all
+variants"* and *"deleting a listing image removes all variants from storage"*
+fail with `Unable to find a file or directory at path [...jpg]`: the base image
+is stored but the generated variant is not.
+
+Reproduced **at HEAD with this phase's changes stashed**
+(`git stash push -u`; tree pristine, `phpunit.xml` back to
+`bootstrap="vendor/autoload.php"` and no `SCOUT_PREFIX`):
+
+```
+php artisan test tests/Feature/Images/ImagePipelineTest.php
+  → 2 failed, 2 passed       (identical failures, identical paths)
+```
+
+It also fails when run alone under the new configuration, so it is neither
+test-order pollution nor an index effect. It is an environment-dependent
+image-pipeline defect that the stated 0-failure baseline does not reproduce
+here. **This phase neither caused nor fixed it**, and it is left untouched.
+
+### 5. Development indexes are provably untouched by a test run
+
+```
+snapshot (uid list + doc counts + full settings for listings and categories)
+  before the full suite : storage/app/phase23c-r4/dev-index-now.json
+  after  the full suite : storage/app/phase23c-r4/dev-index-after-full-suite.json
+  comparison            : BYTE-IDENTICAL
+
+Meilisearch tasks with uid > 79453 (the highest uid before the run):
+  indexUids=listings    : NONE
+  indexUids=categories  : NONE
+  every task the run created is on test_listings or test_categories
+```
+
+The isolation is not inferred from the prefix — it is measured against the
+server. The documents the suite created (and the deletions that, before this
+phase, silently deleted real development documents) all landed on
+`test_listings` / `test_categories`.
+
+### 6. Frontend build
+
+```
+npm run build : PASS      (vite client 7.97s + vite SSR 3.31s)
+```
+
+This phase changes no frontend source, so the build is a regression check only.
+
+The build is **not** bit-reproducible and churned exactly **249** tracked
+`public/build` entries (124 deletions, 1 modified `manifest.json`, 124
+untracked) — the same figure 23C-R1 recorded. `git status` was inspected: every
+untracked path was verified to be under `public/build/` (plus the one intended
+new file, `tests/bootstrap.php`) before anything was removed, then
+`git checkout -- public/build` and `git clean -fdq -- public/build` restored the
+committed artifacts. **No build artifact was staged or committed.**
+
+Note: `npm.ps1` cannot run under this machine's execution policy; the build was
+run through `npm.cmd`. In the confined sandbox the Vite/esbuild build also fails
+with `spawn EPERM` because esbuild launches its helper over piped stdio — that
+is a sandbox boundary, not a project defect.
+
+### 7. Working tree
+
+```
+git diff --check : clean
+```

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-    bootstrap="vendor/autoload.php"
+    bootstrap="tests/bootstrap.php"
     colors="true"
     cacheDirectory=".phpunit.cache">
     <testsuites>
@@ -42,5 +42,27 @@
         -->
         <env name="DB_CONNECTION" value="mysql" />
         <env name="DB_DATABASE" value="omniscient_testing" />
+
+        <!--
+            PHASE 23C-R4 — MEILISEARCH TEST-INDEX ISOLATION.
+
+            Before this, `scout.prefix` was empty, so the suite and the
+            development application shared the SAME `listings` index and tests
+            wrote real documents into it. `Listing::searchableAs()` also
+            returned a bare `'listings'` literal, which silently DISCARDED this
+            prefix — so setting it alone changed nothing for Listing.
+
+            Both are now fixed: the index name is resolved through
+            `App\Support\SearchIndexName`, which reads this value, and the
+            settings that an isolated index needs are written by
+            `tests/bootstrap.php` before any test runs.
+
+            `force="true"` is deliberate. Without it PHPUnit leaves an
+            already-present environment variable alone, so an ambient
+            `SCOUT_PREFIX` (or an unset one inherited from `.env`) could
+            silently collapse the suite back onto the development index.
+            Isolation must not depend on the operator's shell.
+        -->
+        <env name="SCOUT_PREFIX" value="test_" force="true" />
     </php>
 </phpunit>

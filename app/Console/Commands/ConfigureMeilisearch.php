@@ -176,14 +176,27 @@ class ConfigureMeilisearch extends Command
      * This method produces NO console output, so it is safe to call from the
      * PHPUnit bootstrap where no `OutputInterface` is bound.
      *
+     * Meilisearch applies settings ASYNCHRONOUSLY. The command does not need to
+     * wait, but the test bootstrap DOES: a test that runs before the settings
+     * task completes would fail with "attribute is not filterable" and look
+     * like a regression. `$waitForCompletion` blocks on every task and returns
+     * the finished task rows so the caller can assert they SUCCEEDED rather
+     * than merely completed.
+     *
      * @param  null|callable():\Meilisearch\Client  $clientFactory
      *         Test seam only. Lets a test PROVE that a rejected index never
      *         constructs a client, by asserting the factory is never invoked.
+     * @param  bool  $waitForCompletion  block until Meilisearch finishes the
+     *         enqueued settings tasks
+     * @return array<int, array<string, mixed>> enqueued (or finished) task rows
      *
      * @throws \RuntimeException when the index is not safe to mutate
      */
-    public static function applyTo(string $index, ?callable $clientFactory = null): void
-    {
+    public static function applyTo(
+        string $index,
+        ?callable $clientFactory = null,
+        bool $waitForCompletion = false
+    ): array {
         SearchIndexName::assertSafeForMutation($index);
 
         $client = $clientFactory !== null
@@ -193,7 +206,13 @@ class ConfigureMeilisearch extends Command
                 config('scout.meilisearch.key')
             );
 
-        self::writeSettings($client->index($index));
+        $tasks = self::writeSettings($client->index($index));
+
+        if (! $waitForCompletion) {
+            return $tasks;
+        }
+
+        return $client->waitForTasks(array_column($tasks, 'taskUid'));
     }
 
     /**
@@ -203,12 +222,15 @@ class ConfigureMeilisearch extends Command
      * production the argument is always `Meilisearch\Endpoints\Indexes`.
      *
      * @param  \Meilisearch\Endpoints\Indexes  $index
+     * @return array<int, array<string, mixed>> one enqueued-task row per setting
      */
-    public static function writeSettings($index): void
+    public static function writeSettings($index): array
     {
-        $index->updateFilterableAttributes(self::filterableAttributes());
-        $index->updateSortableAttributes(self::sortableAttributes());
-        $index->updateRankingRules(self::rankingRules());
-        $index->updateSearchableAttributes(self::searchableAttributes());
+        return [
+            $index->updateFilterableAttributes(self::filterableAttributes()),
+            $index->updateSortableAttributes(self::sortableAttributes()),
+            $index->updateRankingRules(self::rankingRules()),
+            $index->updateSearchableAttributes(self::searchableAttributes()),
+        ];
     }
 }

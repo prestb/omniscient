@@ -2,6 +2,7 @@
 
 use App\Models\Business;
 use App\Models\Listing;
+use App\Support\SearchIndexName;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Scout\Searchable;
 
@@ -28,7 +29,11 @@ test('business is not a searchable entity', function () {
 test('listing is the canonical searchable entity', function () {
     $listing = Listing::factory()->create();
 
-    expect($listing->searchableAs())->toBe('listings');
+    // PHASE 23C-R4 — the index name is RESOLVED, not a literal. The assertion
+    // is pinned to the resolved test index AND to the literal, so it cannot
+    // pass by following a resolver that silently points at development.
+    expect($listing->searchableAs())->toBe(SearchIndexName::listing());
+    expect($listing->searchableAs())->toBe('test_listings');
     expect(method_exists($listing, 'toSearchableArray'))->toBeTrue();
 });
 
@@ -66,7 +71,10 @@ test('a listing associated with a business keeps its organization context', func
 });
 
 test('business and listing search identities do not share an index', function () {
-    expect(Listing::factory()->create()->searchableAs())->toBe('listings');
+    // PHASE 23C-R4 — and the suite must never resolve that index to the
+    // DEVELOPMENT index the running application uses.
+    expect(Listing::factory()->create()->searchableAs())->toBe('test_listings');
+    expect(Listing::factory()->create()->searchableAs())->not->toBe('listings');
 
     // Business has no index at all now.
     expect(method_exists(Business::class, 'searchableAs'))->toBeFalse();
