@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\SearchIndexName;
 use Illuminate\Console\Command;
 use Meilisearch\Client;
 
@@ -11,6 +12,21 @@ use Meilisearch\Client;
  * A Business is an organization (an aggregate of Listings). It is NOT a
  * competing searchable/discoverable entity, so its index is no longer
  * configured or populated.
+ *
+ * PHASE 23C-R4 — THE INDEX NAME IS RESOLVED, NOT HARDCODED.
+ *
+ * This command used to hold `const INDEX = 'listings'` and talk to a RAW
+ * Meilisearch client, so it bypassed Scout entirely and could not be pointed at
+ * a different index. Combined with `Listing::searchableAs()`'s literal, that
+ * meant a test run would configure and write THE DEVELOPMENT INDEX.
+ *
+ * The target now comes from {@see SearchIndexName::listing()}, and every write
+ * passes {@see SearchIndexName::assertSafeForMutation()} BEFORE a client is
+ * constructed.
+ *
+ * The attribute vocabulary below is the ONE definition of the index settings:
+ * this command and the guarded PHPUnit bootstrap both read it, so the two can
+ * never drift apart.
  */
 class ConfigureMeilisearch extends Command
 {
@@ -19,23 +35,28 @@ class ConfigureMeilisearch extends Command
     protected $description = 'Configure the Listing discovery index settings';
 
     /**
-     * The canonical discovery index.
+     * The index this command targets. Resolved per environment — never a
+     * literal, so a prefixed test index can never be confused with the
+     * development index.
      */
-    public const INDEX = 'listings';
-
-    public function handle()
+    public static function targetIndex(): string
     {
-        $this->info('Configuring Meilisearch discovery index: ' . self::INDEX);
+        return SearchIndexName::listing();
+    }
 
-        $client = new Client(
-            env('MEILISEARCH_HOST', 'http://localhost:7700'),
-            env('MEILISEARCH_KEY')
-        );
+    // ── THE SINGLE DEFINITION OF THE INDEX SETTINGS ─────────────────────────
 
-        $index = $client->index(self::INDEX);
-
-        // Update filterable attributes
-        $index->updateFilterableAttributes([
+    /**
+     * Filterable attributes.
+     *
+     * Every filter the public directory exposes must appear here, or the
+     * Meilisearch query throws "attribute is not filterable".
+     *
+     * @return list<string>
+     */
+    public static function filterableAttributes(): array
+    {
+        return [
             'status',
             'type',
             'is_featured',
@@ -48,46 +69,45 @@ class ConfigureMeilisearch extends Command
             'city_id',
             'region_id',
             'country_id',
-        ]);
+        ];
+    }
 
-        $this->info('✅ Filterable attributes updated:');
-        foreach ([
-            'status', 'type', 'is_featured', 'hidden', 'has_active_subscription',
-            'is_open_now', 'business_id', 'location_id', 'category_ids',
-            'city_id', 'region_id', 'country_id',
-        ] as $attribute) {
-            $this->line('  - ' . $attribute);
-        }
-
-        // Update sortable attributes
-        //
-        // PHASE 13 — `/search` (Meilisearch) and `/directory` (SQL) must expose
-        // the same sort vocabulary. `rating` and `reviews_count` are the OWNING
-        // BUSINESS's review aggregate (reviews are Business-owned); a
-        // Business-less Listing indexes 0 / 0.
-        $index->updateSortableAttributes([
+    /**
+     * Sortable attributes.
+     *
+     * PHASE 13 — `/search` (Meilisearch) and `/directory` (SQL) must expose the
+     * same sort vocabulary. `rating` and `reviews_count` are the LISTING's own
+     * approved-review aggregate; a Listing with no reviews indexes 0 / 0.
+     *
+     * @return list<string>
+     */
+    public static function sortableAttributes(): array
+    {
+        return [
             'created_at',
             'published_at',
             'rating',
             'reviews_count',
             'is_featured_rank',
-        ]);
+        ];
+    }
 
-        $this->info('✅ Sortable attributes updated:');
-        foreach (['created_at', 'published_at', 'rating', 'reviews_count', 'is_featured_rank'] as $attribute) {
-            $this->line('  - ' . $attribute);
-        }
-
-        // Ranking rules — PHASE 13.
-        //
-        // Textual relevance is preserved absolutely: every built-in relevance
-        // rule runs BEFORE any custom signal. `rating:desc` then
-        // `is_featured_rank:desc` are appended as pure TIE-BREAKERS, so a
-        // featured Listing can never outrank a strongly matching non-featured
-        // Listing. Promotion is the last signal considered, not the first.
-        //
-        // Rule names match the installed Meilisearch (1.53.1).
-        $index->updateRankingRules([
+    /**
+     * Ranking rules — PHASE 13.
+     *
+     * Textual relevance is preserved absolutely: every built-in relevance rule
+     * runs BEFORE any custom signal. `rating:desc` then `is_featured_rank:desc`
+     * are appended as pure TIE-BREAKERS, so a featured Listing can never
+     * outrank a strongly matching non-featured Listing. Promotion is the last
+     * signal considered, not the first.
+     *
+     * Rule names match the installed Meilisearch (1.53.1).
+     *
+     * @return list<string>
+     */
+    public static function rankingRules(): array
+    {
+        return [
             'words',
             'typo',
             'proximity',
@@ -97,12 +117,17 @@ class ConfigureMeilisearch extends Command
             'exactness',
             'rating:desc',
             'is_featured_rank:desc',
-        ]);
+        ];
+    }
 
-        $this->info('✅ Ranking rules updated: relevance first, quality then promotion as tie-breakers.');
-
-        // Update searchable attributes
-        $index->updateSearchableAttributes([
+    /**
+     * Searchable attributes.
+     *
+     * @return list<string>
+     */
+    public static function searchableAttributes(): array
+    {
+        return [
             'name',
             'description',
             'categories_names',
@@ -111,10 +136,79 @@ class ConfigureMeilisearch extends Command
             'region',
             'country',
             'address',
-        ]);
+        ];
+    }
+
+    // ── EXECUTION ───────────────────────────────────────────────────────────
+
+    public function handle(): int
+    {
+        $index = self::targetIndex();
+
+        $this->info('Configuring Meilisearch discovery index: ' . $index);
+
+        self::applyTo($index);
+
+        $this->info('✅ Filterable attributes updated:');
+        foreach (self::filterableAttributes() as $attribute) {
+            $this->line('  - ' . $attribute);
+        }
+
+        $this->info('✅ Sortable attributes updated:');
+        foreach (self::sortableAttributes() as $attribute) {
+            $this->line('  - ' . $attribute);
+        }
+
+        $this->info('✅ Ranking rules updated: relevance first, quality then promotion as tie-breakers.');
 
         $this->info('✅ Searchable attributes updated:');
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Apply the canonical settings to one index.
+     *
+     * PHASE 23C-R4 — ORDER MATTERS: the guard runs FIRST, before any client is
+     * constructed. A rejected name must never reach the network, and under
+     * `APP_ENV=testing` a development index name is rejected outright.
+     *
+     * This method produces NO console output, so it is safe to call from the
+     * PHPUnit bootstrap where no `OutputInterface` is bound.
+     *
+     * @param  null|callable():\Meilisearch\Client  $clientFactory
+     *         Test seam only. Lets a test PROVE that a rejected index never
+     *         constructs a client, by asserting the factory is never invoked.
+     *
+     * @throws \RuntimeException when the index is not safe to mutate
+     */
+    public static function applyTo(string $index, ?callable $clientFactory = null): void
+    {
+        SearchIndexName::assertSafeForMutation($index);
+
+        $client = $clientFactory !== null
+            ? $clientFactory()
+            : new Client(
+                (string) config('scout.meilisearch.host', 'http://localhost:7700'),
+                config('scout.meilisearch.key')
+            );
+
+        self::writeSettings($client->index($index));
+    }
+
+    /**
+     * Write every canonical settings block to an index handle.
+     *
+     * Untyped on purpose so the guard test can pass a recording double; in
+     * production the argument is always `Meilisearch\Endpoints\Indexes`.
+     *
+     * @param  \Meilisearch\Endpoints\Indexes  $index
+     */
+    public static function writeSettings($index): void
+    {
+        $index->updateFilterableAttributes(self::filterableAttributes());
+        $index->updateSortableAttributes(self::sortableAttributes());
+        $index->updateRankingRules(self::rankingRules());
+        $index->updateSearchableAttributes(self::searchableAttributes());
     }
 }

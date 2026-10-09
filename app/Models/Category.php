@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SearchIndexName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -123,6 +124,20 @@ class Category extends Model
     public function getListingsCountAttribute()
     {
         return $this->listings()->count();
+    }
+
+    /**
+     * PHASE 23C-R4 — EXPLICIT INDEX NAME.
+     *
+     * `Category` previously declared no `searchableAs()`, so it silently relied
+     * on Scout's `config('scout.prefix').$this->getTable()` default. That
+     * happened to honour the prefix, but it was an implicit second mechanism
+     * that could drift from the Listing index. The name is now resolved through
+     * the same single source of truth as every other index in the app.
+     */
+    public function searchableAs(): string
+    {
+        return SearchIndexName::category();
     }
 
     // app/Models/Category.php

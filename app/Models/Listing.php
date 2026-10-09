@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\ListingType;
+use App\Support\SearchIndexName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -387,9 +388,21 @@ class Listing extends Model
         ];
     }
 
+    /**
+     * PHASE 23C-R4 — THE INDEX NAME IS RESOLVED, NEVER HARDCODED.
+     *
+     * This method previously returned the bare literal `'listings'`, which
+     * SILENTLY DISCARDED `scout.prefix`: Scout's own default is
+     * `config('scout.prefix').$this->getTable()`, so the override made
+     * `SCOUT_PREFIX` a no-op for the one entity that is actually searchable.
+     *
+     * Going through {@see SearchIndexName::listing()} restores the prefix and
+     * makes Listing, Category and `meilisearch:configure` agree on exactly one
+     * index name per environment.
+     */
     public function searchableAs(): string
     {
-        return 'listings';
+        return SearchIndexName::listing();
     }
 
     /**
