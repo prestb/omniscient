@@ -11,10 +11,19 @@ use App\Support\DiscoverySort;
 use App\Models\Region;
 use App\Services\SearchIntentParser;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 
 class SearchController extends Controller
 {
+    /**
+     * PHASE 23D — the discovery page size.
+     *
+     * The successful path and the resilience fallback share this value so an
+     * empty result set can never paginate differently from a real one.
+     */
+    private const PER_PAGE = 12;
+
     public function index(Request $request)
     {
         $query = $request->input('q', '');
@@ -43,44 +52,82 @@ class SearchController extends Controller
 
         // PHASE 11 / WAVE 1D-1 — discovery queries LISTINGS.
         // A Business is an organization, never a competing discovery entity.
-        $search = Listing::search($effectiveQuery);
-
-        // Apply filters using WHERE clauses
-        $search->where('status', 'published');
-        $search->where('has_active_subscription', true);
-        $search->where('hidden', false);
-
-        if ($categoryId) {
-            $search->where('category_ids', (int) $categoryId);
-        }
-
-        if ($cityId) {
-            // A Listing has 0 or 1 Location, so the city filter is singular.
-            $search->where('city_id', (int) $cityId);
-        }
-
-        if ($regionId) {
-            $search->where('region_id', (int) $regionId);
-        }
-
-        if ($featured) {
-            $search->where('is_featured', true);
-        }
-
-        if ($openNow) {
-            $search->where('is_open_now', true);
-        }
 
         // PHASE 13 — canonical discovery sort vocabulary.
         // Default is RELEVANCE, which applies NO orderBy so Meilisearch's
         // textual ranking is left completely intact.
         $sort = DiscoverySort::normalize($request->input('sort'));
 
-        foreach (DiscoverySort::meilisearchOrder($sort) as [$column, $direction]) {
-            $search->orderBy($column, $direction);
-        }
+        // =====================================================================
+        // PHASE 23D — SEARCH RESILIENCE BOUNDARY.
+        //
+        // Listing search is the ONLY part of this page that depends on the
+        // search engine. Before this phase `Listing::search(...)->paginate()`
+        // ran with NO boundary, so a Meilisearch outage returned a 500 — while
+        // `/search/autocomplete` degraded gracefully. The two surfaces must not
+        // behave differently when the engine is unavailable.
+        //
+        // The boundary wraps ONLY the engine pipeline. Sort state, filter data
+        // and the whole response are built outside it, so a failure changes the
+        // RESULTS and nothing else.
+        //
+        // `\Throwable` reuses the convention the autocomplete boundary already
+        // establishes (`SearchController::autocomplete`): the engine is a
+        // pluggable external dependency and may surface any type. The narrowness
+        // is in the SCOPE, not the type — one external call, not the request. It
+        // is logged WITH its class so a genuine programming error stays
+        // diagnosable rather than being silently swallowed.
+        //
+        // There is deliberately NO SQL fallback. An empty result set is
+        // preferable to a 500, and pretending the search succeeded would be
+        // worse than admitting it did not.
+        // =====================================================================
+        try {
+            $search = Listing::search($effectiveQuery);
 
-        $listings = $search->paginate(12)->withQueryString();
+            // Apply filters using WHERE clauses
+            $search->where('status', 'published');
+            $search->where('has_active_subscription', true);
+            $search->where('hidden', false);
+
+            if ($categoryId) {
+                $search->where('category_ids', (int) $categoryId);
+            }
+
+            if ($cityId) {
+                // A Listing has 0 or 1 Location, so the city filter is singular.
+                $search->where('city_id', (int) $cityId);
+            }
+
+            if ($regionId) {
+                $search->where('region_id', (int) $regionId);
+            }
+
+            if ($featured) {
+                $search->where('is_featured', true);
+            }
+
+            if ($openNow) {
+                $search->where('is_open_now', true);
+            }
+
+            foreach (DiscoverySort::meilisearchOrder($sort) as [$column, $direction]) {
+                $search->orderBy($column, $direction);
+            }
+
+            $listings = $search->paginate(self::PER_PAGE)->withQueryString();
+        } catch (\Throwable $e) {
+            // Expected failure mode: engine unreachable or misconfigured.
+            // Logged, never propagated, and never shown to the visitor.
+            \Log::warning('Search listing query failed', [
+                'query' => $effectiveQuery,
+                'sort' => $sort,
+                'exception' => get_class($e),
+                'error' => $e->getMessage(),
+            ]);
+
+            $listings = $this->emptySearchResults();
+        }
 
         // Get filter data
         $categories = Category::active()->root()->ordered()->get();
@@ -111,6 +158,30 @@ class SearchController extends Controller
             'regions' => $regions,
             'cities' => $cities,
         ]);
+    }
+
+    /**
+     * PHASE 23D — the safe empty result for a search that could not run.
+     *
+     * Mirrors what `->paginate(self::PER_PAGE)` returns on success EXACTLY:
+     * same paginator class, same page size, same current page, same query
+     * string. That matters because the Inertia page and the `Pagination`
+     * component read `listings.data`, `listings.total` and `listings.links`; a
+     * plain empty array would leave `total` and `links` undefined and render a
+     * broken page instead of the normal empty state.
+     *
+     * It is an empty result set, NOT a fallback: nothing queries the database
+     * on this path. The visitor sees "no results", which is honest.
+     */
+    private function emptySearchResults(): LengthAwarePaginator
+    {
+        return (new LengthAwarePaginator(
+            items: [],
+            total: 0,
+            perPage: self::PER_PAGE,
+            currentPage: LengthAwarePaginator::resolveCurrentPage(),
+            options: ['path' => LengthAwarePaginator::resolveCurrentPath()],
+        ))->withQueryString();
     }
 
     public function autocomplete(Request $request)

@@ -6,6 +6,49 @@ earlier phases.
 
 ---
 
+## 0. Reconciled status — added by Phase 23D
+
+This document is **append-only history**: each section was written as its phase
+completed, and later sections supersede earlier ones. Read this section first, or
+read the document in full.
+
+| Area | Current status |
+|---|---|
+| Phase 23 / 23B search refinement | **Substantially implemented** |
+| 23C — autocomplete error boundary | Implemented (`SearchController::autocomplete`, covered by `AutocompleteErrorBoundaryTest`) |
+| 23C — `shouldBeSearchable()` index visibility | Implemented (`2fb5cbd`, covered by `ListingIndexVisibilityTest`) |
+| 23C-R4 — index-naming convergence | Implemented — one resolver and one guarded settings-write path (`048d746`, `0f48985`) |
+| 23C-R5 **F1** — bootstrap aborted when no engine is configured | Implemented (`79c93a5`) |
+| 23C-R5 **F2** — dead `UpdateMeilisearchSettings` command | Implemented — the command was deleted (`1006c8e`) |
+| 23C-R5 **F3** — stale `index-settings.businesses` key | Implemented — removed and guarded (`1006c8e`) |
+| 23C-R5 **F8** — live-search test under a null driver | Implemented — CI runs a real Meilisearch service (`2ff94c5`) |
+| Main `/search` error boundary | **Implemented by 23D** — an engine outage now returns HTTP 200 with an empty result set instead of a 500 |
+
+**Historical statements that must NOT be read as current status.** Section 4
+("Workstream B — Meilisearch") was written during the Phase 23B audit. It records
+`numeric typing: NOT VERIFIED`, `visibility/indexing: NOT VERIFIED` and closes
+with *"This workstream was not completed."* Those were accurate **when written**
+and are **superseded** by the 23C, R4 and R5 sections further down this same
+document. Do not schedule that workstream again on the strength of §4.
+
+**Still open and deliberately unfixed** (recorded in full in
+`docs/PHASE_23C_R5_AUDIT.md`): **F4** — `scout:delete-all-indexes` deletes every
+index when the Scout prefix is empty (vendor behaviour, an operational hazard in
+development); **F5** — Scout's `flush` / `import` / `delete-index` resolve the
+prefix correctly but are unguarded; **F6** — there is no Meilisearch host
+allow-list.
+
+**Also observed during 23D, not fixed here:** `Search/Index.vue` reads
+`listings.total`, `listings.from` and `listings.links` at the top level, but
+`/search` actually delivers `{ data, links, meta: { current_page, per_page,
+total, … } }`. The paths under `meta` are the real ones. This is a pre-existing
+frontend/backend contract mismatch, out of scope for 23D.
+
+See `docs/PHASE_22E_GEOSPATIAL_FOUNDATION.md` for the geospatial foundation that
+§1 below already lists as a true claim.
+
+---
+
 ## 1. Initial audit (Phase 23)
 
 Read-only audit of the search/discovery pipeline. Result: the architecture was
