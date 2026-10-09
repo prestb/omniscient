@@ -126,25 +126,39 @@ class SearchController extends Controller
         }
 
         try {
-            $suggestions = Listing::search($query)
-                ->where('status', 'published')
-                ->where('has_active_subscription', true)
-                ->where('hidden', false)
-                ->take(5)
-                ->get()
-                ->map(function ($listing) {
-                    // PHASE 11 / WAVE 1D-1 — the discoverable identity is the
-                    // LISTING. The organization is contextual metadata only.
-                    return [
-                        'id' => $listing->id,
-                        'type' => 'listing',
-                        'listing_type' => $listing->getListingType()->value,
-                        'name' => $listing->name,
-                        'slug' => $listing->slug,
-                        'category' => $listing->categories->first()?->name,
-                        'city' => $listing->location?->city?->name,
-                    ];
-                });
+            // PHASE 23B - only the listing search depends on the search engine.
+            // It gets its OWN boundary so an outage cannot also discard the
+            // MySQL-only category and intent suggestions below.
+            try {
+                $suggestions = Listing::search($query)
+                    ->where('status', 'published')
+                    ->where('has_active_subscription', true)
+                    ->where('hidden', false)
+                    ->take(5)
+                    ->get()
+                    ->map(function ($listing) {
+                        // PHASE 11 / WAVE 1D-1 — the discoverable identity is the
+                        // LISTING. The organization is contextual metadata only.
+                        return [
+                            'id' => $listing->id,
+                            'type' => 'listing',
+                            'listing_type' => $listing->getListingType()->value,
+                            'name' => $listing->name,
+                            'slug' => $listing->slug,
+                            'category' => $listing->categories->first()?->name,
+                            'city' => $listing->location?->city?->name,
+                        ];
+                    });
+            } catch (\Throwable $e) {
+                // Expected failure mode: engine unreachable or misconfigured.
+                // Logged, and deliberately not propagated.
+                \Log::warning('Autocomplete listing search failed', [
+                    'query' => $query,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $suggestions = collect();
+            }
 
             // Add category suggestions
             //
