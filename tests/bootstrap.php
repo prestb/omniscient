@@ -25,21 +25,24 @@
  * ─────────────────────────────────────────────────────────────────────────
  * The settings write is an index MUTATION. If it ever resolved to `listings`
  * it would reconfigure the DEVELOPMENT index — silently, successfully, and in
- * exactly the way this phase exists to prevent. So the file fails closed
- * twice, in this order:
+ * exactly the way this phase exists to prevent. So the file is ordered:
  *
  *   1. the application MUST be running as `testing` — checked FIRST, because
  *      outside `testing` `SearchIndexName::assertSafeForMutation()` is
  *      deliberately inert (`php artisan meilisearch:configure` must still be
  *      able to target the development index);
- *   2. the resolved index name MUST pass the fail-closed guard, which refuses
+ *   2. if no Meilisearch engine is in use the write is SKIPPED entirely (see
+ *      the PHASE 23C-R5 note at that check) — there is then no index to
+ *      configure and no shared index to protect;
+ *   3. the resolved index name MUST pass the fail-closed guard, which refuses
  *      the development names outright and refuses anything the current
  *      configuration does not manage — a name that merely looks prefixed is
  *      not proof of safety.
  *
- * The Meilisearch client is only constructed after both checks pass, and an
- * unfinished or FAILED settings task aborts the run rather than letting tests
- * fail later with a confusing "attribute is not filterable".
+ * A host that IS configured but unreachable still aborts. The Meilisearch
+ * client is only constructed after every check above passes, and an unfinished
+ * or FAILED settings task aborts the run rather than letting tests fail later
+ * with a confusing "attribute is not filterable".
  *
  * ─────────────────────────────────────────────────────────────────────────
  * WHY ONLY THESE TWO BOOTSTRAPPERS
@@ -89,6 +92,42 @@ if (! $app->environment('testing')) {
         . 'target the development index — which means an unpinned run here could reconfigure '
         . 'it. Set APP_ENV=testing in phpunit.xml.'
     );
+}
+
+// ── SKIP when there is no Meilisearch engine to configure ──────────────────
+//
+// PHASE 23C-R5 — F1. This bootstrap used to perform its settings write
+// unconditionally, which broke `php artisan test` in the CI configuration:
+// `.env.ci` sets `SCOUT_DRIVER=null` (which Laravel resolves to a genuine NULL
+// driver, NOT the `meilisearch` default, so Scout uses NullEngine) and
+// `MEILISEARCH_HOST=` (which resolves to the EMPTY string, NOT the
+// `http://localhost:7700` default), while the workflow declares no Meilisearch
+// service. The write therefore threw
+// `GuzzleHttp\Exception\RequestException: URI must include a scheme and host`
+// and the run aborted BEFORE A SINGLE TEST EXECUTED.
+//
+// With no Meilisearch engine in use there is nothing to configure and no
+// shared index to protect — the isolated index only matters BECAUSE Scout will
+// talk to it. Skipping is not a weakening: under a null driver Scout writes
+// nowhere, and with no host it cannot write at all.
+//
+// A host that IS configured but UNREACHABLE still aborts, deliberately: you
+// asked for Meilisearch, so the suite must not silently run against an index
+// whose settings were never applied. That is the ordering trap this file
+// exists to close.
+$driver = config('scout.driver');
+$host = config('scout.meilisearch.host');
+
+if (! ConfigureMeilisearch::hasUsableEngine()) {
+    fwrite(STDOUT, sprintf(
+        'PHASE 23C-R4: skipping test-index configuration — no Meilisearch engine in use '
+        . '(scout.driver=%s, scout.meilisearch.host=%s). No index was read or written.'
+        . PHP_EOL,
+        var_export($driver, true),
+        var_export($host, true)
+    ));
+
+    return;
 }
 
 // ── FAIL CLOSED (2): the resolved name is a test index ─────────────────────

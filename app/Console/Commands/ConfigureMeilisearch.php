@@ -44,6 +44,32 @@ class ConfigureMeilisearch extends Command
         return SearchIndexName::listing();
     }
 
+    /**
+     * PHASE 23C-R5 (F1) — is Meilisearch actually in use?
+     *
+     * Laravel resolves `SCOUT_DRIVER=null` to a genuine NULL driver
+     * (`EngineManager::getDefaultDriver()` returns `'null'` → `NullEngine`),
+     * NOT to the `meilisearch` default, and `MEILISEARCH_HOST=` to the EMPTY
+     * string, NOT to the `http://localhost:7700` default. An environment that
+     * sets both — as `.env.ci` does — therefore has no Meilisearch at all.
+     *
+     * Anything that writes index settings must ask this first. The test
+     * bootstrap previously did not, so under CI it tried to reach a host of
+     * `''` and died with "URI must include a scheme and host" before a single
+     * test ran.
+     *
+     * A configured-but-unreachable host is deliberately NOT covered: that is a
+     * real misconfiguration and must fail loudly rather than be skipped.
+     */
+    public static function hasUsableEngine(): bool
+    {
+        $host = config('scout.meilisearch.host');
+
+        return config('scout.driver') === 'meilisearch'
+            && is_string($host)
+            && trim($host) !== '';
+    }
+
     // ── THE SINGLE DEFINITION OF THE INDEX SETTINGS ─────────────────────────
 
     /**

@@ -275,6 +275,73 @@ class SearchIndexNameTest extends TestCase
         $this->assertSame('is_featured_rank:desc', end($ranking));
     }
 
+    // ═══ IS MEILISEARCH ACTUALLY IN USE? (PHASE 23C-R5, F1) ═════════════════
+
+    /**
+     * THE CI CONDITION, PINNED.
+     *
+     * `.env.ci` sets `SCOUT_DRIVER=null` and `MEILISEARCH_HOST=`. Laravel
+     * resolves the former to a genuine NULL driver — NOT the `meilisearch`
+     * default — and the latter to the EMPTY string — NOT the
+     * `http://localhost:7700` default. Nothing may attempt an index write in
+     * that state: the test bootstrap used to, and died with
+     * "URI must include a scheme and host" before a single test ran.
+     */
+    public function test_the_engine_is_unusable_under_the_ci_configuration(): void
+    {
+        config(['scout.driver' => null, 'scout.meilisearch.host' => '']);
+
+        $this->assertFalse(ConfigureMeilisearch::hasUsableEngine());
+    }
+
+    /** A null driver is unusable even when a host happens to be configured. */
+    public function test_the_engine_is_unusable_with_a_null_driver(): void
+    {
+        config(['scout.driver' => null, 'scout.meilisearch.host' => 'http://localhost:7700']);
+
+        $this->assertFalse(ConfigureMeilisearch::hasUsableEngine());
+    }
+
+    /** A Meilisearch driver with no host has nothing to reach. */
+    public function test_the_engine_is_unusable_without_a_host(): void
+    {
+        config(['scout.driver' => 'meilisearch', 'scout.meilisearch.host' => '']);
+
+        $this->assertFalse(ConfigureMeilisearch::hasUsableEngine());
+    }
+
+    /** A whitespace-only host is not a host. */
+    public function test_the_engine_is_unusable_with_a_whitespace_host(): void
+    {
+        config(['scout.driver' => 'meilisearch', 'scout.meilisearch.host' => '   ']);
+
+        $this->assertFalse(ConfigureMeilisearch::hasUsableEngine());
+    }
+
+    /** Every non-Meilisearch driver means Meilisearch settings are irrelevant. */
+    public function test_the_engine_is_unusable_for_every_other_driver(): void
+    {
+        foreach (['database', 'algolia', 'typesense', 'collection', 'null', ''] as $driver) {
+            config(['scout.driver' => $driver, 'scout.meilisearch.host' => 'http://localhost:7700']);
+
+            $this->assertFalse(
+                ConfigureMeilisearch::hasUsableEngine(),
+                "driver '{$driver}' must not be treated as a usable Meilisearch engine"
+            );
+        }
+    }
+
+    /**
+     * The real local configuration is usable — which is why the bootstrap still
+     * writes settings for a normal developer run.
+     */
+    public function test_the_engine_is_usable_with_a_meilisearch_driver_and_host(): void
+    {
+        config(['scout.driver' => 'meilisearch', 'scout.meilisearch.host' => 'http://localhost:7700']);
+
+        $this->assertTrue(ConfigureMeilisearch::hasUsableEngine());
+    }
+
     // ── helpers ────────────────────────────────────────────────────────────
 
     private function assertGuardRejects(string $index): void
