@@ -11,6 +11,14 @@ jobs:
     name: Run test suite
     runs-on: ubuntu-latest
 
+    # PHASE 23C-R5 — the Meilisearch master key, handed to BOTH the service and
+    # the test process so the two can never disagree. Set the repository secret
+    # MEILI_MASTER_KEY to use a real one; the literal fallback keeps an unset
+    # secret self-consistent instead of leaving the service keyless while the
+    # application sends a key. Either way nothing sensitive is committed.
+    env:
+      MEILISEARCH_KEY: ${{ secrets.MEILI_MASTER_KEY || 'ci-meilisearch-master-key' }}
+
     services:
       mysql:
         image: mysql:8.0
@@ -26,6 +34,25 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+
+      # PHASE 23C-R5 — previously CI ran with SCOUT_DRIVER=null and no search
+      # engine. The suite now targets test_listings / test_categories, and the
+      # PHPUnit bootstrap writes that index's settings before any test runs, so
+      # a real Meilisearch must exist. Pinned to the version the local suite
+      # runs against.
+      meilisearch:
+        image: getmeili/meilisearch:v1.53.1
+        env:
+          MEILI_MASTER_KEY: ${{ secrets.MEILI_MASTER_KEY || 'ci-meilisearch-master-key' }}
+          MEILI_ENV: development
+          MEILI_NO_ANALYTICS: 'true'
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd="curl --fail http://localhost:7700/health || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout code
@@ -80,6 +107,21 @@ jobs:
           echo "MySQL failed to start"
           exit 1
 
+      # PHASE 23C-R5 — the health options above are advisory to the runner, so
+      # wait explicitly. /health needs no authentication.
+      - name: Wait for Meilisearch to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:7700/health >/dev/null 2>&1; then
+              echo "Meilisearch is ready"
+              exit 0
+            fi
+            echo "Waiting for Meilisearch... ($i/30)"
+            sleep 2
+          done
+          echo "Meilisearch failed to start"
+          exit 1
+
       - name: Diagnostic — dump env files and test MySQL connection
         run: |
           echo "===== .env content ====="
@@ -117,6 +159,20 @@ jobs:
             'database' => config('database.connections.mysql.database'),
             'username' => config('database.connections.mysql.username'),
           ], JSON_PRETTY_PRINT);"
+          echo ""
+          echo "===== Laravel resolved scout config ====="
+          echo "Never prints the key itself."
+          php artisan tinker --execute="echo json_encode([
+            'driver' => config('scout.driver'),
+            'prefix' => config('scout.prefix'),
+            'host' => config('scout.meilisearch.host'),
+            'key_set' => (bool) config('scout.meilisearch.key'),
+            'resolved_listing_index' => App\Support\SearchIndexName::listing(),
+            'engine_usable' => App\Console\Commands\ConfigureMeilisearch::hasUsableEngine(),
+          ], JSON_PRETTY_PRINT);"
+          echo ""
+          echo "===== Meilisearch health ====="
+          curl -sS http://127.0.0.1:7700/health || echo "Meilisearch health check FAILED"
 
       - name: Run migrations
         run: php artisan migrate --force

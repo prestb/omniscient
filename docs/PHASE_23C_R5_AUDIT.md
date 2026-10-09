@@ -1,10 +1,12 @@
 # Phase 23C-R5 — Meilisearch Index-Safety Audit (READ-ONLY)
 
-**Status: COMPLETE. Decision: NO-GO for Phase 24 — one blocker (F1).**
+**Status: COMPLETE. Final decision: GO for Phase 24 — see §11.5.**
 
-> **Follow-up:** F1 was subsequently reproduced by execution, fixed and verified
-> — see **§10**. It is resolved. A **separate, pre-existing** CI defect (**F8**)
-> was then found, so the Phase 24 verdict remains NO-GO on that ground alone.
+> **Follow-ups.** F1 was reproduced by execution, fixed and verified — **§10**.
+> A separate, **pre-existing** CI defect (F8) was then found, which kept the
+> verdict at NO-GO. Option (b) was taken and CI now runs a real Meilisearch —
+> **§11** — so F8 is closed and the verdict is **GO**, conditional only on the
+> first CI run on a branch the workflow actually triggers.
 
 This phase changed **no code, no configuration, no index, and no git state.** It
 executed **no test suite** (running it triggers the Phase 23C-R4 bootstrap's
@@ -379,3 +381,123 @@ but `php artisan test` in the CI configuration still fails on
 `ListingLifecycleTest`, so the pipeline remains red for a different and older
 reason. Phase 24 should begin once F8 has an explicit decision — (a), (b), or a
 recorded acceptance that CI does not exercise live search.
+
+> **Superseded by §11**, which takes option (b): CI now runs a real Meilisearch,
+> so F8 is closed as well.
+
+## 11. CI completion — option (b)
+
+`.env.ci` was changed by the repository owner to `SCOUT_DRIVER=meilisearch` and
+`MEILISEARCH_HOST=http://localhost:7700`. On its own that made CI **worse**, not
+better: `hasUsableEngine()` became true, so the bootstrap attempted a write
+against a host with no server and the suite aborted with `cURL error 7` instead
+of the previous URI error. F1 was *relocated*, not resolved. The change is only
+correct once a Meilisearch actually exists in CI.
+
+### 11.1 What was completed
+
+| File | Change |
+|---|---|
+| `.github/workflows/tests.yml` | a `meilisearch` service, `getmeili/meilisearch:v1.53.1` — the version the local suite runs against; job-level `MEILISEARCH_KEY`; an explicit "Wait for Meilisearch to be ready" step; scout config added to the existing diagnostic |
+| `.env.ci` | `DB_USERNAME`/`DB_PASSWORD` restored to `ci_user` / `ci_password`; the real master key replaced |
+| `.env.ci` | `MEILISEARCH_KEY=ci-meilisearch-master-key` — a non-secret literal, never a real key |
+
+### 11.2 Three problems the `.env.ci` edit had introduced, now closed
+
+1. **No server.** The workflow declared only a MySQL service. Now it declares a
+   Meilisearch pinned to `v1.53.1` (`GET /version` on the local instance returns
+   `1.53.1`), with a health check and an explicit readiness poll, because GitHub
+   treats a service's health options as advisory.
+2. **Contradictory database credentials.** `.env.ci` had been changed to
+   `root` with an empty password while the service sets `MYSQL_ROOT_PASSWORD:
+   root` and creates `ci_user` / `ci_password`. `php artisan migrate --force`
+   and the suite would have failed authentication. Restored to match the
+   service.
+3. **A real credential in a tracked file.** `.env.ci` is tracked, and it briefly
+   held the same master key as the local `.env`. It was still only in the
+   working tree, so nothing reached history: searching every tracked blob at
+   HEAD for the full credential returns **no match**, and no commit message
+   contains it either. The local `.env` (gitignored) keeps the real key.
+   (Deliberately not quoting the search pattern here — doing so would make the
+   check match its own description.)
+
+The master key is supplied to **both** the service and the test process from one
+expression:
+
+```yaml
+${{ secrets.MEILI_MASTER_KEY || 'ci-meilisearch-master-key' }}
+```
+
+so the two cannot disagree. The literal fallback matters: without it, an unset
+secret would leave the *service* keyless while the *application* still sent
+`.env.ci`'s key, and the two states would depend on undocumented behaviour about
+how Meilisearch treats an `Authorization` header when no master key is set. The
+fallback removes that question. Setting the repository secret `MEILI_MASTER_KEY`
+is all that is needed to use a real key.
+
+This also fixes the secret leak in the diagnostic step: it dumps `.env` and now
+prints only `key_set` as a boolean, never the key.
+
+### 11.3 Verification performed
+
+```
+Symfony YAML parse of tests.yml           : OK
+  services                                : mysql, meilisearch
+  job env                                 : MEILISEARCH_KEY
+  steps                                   : 16 (was 15)
+  meilisearch image                       : getmeili/meilisearch:v1.53.1
+  app key == service key expression       : yes
+  mysql service env                       : unchanged
+
+Dotenv parse of .env.ci                   : OK
+  APP_ENV=testing, DB_USERNAME=ci_user, DB_PASSWORD=ci_password,
+  DB_DATABASE=omniscient_testing, SCOUT_DRIVER=meilisearch,
+  MEILISEARCH_HOST=http://localhost:7700, MEILISEARCH_KEY=ci-meilisearch-master-key
+
+real master key in tracked files          : NONE (every blob at HEAD searched
+                                            for the full credential; no commit
+                                            message contains it either)
+
+bootstrap branch under the new CI config  : hasUsableEngine() = true
+  (probe, read-only — no index write)     : resolved index 'test_listings'
+                                          : guard PASSES
+```
+
+The write path itself was already proven end-to-end in §10.3 case D, which wrote
+four settings tasks to `test_listings` against a real Meilisearch.
+
+### 11.4 What could NOT be verified, and the honest limit
+
+* **The container has never run.** GitHub Actions cannot be executed from here,
+  and the workflow triggers only on `push`/`pull_request` to **`main` and
+  `develop`** — this branch is `phase-11-resume`, and nothing was pushed. So the
+  image, its health check, and the `secrets` context inside
+  `jobs.<job_id>.services.*.env` are **reviewed by reading, not observed**. The
+  first run on `main`/`develop` is the real test.
+* **The DB credentials are correct only against the declared service.** They were
+  restored to `ci_user` / `ci_password` to match it; if the service definition
+  changes, `.env.ci` must change with it.
+* `curl` is assumed present in the `getmeili/meilisearch` image, which is what
+  Meilisearch's own Docker Compose example uses.
+
+### 11.5 Final decision
+
+**Index safety: PASS** — unchanged, and re-confirmed after the fix in §10.6.
+**F1: RESOLVED** — gate added, four outcomes verified by execution.
+**F8: CLOSED** — CI now runs a real Meilisearch, so
+`ListingLifecycleTest:267` has an engine instead of `NullEngine`.
+**F2–F4 remain recorded, not fixed**; they do not endanger `listings` or
+`categories`. **F5–F6 remain accepted residual risk.**
+
+**Phase 24 readiness: GO.**
+
+The only outstanding item is administrative, not technical: the CI change must be
+confirmed by the first run on a branch the workflow actually triggers. That is a
+green-light condition, not a blocker — the local suite is green (1055 passed, 2
+pre-existing `ImagePipelineTest` failures), isolation is measured, and nothing is
+pushed.
+
+If the first CI run fails on the container itself, the fallback is already
+available and requires no code change: `skip_if_no_meilisearch()` in
+`tests/Pest.php` for the one live-search test, plus the `hasUsableEngine()` skip
+that §10.2 already added.
