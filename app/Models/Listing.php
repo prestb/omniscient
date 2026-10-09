@@ -391,4 +391,47 @@ class Listing extends Model
     {
         return 'listings';
     }
+
+    /**
+     * PHASE 23C — INDEX VISIBILITY.
+     *
+     * Before this, `Listing` defined no `shouldBeSearchable()`, so Scout indexed
+     * EVERY row. Inspecting the real Meilisearch index confirmed it: a document
+     * with `status: "draft"` was present. Public search never returned it — the
+     * query filters `status = published` — but the index still held a record the
+     * application considers undiscoverable.
+     *
+     * This mirrors the canonical SQL discovery condition used by
+     * `DirectoryController` (`status = 'published'` AND `hidden_at IS NULL`), so
+     * the two layers finally agree on what "discoverable" means.
+     *
+     * IMPORTANT — Scout semantics: this hook governs the normal persistence and
+     * indexing paths. A direct `->searchable()` call, and `scout:import` over an
+     * existing dataset, can still write records; those routes must be evaluated
+     * separately and are reported as a residual risk rather than claimed solved.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED
+            && $this->hidden_at === null;
+    }
+
+    /**
+     * PHASE 23C — THE SAME RULE FOR THE BULK IMPORT PATH.
+     *
+     * `shouldBeSearchable()` governs save/update indexing, but `scout:import`
+     * calls `searchable()` directly and BYPASSES it. Verified against the real
+     * server: after adding the hook and re-importing, the live `listings` index
+     * still held 292 non-discoverable documents (289 draft, 1 deleted,
+     * 1 rejected, 1 suspended) out of 596.
+     *
+     * Scout applies this scope to the query used when indexing ALL records, so
+     * the bulk path now honours the same visibility contract as the incremental
+     * one — and both agree with the SQL discovery condition.
+     */
+    public function makeAllSearchableUsing($query)
+    {
+        return $query->where('status', self::STATUS_PUBLISHED)
+            ->whereNull('hidden_at');
+    }
 }

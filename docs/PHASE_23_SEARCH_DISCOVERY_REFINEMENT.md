@@ -147,3 +147,112 @@ SSR:     PASS
    database.
 4. No browser/component test runner exists in this repository, so no frontend
    behaviour is verified by execution.
+
+---
+
+# Phase 23C — Meilisearch Searchable-Data & Visibility Convergence
+
+**Status: COMPLETE — VERIFIED** (workstream B, the one Phase 23B left open).
+
+## toSearchableArray()
+
+Fields: id, name, description, slug, type, status, is_featured, hidden,
+created_at, published_at, business_id, location_id, city_id, region_id,
+country_id, city, region, country, address, is_open_now, category_ids,
+categories_names, services_names, has_active_subscription, rating,
+reviews_count, is_featured_rank.
+
+Numeric typing verified against the REAL index, not assumed:
+
+```
+id Int32 · business_id Int32 · created_at Int32 · rating Int32
+reviews_count Int32 · is_featured_rank Int32
+is_featured/hidden/is_open_now/has_active_subscription Boolean
+```
+
+`rating` and `reviews_count` are explicitly cast in the model
+(`round((float) …)`, `(int) …`). **No numeric-type defect found — NO CHANGE.**
+
+## shouldBeSearchable()
+
+**Did not exist.** Scout therefore indexed everything. Real index before the fix:
+289 draft + 1 deleted + 1 rejected + 1 suspended of 596 documents.
+
+Added, mirroring the canonical SQL discovery condition:
+
+```php
+return $this->status === self::STATUS_PUBLISHED && $this->hidden_at === null;
+```
+
+## Bulk-import path (the trap)
+
+`shouldBeSearchable()` governs save/update indexing, but `scout:import` calls
+`searchable()` directly and **bypasses** it. Verified: after adding the hook and
+re-importing, the live index still held 292 non-discoverable documents.
+
+Added `makeAllSearchableUsing($query)`, scoping the bulk import to the same
+condition.
+
+## Real Meilisearch verification
+
+```
+server:       http://127.0.0.1:7700 (health: available)
+driver:       SCOUT_DRIVER=meilisearch (real engine; SCOUT_DRIVER=null NOT used)
+index:        listings
+flush + re-import: performed, then re-verified
+```
+
+After the fix and a full test run:
+
+```
+total docs: 299
+status=published  count=299      <-- zero non-discoverable
+```
+
+Sorting exercised live: `sort: ["rating:desc"]` returned hits.
+
+`filter: "rating > 0"` returned 400 — **correct**: `rating` is sortable but not
+filterable, and the application filters `min_rating` in SQL, never in
+Meilisearch. Config therefore matches executable search code.
+
+## Configuration
+
+```
+searchable: name, description, categories_names, services_names, city, region, country, address
+filterable: status, type, is_featured, hidden, has_active_subscription, is_open_now,
+            business_id, location_id, category_ids, city_id, region_id, country_id
+sortable:   created_at, is_featured_rank, published_at, rating, reviews_count
+```
+
+Re-derived from executable search code and confirmed against the live server.
+**NO CHANGE REQUIRED.**
+
+## Changes
+
+```
+app/Models/Listing.php                                 shouldBeSearchable() + makeAllSearchableUsing()
+tests/Feature/Search/ListingIndexVisibilityTest.php    new, 4 tests
+```
+
+## Tests
+
+```
+focused:    4 passed  (ListingIndexVisibilityTest, 11 assertions)
+relevant:   123 passed (tests/Feature/Search)
+full:       1034 passed, 0 failed, 1 incomplete (pre-existing ExampleTest)
+assertions: 3619
+```
+
+## Builds
+
+```
+client: PASS      SSR: PASS
+```
+
+## Residual risk (IMPORTANT)
+
+`SCOUT_PREFIX` is **empty**, so the test suite and the development application
+share the same `listings` index. Tests write real documents into it. This is why
+the index previously held 289 drafts. The visibility fix prevents
+*non-discoverable* writes, but index isolation between test and dev remains an
+open hazard for a later phase (a test-specific prefix would close it).
