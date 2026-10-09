@@ -256,3 +256,92 @@ share the same `listings` index. Tests write real documents into it. This is why
 the index previously held 289 drafts. The visibility fix prevents
 *non-discoverable* writes, but index isolation between test and dev remains an
 open hazard for a later phase (a test-specific prefix would close it).
+
+---
+
+# Phase 23C-R1 — Working-Tree Recovery & Meilisearch Isolation
+
+**Status: RECOVERY COMPLETE — ISOLATION BLOCKED (documented, not attempted).**
+
+## Working-tree recovery — RESOLVED
+
+Starting state: 249 dirty entries, **all** under `public/build`
+(124 deleted, 1 modified `manifest.json`, 124 untracked). **Zero source files
+were affected** — Phase 23C changed PHP only.
+
+Evidence the churn was generated build noise, not source drift:
+
+* every untracked path was inside `public/build/assets/` (verified before deletion);
+* no non-`public/build` path was modified, deleted or untracked;
+* Phase 23C changed no frontend source, so the committed artifacts remain a valid
+  build of the current source.
+
+Action taken: `git checkout -- public/build`, then removal of the 124 untracked
+generated assets, restricted by an explicit `public/build/assets/` path check.
+**Working tree is CLEAN.** No build artifact was staged or committed.
+
+Note: the build is not bit-reproducible across runs (the same source produced no
+diff after one build and 249 entries after another), so restoring the committed
+artifacts is the correct recovery rather than committing churn.
+
+## Meilisearch test/dev isolation — BLOCKED
+
+The intended approach was a deterministic test index prefix
+(`SCOUT_PREFIX=test_`). **It cannot be applied safely as a small change**, because
+index configuration does not go through Scout at all:
+
+```
+app/Console/Commands/ConfigureMeilisearch.php
+  L24  public const INDEX = 'listings';                  <-- hardcoded literal
+  L30  new Client(env('MEILISEARCH_HOST'), env('MEILISEARCH_KEY'));   <-- raw client
+  L35  $index = $client->index(self::INDEX);
+  scout / prefix references in the command: 0
+```
+
+Consequences of simply setting `SCOUT_PREFIX=test_`:
+
+1. Scout would write documents to `test_listings`.
+2. `meilisearch:configure` would still configure **`listings`** — the DEVELOPMENT
+   index — because the name is hardcoded and the raw client ignores Scout.
+3. The test index would therefore have **no filterable attributes**, so every
+   search test that uses `->where('status', …)` would fail with
+   "attribute is not filterable".
+4. Running that command during tests would **reconfigure the development index**,
+   which is the opposite of isolation.
+
+Nothing in the test bootstrap configures index settings today (verified by
+searching `tests/` for `meilisearch:configure`, `ConfigureMeilisearch`,
+`updateFilterable`, `SCOUT_PREFIX`), so the required attributes for an isolated
+index cannot currently be established.
+
+Also noted: `Category` defines **no** `searchableAs()`, so it relies on Scout's
+default naming and would be affected by a prefix independently of
+`ConfigureMeilisearch`.
+
+Per this phase's own instruction — *"if environment-specific index isolation
+cannot be established safely, stop and document the blocker rather than running
+destructive commands against the shared index"* — **no isolation change was made.**
+
+## Required work to close isolation (future phase)
+
+1. Make `ConfigureMeilisearch` resolve the index name through Scout (or accept a
+   name/prefix argument) so it can target the configured index.
+2. Configure the test index during test bootstrap, guarded so it can never target
+   the development index.
+3. Add a guarded cleanup path so tests cannot flush development indexes.
+4. Implement `Category::searchableAs()` explicitly, or confirm the default is
+   intended.
+5. Prove search, filter, sort, import, flush and cleanup all resolve to the test
+   index, then verify against the real server.
+
+## Verification performed
+
+```
+build churn restored:   yes  (public/build -> HEAD; 124 untracked removed)
+working tree:           CLEAN
+full suite:             NOT RE-RUN in this pass
+```
+
+The full suite passed at 1034 passed / 0 failed / 1 incomplete immediately before
+this recovery (commit `2fb5cbd`). No source file was modified by this phase, so
+that result stands for the code as committed.
