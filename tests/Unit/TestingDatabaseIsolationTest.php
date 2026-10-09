@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use Illuminate\Support\Facades\DB;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
@@ -41,10 +42,76 @@ class TestingDatabaseIsolationTest extends TestCase
         );
     }
 
+    /**
+     * PHASE 22D — the LIVE connection, not just the configuration array.
+     *
+     * The assertions above read `config()`. This one asks the connection object
+     * the application actually runs queries through, which is what
+     * `RefreshDatabase`'s `migrate:fresh` will target.
+     */
+    public function test_the_live_connection_resolves_to_the_test_database(): void
+    {
+        $this->assertSame(
+            'omniscient_testing',
+            DB::connection()->getDatabaseName(),
+            'The live database connection must point at the isolated test database.'
+        );
+
+        $this->assertNotSame(
+            'omniscient',
+            DB::connection()->getDatabaseName(),
+            'The live connection must never point at the development database.'
+        );
+    }
+
     /** The guard must refuse a database that is not recognisably a test database. */
     public function test_guard_rejects_the_development_database(): void
     {
         $this->assertGuardRejects('omniscient');
+    }
+
+    /**
+     * PHASE 22D — THE DIVERGENCE CASE.
+     *
+     * The application resolves DB_DATABASE through Laravel's immutable Dotenv
+     * repository, which reads `$_SERVER` BEFORE `$_ENV`. The guard used to read
+     * them in the opposite order, so a source that said "testing" while
+     * `$_SERVER` said "omniscient" made the guard pass while the application
+     * used the DEVELOPMENT database.
+     *
+     * Reproduced in practice by adding `force="true"` to phpunit.xml's
+     * DB_DATABASE: PHPUnit then writes the pinned name to `$_ENV` and
+     * `putenv()` and leaves `$_SERVER` alone. This test pins the fix.
+     */
+    public function test_guard_rejects_when_any_single_source_names_the_development_database(): void
+    {
+        $this->withDivergentSources(
+            env: 'omniscient_testing',
+            server: 'omniscient',
+            getenv: 'omniscient_testing',
+            callback: function (): void {
+                $this->expectException(RuntimeException::class);
+                $this->expectExceptionMessage('PHASE 22D');
+
+                $this->invokeGuard();
+            }
+        );
+    }
+
+    /** And symmetrically, when only `getenv()` disagrees. */
+    public function test_guard_rejects_when_only_getenv_names_the_development_database(): void
+    {
+        $this->withDivergentSources(
+            env: 'omniscient_testing',
+            server: 'omniscient_testing',
+            getenv: 'omniscient',
+            callback: function (): void {
+                $this->expectException(RuntimeException::class);
+                $this->expectExceptionMessage('PHASE 22D');
+
+                $this->invokeGuard();
+            }
+        );
     }
 
     /** A missing name must fail closed rather than fall back to whatever `.env` says. */
@@ -82,39 +149,56 @@ class TestingDatabaseIsolationTest extends TestCase
      */
     private function withDatabaseName(?string $database, callable $callback): void
     {
+        $this->withDivergentSources($database, $database, $database, $callback);
+    }
+
+    /**
+     * Set each DB_DATABASE source independently; `null` unsets that source and
+     * everything is restored afterwards. Lets a test reproduce the divergence
+     * between `$_ENV` and `$_SERVER` that the application can see.
+     */
+    private function withDivergentSources(
+        ?string $env,
+        ?string $server,
+        ?string $getenv,
+        callable $callback
+    ): void {
         $originalEnv = $_ENV['DB_DATABASE'] ?? null;
         $originalServer = $_SERVER['DB_DATABASE'] ?? null;
         $originalGetenv = getenv('DB_DATABASE');
 
         try {
-            if ($database === null) {
-                unset($_ENV['DB_DATABASE'], $_SERVER['DB_DATABASE']);
-                putenv('DB_DATABASE');
-            } else {
-                $_ENV['DB_DATABASE'] = $database;
-                $_SERVER['DB_DATABASE'] = $database;
-                putenv('DB_DATABASE=' . $database);
-            }
+            $this->applyDatabaseName($env, $server, $getenv);
 
             $callback();
         } finally {
-            if ($originalEnv === null) {
-                unset($_ENV['DB_DATABASE']);
-            } else {
-                $_ENV['DB_DATABASE'] = $originalEnv;
-            }
+            $this->applyDatabaseName(
+                $originalEnv,
+                $originalServer,
+                $originalGetenv === false ? null : $originalGetenv
+            );
+        }
+    }
 
-            if ($originalServer === null) {
-                unset($_SERVER['DB_DATABASE']);
-            } else {
-                $_SERVER['DB_DATABASE'] = $originalServer;
-            }
+    /** Write (or unset) each environment source. */
+    private function applyDatabaseName(?string $env, ?string $server, ?string $getenv): void
+    {
+        if ($env === null) {
+            unset($_ENV['DB_DATABASE']);
+        } else {
+            $_ENV['DB_DATABASE'] = $env;
+        }
 
-            if ($originalGetenv === false) {
-                putenv('DB_DATABASE');
-            } else {
-                putenv('DB_DATABASE=' . $originalGetenv);
-            }
+        if ($server === null) {
+            unset($_SERVER['DB_DATABASE']);
+        } else {
+            $_SERVER['DB_DATABASE'] = $server;
+        }
+
+        if ($getenv === null) {
+            putenv('DB_DATABASE');
+        } else {
+            putenv('DB_DATABASE=' . $getenv);
         }
     }
 
