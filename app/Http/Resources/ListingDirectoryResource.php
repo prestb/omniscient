@@ -105,8 +105,10 @@ class ListingDirectoryResource extends JsonResource
             'locations' => $locations,
             // Naming debt alias retained for existing cards (removed in 1D-6).
             'branches' => $locations,
+            // PHASE 22C - the dead `primary_branch` alias was removed. It had
+            // no consumer in app/, tests/ or resources/js. The separate
+            // `branches` alias is RETAINED: RelatedBusinesses.vue still reads it.
             'primary_location' => $location,
-            'primary_branch' => $location,
             'coordinates' => ($location && $location->latitude !== null && $location->longitude !== null)
                 ? ['latitude' => (float) $location->latitude, 'longitude' => (float) $location->longitude]
                 : null,

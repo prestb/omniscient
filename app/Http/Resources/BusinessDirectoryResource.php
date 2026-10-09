@@ -58,7 +58,9 @@ class BusinessDirectoryResource extends JsonResource
             'cover_image_url' => $this->cover_image_url,
 
                         'categories' => $this->categories,
-            'primary_branch' => $this->primaryLocation,
+            // PHASE 22C - the dead `primary_branch` alias was removed: it had no
+            // consumer in app/, tests/ or resources/js. The separate `branches`
+            // alias is RETAINED because RelatedBusinesses.vue still reads it.
             'primary_location' => $this->primaryLocation,
             // ✅ Map integration — top-level coordinates shortcut
             'coordinates' => $this->resolvePrimaryCoordinates(),
