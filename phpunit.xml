@@ -23,5 +23,24 @@
         <env name="BCRYPT_ROUNDS" value="4" />
         <env name="CACHE_STORE" value="array" />
         <env name="MAIL_MAILER" value="array" />
+
+        <!--
+            PHASE 22D — TEST DATABASE ISOLATION.
+
+            `RefreshDatabase` runs `migrate:fresh`, which DROPS EVERY TABLE in the
+            connected database. Without these overrides a local test run loaded
+            `.env` and pointed that destructive migration at the DEVELOPMENT
+            database `omniscient`.
+
+            Only the CONNECTION and DATABASE NAME are pinned. Host, username and
+            password are deliberately left to the environment so CI keeps using
+            the `ci_user` account from `.env.ci`; pinning them here would override
+            that and break the CI pipeline.
+
+            `tests/TestCase.php` additionally fails closed if this value is ever
+            missing or does not end in `_testing`.
+        -->
+        <env name="DB_CONNECTION" value="mysql" />
+        <env name="DB_DATABASE" value="omniscient_testing" />
     </php>
 </phpunit>
