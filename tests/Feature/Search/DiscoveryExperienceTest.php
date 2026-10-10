@@ -79,13 +79,22 @@ test('the discovery card remains the canonical ListingCard with canonical links'
 // ── Filters are backed by real data ─────────────────────────────────────────
 
 test('the directory filter vocabulary matches the indexed filterable attributes', function () {
-    $config = file_get_contents(app_path('Console/Commands/ConfigureMeilisearch.php'));
+    // PHASE 23J — asserted against the real configuration rather than the file
+    // text, so a name merely mentioned in a comment can no longer satisfy this.
+    $filterable = \App\Console\Commands\ConfigureMeilisearch::filterableAttributes();
 
-    // Every filter the directory exposes must correspond to something the
-    // backend can actually filter on.
-    foreach (['status', 'type', 'is_featured', 'hidden', 'is_open_now', 'category_ids', 'city_id'] as $attribute) {
-        expect($config)->toContain($attribute);
+    // Every filter the directory exposes must be backed by an attribute the
+    // engine can actually filter on. `open_now` is served by `location_id`:
+    // the currently-open Locations are resolved live, then the engine narrows.
+    foreach (['status', 'type', 'is_featured', 'hidden', 'category_ids', 'city_id', 'location_id'] as $attribute) {
+        expect($filterable)->toContain($attribute);
     }
+
+    // PHASE 23J — opening status is TIME-VARYING. It must never be filterable,
+    // because a Boolean stored in the index is stale the moment the clock
+    // moves, and filtering on it is exactly what made /search disagree with
+    // /directory.
+    expect($filterable)->not->toContain('is_open_now');
 });
 
 // ── SEO policy preserved ────────────────────────────────────────────────────

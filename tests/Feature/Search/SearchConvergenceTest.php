@@ -47,11 +47,18 @@ test('the listing search document exposes the canonical discovery fields', funct
         'business_id', 'location_id',
         'city_id', 'region_id', 'country_id',
         'category_ids', 'categories_names', 'services_names',
-        'is_featured', 'is_open_now', 'has_active_subscription',
+        'is_featured', 'has_active_subscription',
         'created_at', 'published_at',
     ] as $key) {
         expect($document)->toHaveKey($key);
     }
+
+    // PHASE 23J — `is_open_now` is deliberately ABSENT from the document.
+    // Opening status is TIME-VARYING, so a stored Boolean is stale as soon as
+    // the clock moves; both engines now evaluate it live through
+    // Location::scopeOpenNow(). Asserting the absence keeps the stale field
+    // from being reintroduced as an authoritative filter.
+    expect($document)->not->toHaveKey('is_open_now');
 
     // The organization is contextual metadata on a Listing document,
     // never a separate search identity.

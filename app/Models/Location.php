@@ -287,6 +287,113 @@ class Location extends Model
     }
 
     /**
+     * PHASE 23J — THE authoritative "open at this instant" SQL predicate.
+     *
+     * Opening status is TIME-VARYING: it changes as the clock advances even when
+     * no row is written. It therefore cannot be represented by a Boolean in a
+     * search index, and `/search` used to filter on exactly such a stale indexed
+     * value while `/directory` evaluated it live — so the two engines disagreed
+     * about the same Listing.
+     *
+     * This scope is the ONE definition both surfaces use. It is a faithful
+     * extraction of the predicate `/directory` already applied inline, so the
+     * directory's behaviour is unchanged; `/search` now resolves the currently
+     * open Locations with it and narrows the engine by `location_id`.
+     *
+     * Rules, matching {@see self::getIsOpenNowAttribute()}:
+     *   1. A closed-day override for the date    -> closed.
+     *   2. A special-hours override for the date -> judged solely on those hours.
+     *   3. Otherwise -> the weekly hours for the day, including 24h and
+     *      overnight windows.
+     *
+     * The instant is injectable so tests control time deterministically instead
+     * of depending on the wall clock.
+     */
+    public function scopeOpenNow($query, ?\Carbon\CarbonInterface $at = null)
+    {
+        $at ??= now();
+
+        $dayOfWeek = $at->dayOfWeek;          // 0 = Sunday
+        $time = $at->format('H:i:s');
+        $date = $at->toDateString();
+
+        return $query->where(function ($q) use ($dayOfWeek, $time, $date) {
+            // Case A — no closed override today, no special-hours override
+            // today, and the weekly hours say open.
+            $q->where(function ($sub) use ($dayOfWeek, $time, $date) {
+                $sub->whereDoesntHave('hourOverrides', function ($o) use ($date) {
+                    $o->whereDate('date', $date)->where('is_closed', true);
+                });
+
+                $sub->whereDoesntHave('hourOverrides', function ($o) use ($date) {
+                    $o->whereDate('date', $date)
+                        ->where('is_closed', false)
+                        ->whereNotNull('opens_at')
+                        ->whereNotNull('closes_at');
+                });
+
+                $sub->whereHas('hours', function ($h) use ($dayOfWeek, $time) {
+                    $h->where('day_of_week', $dayOfWeek)
+                        ->where('is_closed', false)
+                        ->where(function ($query) use ($time) {
+                            $query->where('is_24h', true)
+                                ->orWhere(function ($q) use ($time) {
+                                    $q->whereTime('opens_at', '<=', $time)
+                                        ->whereTime('closes_at', '>=', $time);
+                                })
+                                ->orWhere(function ($q) use ($time) {
+                                    // Overnight window (opens after it closes).
+                                    //
+                                    // PHASE 23J — `whereColumn`, NOT
+                                    // `whereTime($col, '>', 'closes_at')`.
+                                    // The latter binds the STRING 'closes_at'
+                                    // as a value, producing
+                                    //   time(`opens_at`) > 'closes_at'
+                                    // which MySQL coerces to `> 0` and is
+                                    // therefore TRUE for any time after
+                                    // midnight. That made this branch match
+                                    // almost every Location with hours today,
+                                    // so the directory's `open_now` filter
+                                    // reported closed places as open. Case B
+                                    // below already used `whereColumn`.
+                                    $q->whereColumn('opens_at', '>', 'closes_at')
+                                        ->where(function ($sub) use ($time) {
+                                            $sub->whereTime('opens_at', '<=', $time)
+                                                ->orWhereTime('closes_at', '>=', $time);
+                                        });
+                                });
+                        });
+                });
+            });
+
+            // Case B — a special-hours override today and the instant falls
+            // inside it. Judged solely on the override.
+            $q->orWhereHas('hourOverrides', function ($o) use ($date, $time) {
+                $o->whereDate('date', $date)
+                    ->where('is_closed', false)
+                    ->whereNotNull('opens_at')
+                    ->whereNotNull('closes_at')
+                    ->where(function ($t) use ($time) {
+                        $t->where(function ($w) use ($time) {
+                            // Same-day window.
+                            $w->whereTime('opens_at', '<=', $time)
+                                ->whereTime('closes_at', '>=', $time)
+                                ->whereColumn('opens_at', '<=', 'closes_at');
+                        })
+                            ->orWhere(function ($w) use ($time) {
+                                // Overnight window.
+                                $w->whereColumn('opens_at', '>', 'closes_at')
+                                    ->where(function ($sub) use ($time) {
+                                        $sub->whereTime('opens_at', '<=', $time)
+                                            ->orWhereTime('closes_at', '>=', $time);
+                                    });
+                            });
+                    });
+            });
+        });
+    }
+
+    /**
      * Weekly hours summary, override-aware.
      */
     public function getHoursSummaryAttribute()

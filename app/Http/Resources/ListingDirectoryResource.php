@@ -71,11 +71,27 @@ class ListingDirectoryResource extends JsonResource
             ? $this->images->firstWhere('type', ListingImage::TYPE_COVER)
             : null;
 
-        // PHASE 11 — these are the OWNING BUSINESS's review metrics shown on a
-        // Listing, not a Listing-owned rating. Reviews belong to the Business;
-        // this resource merely presents the organization's aggregate.
-        $rating = $this->reviews_avg_rating ?? null;
+        // PHASE 23J — THE LISTING's OWN APPROVED-review aggregate. Reviews are
+        // Listing-owned (PHASE 21C-R1); this is NOT an owning-Business
+        // aggregate, and no Listing ever inherits a sibling's reputation.
+        //
+        // The SQL directory loads it as `reviews_avg_rating` through
+        // `Listing::scopeWithApprovedReviewAggregates()`. `/search` results are
+        // hydrated from the Meilisearch document instead, which publishes the
+        // same approved aggregate under `rating`. Reading both is what makes the
+        // two engines return the same payload rather than showing a rating only
+        // on `/directory`.
+        $rating = $this->reviews_avg_rating ?? $this->rating ?? null;
         $reviewsCount = $this->reviews_count ?? null;
+
+        // PHASE 23J — both engines must report the SAME thing, including the
+        // empty case. The SQL aggregate arrives as a string ('5.0000') and is
+        // NULL when there are no approved reviews, while the indexed value is
+        // always a rounded number (0.0 when there are none, matching
+        // `toSearchableArray()` and `Business::getAverageRatingAttribute()`).
+        // Normalising here is what makes `/search` and `/directory` agree on the
+        // VALUE and on the TYPE rather than differing by null-versus-zero.
+        $rating = round((float) $rating, 1);
 
         return [
             // ── Discoverable identity ────────────────────────────────

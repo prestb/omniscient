@@ -88,7 +88,14 @@ class ConfigureMeilisearch extends Command
             'is_featured',
             'hidden',
             'has_active_subscription',
-            'is_open_now',
+            // PHASE 23J — `is_open_now` is deliberately NOT filterable.
+            //
+            // Opening status is time-varying, so a Boolean stored in the index
+            // is stale the moment the clock moves; filtering on it made
+            // `/search` disagree with `/directory`. Both now evaluate it live
+            // through `Location::scopeOpenNow()`, and `/search` narrows by
+            // `location_id` below. The field was also removed from
+            // `Listing::toSearchableArray()`.
             'business_id',
             'location_id',
             'category_ids',

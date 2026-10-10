@@ -238,7 +238,30 @@ class Listing extends Model
      */
     public function approvedReviews()
     {
-        return $this->reviews()->where('status', Review::STATUS_APPROVED);
+        // PHASE 23J — one predicate, defined once as `Review::scopeApproved()`,
+        // so the relation, the SQL aggregates, the min_rating filter and the
+        // Meilisearch document cannot drift apart.
+        return $this->reviews()->approved();
+    }
+
+    /**
+     * PHASE 23J — THE canonical approved-review aggregate loader.
+     *
+     * Every SQL-backed Listing payload that shows a rating or a review count
+     * must load its aggregates through here. The code previously aggregated the
+     * UNFILTERED `reviews` relation, so pending and rejected reviews inflated
+     * the displayed rating, the displayed count AND the directory's review sort
+     * — while `toSearchableArray()` (and therefore `/search`) counted approved
+     * reviews only. `/search` and `/directory` consequently disagreed.
+     *
+     * Produces exactly the attribute names the payloads already read:
+     * `reviews_count` and `reviews_avg_rating`.
+     */
+    public function scopeWithApprovedReviewAggregates($query)
+    {
+        return $query
+            ->withCount(['reviews' => fn ($q) => $q->approved()])
+            ->withAvg(['reviews' => fn ($q) => $q->approved()], 'rating');
     }
 
     public function analytics()
@@ -354,7 +377,19 @@ class Listing extends Model
             'region' => $location?->region?->name,
             'country' => $location?->country?->name,
             'address' => $location?->address,
-            'is_open_now' => (bool) ($location?->is_open_now ?? false),
+            // PHASE 23J — `is_open_now` was REMOVED from this document.
+            //
+            // It is TIME-VARYING: it changes as the clock advances even when no
+            // row is written, so the indexed Boolean was accurate only at the
+            // instant it was written, and `/search?open_now` filtered on that
+            // stale value while `/directory` evaluated the same question live.
+            //
+            // Nothing consumed the indexed field: the public payload computes
+            // `is_open_now` live in `ListingDirectoryResource` from the loaded
+            // Location. `/search` now asks the same question the directory does,
+            // through `Location::scopeOpenNow()`, and narrows by the already
+            // filterable `location_id`. Removing the field removes the only
+            // place a stale opening status could be mistaken for truth.
 
             'category_ids' => $this->categories->pluck('id')->values()->all(),
             'categories_names' => $this->categories->pluck('name')->values()->all(),

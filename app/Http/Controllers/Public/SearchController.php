@@ -7,6 +7,7 @@ use App\Http\Resources\ListingDirectoryResource;
 use App\Models\Category;
 use App\Models\City;
 use App\Models\Listing;
+use App\Models\Location;
 use App\Support\DiscoverySort;
 use App\Models\Region;
 use App\Services\SearchIntentParser;
@@ -83,39 +84,65 @@ class SearchController extends Controller
         // worse than admitting it did not.
         // =====================================================================
         try {
-            $search = Listing::search($effectiveQuery);
+            // PHASE 23J — OPENING STATUS IS TIME-VARYING.
+            //
+            // `is_open_now` changes as the clock advances even when no row is
+            // written, so a Boolean in the index can never stay accurate. It
+            // used to be filtered here while `/directory` evaluated the same
+            // question live — two authorities, two answers.
+            //
+            // Instead, the currently-open Locations are resolved from the SAME
+            // predicate `/directory` uses (`Location::scopeOpenNow()`), and the
+            // ENGINE narrows by `location_id` — already a filterable attribute.
+            // The engine therefore still performs the search AND the pagination
+            // over the narrowed set, so a page can never be silently short, and
+            // no Listing rows are scanned: the work scales with the number of
+            // LOCATIONS, not with the number of Listings.
+            $openLocationIds = $openNow
+                ? Location::query()->openNow()->pluck('id')->all()
+                : null;
 
-            // Apply filters using WHERE clauses
-            $search->where('status', 'published');
-            $search->where('has_active_subscription', true);
-            $search->where('hidden', false);
+            if ($openLocationIds === []) {
+                // Nobody is open at this instant. A genuinely empty result set
+                // — and an empty `IN` list is not a valid engine filter.
+                $listings = $this->emptySearchResults();
+            } else {
+                $search = Listing::search($effectiveQuery);
 
-            if ($categoryId) {
-                $search->where('category_ids', (int) $categoryId);
+                // Apply filters using WHERE clauses
+                $search->where('status', 'published');
+                $search->where('has_active_subscription', true);
+                $search->where('hidden', false);
+
+                if ($categoryId) {
+                    $search->where('category_ids', (int) $categoryId);
+                }
+
+                if ($cityId) {
+                    // A Listing has 0 or 1 Location, so the city filter is singular.
+                    $search->where('city_id', (int) $cityId);
+                }
+
+                if ($regionId) {
+                    $search->where('region_id', (int) $regionId);
+                }
+
+                if ($featured) {
+                    $search->where('is_featured', true);
+                }
+
+                if ($openNow) {
+                    // A Listing with no Location is never open, which is exactly
+                    // what `whereIn` on `location_id` produces.
+                    $search->whereIn('location_id', $openLocationIds);
+                }
+
+                foreach (DiscoverySort::meilisearchOrder($sort) as [$column, $direction]) {
+                    $search->orderBy($column, $direction);
+                }
+
+                $listings = $search->paginate(self::PER_PAGE)->withQueryString();
             }
-
-            if ($cityId) {
-                // A Listing has 0 or 1 Location, so the city filter is singular.
-                $search->where('city_id', (int) $cityId);
-            }
-
-            if ($regionId) {
-                $search->where('region_id', (int) $regionId);
-            }
-
-            if ($featured) {
-                $search->where('is_featured', true);
-            }
-
-            if ($openNow) {
-                $search->where('is_open_now', true);
-            }
-
-            foreach (DiscoverySort::meilisearchOrder($sort) as [$column, $direction]) {
-                $search->orderBy($column, $direction);
-            }
-
-            $listings = $search->paginate(self::PER_PAGE)->withQueryString();
         } catch (\Throwable $e) {
             // Expected failure mode: engine unreachable or misconfigured.
             // Logged, never propagated, and never shown to the visitor.

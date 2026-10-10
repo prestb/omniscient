@@ -64,11 +64,11 @@ final class DiscoverySort
     /**
      * Meilisearch sort applied via Scout `orderBy`.
      *
-     * `rating` and `reviews_count` are the OWNING BUSINESS's review aggregate —
-     * reviews are Business-owned (Phase 11/12) and a Listing displays its
-     * organization's metrics through `Listing::reviews()`. A
-     * Business-less Listing indexes 0.0 / 0, which is the existing zero
-     * semantics, not a fabricated rating.
+     * PHASE 23J — `rating` and `reviews_count` are the LISTING's OWN
+     * APPROVED-review aggregate, built from `Listing::approvedReviews()`.
+     * Reviews are Listing-owned (PHASE 21C-R1); they are NOT a Business
+     * aggregate, and a Listing with no approved reviews indexes 0.0 / 0 —
+     * the existing zero semantics, not a fabricated rating.
      *
      * @return array<int, array{0:string,1:string}>
      */
@@ -85,7 +85,9 @@ final class DiscoverySort
 
     /**
      * SQL sort for the directory engine. Mirrors `meilisearchOrder()` using the
-     * Business review aggregate columns the directory already selects.
+     * LISTING's approved-review aggregate columns, which the directory loads
+     * through `Listing::scopeWithApprovedReviewAggregates()` — the same
+     * approved-only semantics the search document publishes (PHASE 23J).
      *
      * @return array<int, array{0:string,1:string}>
      */

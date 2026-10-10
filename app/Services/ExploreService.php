@@ -95,8 +95,7 @@ class ExploreService
                 ->where('status', Listing::STATUS_PUBLISHED)
                 ->whereNull('hidden_at')
                 ->whereHas('categories', fn($c) => $c->where('categories.id', $categoryId))
-                ->withCount('reviews')
-                ->withAvg('reviews', 'rating');
+                ->withApprovedReviewAggregates();
 
             if ($cityId) {
                 $q->whereHas('location', fn($x) => $x->where('city_id', $cityId));

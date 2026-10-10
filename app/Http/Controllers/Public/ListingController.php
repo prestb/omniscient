@@ -46,8 +46,7 @@ class ListingController extends Controller
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',
             ])
-            ->withCount(['reviews', 'images'])
-            ->withAvg('reviews', 'rating')
+            ->withCount('images')->withApprovedReviewAggregates()
             ->firstOrFail();
 
         return Inertia::render('Public/ListingProfile', [

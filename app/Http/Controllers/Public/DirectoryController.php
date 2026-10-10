@@ -83,8 +83,7 @@ class DirectoryController extends Controller
                 'owner:id,name,role',
                 'owner.activeSubscription.plan',   // ✅ avoid N+1 on feature_flags per owner
             ])
-            ->withCount(['images', 'reviews'])        // ✅ always load for the accessors
-            ->withAvg('reviews', 'rating')            // ✅ always load for the accessors
+            ->withCount('images')->withApprovedReviewAggregates()        // ✅ always load for the accessors
             ->where('status', 'published')
             ->whereNull('hidden_at');   // ✅ skip hidden listings
 
@@ -126,72 +125,12 @@ class DirectoryController extends Controller
         }
 
         // ============== OPEN NOW (override-aware) ==============
+        // PHASE 23J - the "open at this instant" predicate is defined ONCE, on
+        // Location::scopeOpenNow(), and is the SAME predicate /search now uses.
+        // Extracted verbatim from the block that used to live here, so the
+        // directory's behaviour is unchanged.
         if ($request->filled('open_now') && $request->open_now == 'true') {
-            $currentDayOfWeek = now()->dayOfWeek;
-            $currentTime = now()->format('H:i:s');
-            $today = today()->toDateString();
-
-            $query->whereHas('location', function ($q) use ($currentDayOfWeek, $currentTime, $today) {
-                // Case A: the place has NO closed override today AND weekly hours say open
-                $q->where(function ($sub) use ($currentDayOfWeek, $currentTime, $today) {
-                    // No closed override today
-                    $sub->whereDoesntHave('hourOverrides', function ($o) use ($today) {
-                        $o->whereDate('date', $today)->where('is_closed', true);
-                    });
-
-                    // No special-hours override today
-                    $sub->whereDoesntHave('hourOverrides', function ($o) use ($today) {
-                        $o->whereDate('date', $today)
-                            ->where('is_closed', false)
-                            ->whereNotNull('opens_at')
-                            ->whereNotNull('closes_at');
-                    });
-
-                    // Weekly hours say open
-                    $sub->whereHas('hours', function ($h) use ($currentDayOfWeek, $currentTime) {
-                        $h->where('day_of_week', $currentDayOfWeek)
-                            ->where('is_closed', false)
-                            ->where(function ($query) use ($currentTime) {
-                                $query->where('is_24h', true)
-                                    ->orWhere(function ($q) use ($currentTime) {
-                                        $q->whereTime('opens_at', '<=', $currentTime)
-                                            ->whereTime('closes_at', '>=', $currentTime);
-                                    })
-                                    ->orWhere(function ($q) use ($currentTime) {
-                                        $q->whereTime('opens_at', '>', 'closes_at')
-                                            ->where(function ($sub) use ($currentTime) {
-                                                $sub->whereTime('opens_at', '<=', $currentTime)
-                                                    ->orWhereTime('closes_at', '>=', $currentTime);
-                                            });
-                                    });
-                            });
-                    });
-                });
-
-                // Case B: OR branch has special hours today and current time falls inside
-                $q->orWhereHas('hourOverrides', function ($o) use ($today, $currentTime) {
-                    $o->whereDate('date', $today)
-                        ->where('is_closed', false)
-                        ->whereNotNull('opens_at')
-                        ->whereNotNull('closes_at')
-                        ->where(function ($t) use ($currentTime) {
-                            // Same-day window
-                            $t->where(function ($w) use ($currentTime) {
-                                $w->whereTime('opens_at', '<=', $currentTime)
-                                    ->whereTime('closes_at', '>=', $currentTime)
-                                    ->whereColumn('opens_at', '<=', 'closes_at');
-                            })
-                                // Overnight window
-                                ->orWhere(function ($w) use ($currentTime) {
-                                $w->whereColumn('opens_at', '>', 'closes_at')
-                                    ->where(function ($sub) use ($currentTime) {
-                                        $sub->whereTime('opens_at', '<=', $currentTime)
-                                            ->orWhereTime('closes_at', '>=', $currentTime);
-                                    });
-                            });
-                        });
-                });
-            });
+            $query->whereHas('location', fn ($q) => $q->openNow());
         }
 
         // ============== FEATURED ONLY ==============
@@ -232,13 +171,16 @@ class DirectoryController extends Controller
         $sort = DiscoverySort::normalize($request->input('sort', 'newest'));
 
         switch ($sort) {
+            // PHASE 23J - the approved-review aggregates are ALREADY loaded by
+            // the shared withApprovedReviewAggregates() above, so the sort only
+            // orders. Re-aggregating here previously used the unfiltered
+            // `reviews` relation, which is what made the directory rank a
+            // Listing by reviews that were not approved.
             case DiscoverySort::RATING:
-                $query->withAvg('reviews', 'rating')
-                    ->orderByDesc('reviews_avg_rating');
+                $query->orderByDesc('reviews_avg_rating');
                 break;
             case DiscoverySort::REVIEWS:
-                $query->withCount('reviews')
-                    ->orderByDesc('reviews_count');
+                $query->orderByDesc('reviews_count');
                 break;
             case 'name':
                 $query->orderBy('name', 'asc');
@@ -460,8 +402,7 @@ class DirectoryController extends Controller
                     $query->where('status', Listing::STATUS_PUBLISHED)
                         ->whereNull('listings.hidden_at')
                         ->with(['location.city', 'categories', 'images'])
-                        ->withCount('reviews')
-                        ->withAvg('reviews', 'rating');
+                        ->withApprovedReviewAggregates();
                 },
                 'reviews' => function ($query) {
                     $query->where('reviews.status', 'approved')
@@ -813,8 +754,7 @@ class DirectoryController extends Controller
             ->where('id', '!=', $business->id)
             ->where('status', 'published')
             ->whereNull('hidden_at')
-            ->withCount(['reviews', 'galleryImages'])
-            ->withAvg('reviews', 'rating');
+            ->withCount('galleryImages')->withApprovedReviewAggregates();
 
         $collected = collect();
 

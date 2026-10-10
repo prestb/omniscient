@@ -31,7 +31,7 @@ class ListingController extends Controller
         $listings = Listing::query()
             ->where('owner_id', $request->user()->id)
             ->with(['business:id,name,slug', 'location.city'])
-            ->withCount(['reviews', 'images', 'leads'])
+            ->withCount(['images', 'leads'])->withApprovedReviewAggregates()
             ->latest()
             ->paginate(15)
             ->withQueryString();

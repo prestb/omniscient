@@ -26,6 +26,7 @@ read the document in full.
 | 23E — `/search` response contract | **Implemented by 23E** — the page consumes the canonical flattened paginator envelope |
 | 23G — development Meilisearch reconciliation | **Performed** — the `businesses` index was proven stale and removed, the orphaned `categories` documents were flushed, and the canonical `listings` index was rebuilt. See `docs/PHASE_23G_MEILISEARCH_INDEX_RECONCILIATION.md` |
 | 23H — Listing child → search synchronization | **Implemented** — category, service, location, subscription and review mutations now synchronize the owning Listing's document through one explicit path. See `docs/PHASE_23H_LISTING_CHILD_SEARCH_SYNCHRONIZATION.md` |
+| 23J — Search/Directory semantic parity | **Implemented** — one approved-only review aggregate for both engines, and opening status evaluated live instead of read from a stale indexed Boolean (`is_open_now` removed from the document and index settings). See §0.2 |
 
 **Historical statements that must NOT be read as current status.** Section 4
 ("Workstream B — Meilisearch") was written during the Phase 23B audit. It records
@@ -100,10 +101,10 @@ completion, and no row below repeats a claim that was not re-checked.
 | 23E — `/search` response contract | `SearchResponseContractTest` (6) | **VERIFIED COMPLETE** | — | — |
 | 23F — Scout operational safety | three live removal tests in `ListingLifecycleTest`; R5 §13 | **VERIFIED COMPLETE** | F4/F5/F6 accepted residuals, documented | — |
 | 23G — development index reconciliation | live dev state: `listings` 0, `categories` 0, no `businesses` | **VERIFIED COMPLETE** | — | — |
-| 23H — Listing child → search synchronization | `ListingSearchSync` + 5 observers; `ListingChildSearchSyncTest` (14) | **VERIFIED COMPLETE** | `is_open_now` is time-varying and cannot be synchronized — see 23I-1 | — |
+| 23H — Listing child → search synchronization | `ListingSearchSync` + 5 observers; `ListingChildSearchSyncTest` (14) | **VERIFIED COMPLETE** | `is_open_now` is time-varying and cannot be synchronized — **resolved by 23J, which removed it** | — |
 | Geospatial completion | `PHASE_22E` "Current limitations" 1, 2, 3, 6, 7 — **all re-verified true** | **NOT STARTED** | distance ordering; radius on `/search`; bounding-box prefilter; MySQL-8 Haversine verification; exact-boundary test | product decision |
-| Derived-value parity | findings 23I-1 and 23I-2 below | **NOT STARTED** | see below | product decision |
-| Transaction-consistent indexing | finding 23I-3 below | **NOT STARTED** | see below | — |
+| Derived-value parity | **VERIFIED COMPLETE by 23J** — see §0.2 | **DONE** | — | — |
+| Transaction-consistent indexing | finding 23I-3 below | **NOT STARTED — deliberately deferred** | after-commit dispatch for every indexing path | its own phase |
 
 #### Audited gaps (Phase 23I)
 
@@ -177,6 +178,116 @@ as its own phase, because it changes the timing of every indexing path.
 This is the phase the R5 audit referred to generically as *"Phase 24: GO"*; that
 gate remains unmet, because its only condition — a first CI run on a branch the
 workflow triggers — still has not happened.
+
+### 0.2 Phase 23J — Search/Directory semantic parity (IMPLEMENTED)
+
+Delivered at the HEAD recorded in §0.1's successor commit. It fixes the two
+"derived value" gaps 23I recorded and removes the field that caused them.
+
+#### The review-aggregate discrepancy
+
+`Listing::toSearchableArray()` has always published the **Listing's own APPROVED**
+review aggregate, but every SQL-backed payload aggregated the **UNFILTERED**
+`reviews` relation — `Listing::reviews()` has no status filter and `Review` has no
+global scope. Measured in Phase 23I: a Listing with three PENDING reviews sorted
+**above** one with a single APPROVED review (`reviews_count` 3 vs 1), while its
+search document reported `reviews_count` 0 and `rating` 0.
+
+Enforcement is now single-sourced:
+
+* `Review::scopeApproved()` remains the ONE definition of an approved review
+  (already table-qualified, which is what keeps the `hasManyThrough` aggregate
+  unambiguous).
+* `Listing::approvedReviews()` delegates to it.
+* `Listing::scopeWithApprovedReviewAggregates()` and
+  `Business::scopeWithApprovedReviewAggregates()` are THE aggregate loaders; they
+  produce the attribute names the payloads already read
+  (`reviews_count`, `reviews_avg_rating`).
+* Eleven call sites were converted: `DirectoryController` (list/map payload,
+  review sort, organization-page Listing list, related businesses),
+  `CollectionService`, `ExploreService`, `HomeController` (×2),
+  `FavoriteController`, `Public\ListingController`, `User\DashboardController`
+  and `Owner\ListingController`.
+
+No `withCount('reviews')` / `withAvg('reviews', 'rating')` on the unfiltered
+relation remains anywhere in `app/`. Ranking weights and Meilisearch ranking rules
+were NOT touched.
+
+`ListingDirectoryResource` now reads `reviews_avg_rating` (SQL) **or** `rating`
+(the indexed document) and normalises both with `round((float) …, 1)`. That closes
+a second, previously invisible parity gap: `/search` results were hydrated from
+the index, which has no `reviews_avg_rating`, so the search payload returned
+`rating: null` while the directory returned a number. Zero-review Listings now
+report `0.0` on both engines instead of `null` versus `0.0`.
+
+#### The final opening-status authority
+
+**A live SQL predicate, evaluated at request time — never the index.**
+
+`Location::scopeOpenNow($query, ?CarbonInterface $at = null)` is the ONE
+definition, used by BOTH surfaces:
+
+* `/directory` → `whereHas('location', fn ($q) => $q->openNow())`
+* `/search` → `Location::query()->openNow()->pluck('id')`, then the ENGINE is
+  narrowed with `whereIn('location_id', …)`.
+
+Why this shape satisfies the constraints: `location_id` is **already a filterable
+attribute**, so no new index capability was added; the engine still performs the
+search AND the pagination over the narrowed set, so a page is never silently
+short and no Listing rows are scanned — the work scales with the number of
+LOCATIONS, not Listings; a Listing with no Location is never open, which is
+exactly what `whereIn` produces; and Business-less Professional Listings are not
+affected because the path never touches the Business. The instant is injectable so
+tests control time with `travelTo` rather than the wall clock.
+
+**A pre-existing defect was found and fixed while extracting this predicate.**
+The directory's "overnight window" guard used
+`whereTime('opens_at', '>', 'closes_at')`, which binds the STRING `'closes_at'` as
+a VALUE — producing `time(opens_at) > 'closes_at'`, coerced by MySQL to `> 0` and
+therefore TRUE for any time after midnight. That made the branch match almost
+every Location with hours today, so `/directory?open_now` reported closed places
+as open. It is now `whereColumn('opens_at', '>', 'closes_at')`, matching the
+mirror clause that was already correct.
+
+#### The obsolete indexed field — REMOVED
+
+`is_open_now` was **removed from `Listing::toSearchableArray()`** and from
+`ConfigureMeilisearch::filterableAttributes()`.
+
+It was proven to have no remaining consumer: the public payload computes
+`is_open_now` LIVE in `ListingDirectoryResource` from the loaded Location (the
+frontend reads that payload, never the index), and `/search` no longer filters on
+it. Keeping a knowingly-stale Boolean would have left the one place a stale
+opening status could be mistaken for truth. **`location_id` was retained** — it is
+what now carries the live filter.
+
+Consequence for Phase 23H: `LocationHour` and `LocationHourOverride` mutations do
+**not** require Listing synchronization, because no indexed field depends on them.
+**No observer was added**, and `ListingSearchSync` is unchanged.
+
+#### Regression tests added
+
+| File | Tests | Proves |
+|---|---|---|
+| `tests/Feature/Search/ListingReviewAggregateParityTest.php` | 7 | pending and rejected reviews cannot inflate the displayed rating, count or sort position; search and directory payloads agree on value AND type; deleted reviews leave the aggregate; `min_rating` and the review sort share approved-only semantics |
+| `tests/Feature/Search/OpenNowParityTest.php` | 8 | open matches, closed does not, crossing a boundary changes the result **without any reindex**, closed-day and special-hours overrides follow the domain rules, the narrowed set still paginates (13 open → total 13, last_page 2), ordinary search without the filter is unchanged, and `/search` and `/directory` agree |
+
+Two test-suite contract updates were required by the schema change, and both were
+**strengthened** rather than relaxed: `SearchConvergenceTest` now also asserts the
+document does **not** expose `is_open_now`, and `DiscoveryExperienceTest` asserts
+against `ConfigureMeilisearch::filterableAttributes()` directly (rather than
+matching file text) and asserts `is_open_now` is **not** filterable.
+
+#### Remaining limitations
+
+* The live predicate scans `locations` (not `listings`). The open-set is passed to
+  the engine as an `IN` list, so a very large number of simultaneously-open
+  Locations is the scaling limit — not correctness.
+* Opening status is still not synchronizable in principle; it is now evaluated
+  rather than stored, which is the only correct answer for a time-varying fact.
+* Geospatial gaps (`PHASE_22E` limitations 1, 2, 3, 6, 7) are unchanged.
+* Transaction-consistent indexing (23I-3) is deliberately untouched: `scout.queue`
+  and `scout.after_commit` are unchanged and remain its own future phase.
 
 
 ---

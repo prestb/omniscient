@@ -519,6 +519,27 @@ class Business extends Model
     }
 
     /**
+     * PHASE 23J - THE canonical approved-review aggregate loader for an
+     * organization.
+     *
+     * `withCount('reviews')` / `withAvg('reviews', 'rating')` aggregated the
+     * hasManyThrough WITHOUT a status filter, so an organization's displayed
+     * rating and review count included pending and rejected reviews - while
+     * `averageRating()` and `reviewsCount()`, which use `approvedReviews()`,
+     * did not. Two answers to the same question.
+     *
+     * The documented `status`-ambiguity trap does NOT apply here because
+     * `Review::scopeApproved()` qualifies the column as `reviews.status`;
+     * measurement confirmed the aggregate builds and runs.
+     */
+    public function scopeWithApprovedReviewAggregates($query)
+    {
+        return $query
+            ->withCount(['reviews' => fn ($q) => $q->approved()])
+            ->withAvg(['reviews' => fn ($q) => $q->approved()], 'rating');
+    }
+
+    /**
      * ALL reviews across this organization's Listings, regardless of status.
      *
      * PHASE 22C — this relationship was removed when reviews became
