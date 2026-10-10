@@ -25,17 +25,6 @@ class CategoryController extends Controller
         ]);
     }
 
-    public function tree()
-    {
-        $categories = Category::with('children')
-            ->root()
-            ->ordered()
-            ->get();
-
-        return Inertia::render('Admin/Categories/Tree', [
-            'categories' => $categories,
-        ]);
-    }
 
     public function store(Request $request)
     {

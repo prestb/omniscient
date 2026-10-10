@@ -113,16 +113,20 @@ class UserController extends Controller
             }
         }
 
-        // Check if user has businesses with active subscriptions
-        $hasActiveSubscriptions = $user->businesses()
-            ->whereHas('subscriptions', function ($q) {
-                $q->where('status', 'active');
-            })
-            ->exists();
-
-        if ($hasActiveSubscriptions) {
+        // PHASE 27 — THE ACCOUNT'S OWN SUBSCRIPTION IS THE AUTHORITY.
+        //
+        // This guard used to ask whether the user's BUSINESSES had an active
+        // subscription. That is the Business-scoped billing model PHASE 24-R1
+        // removed, so the check was both stale and wrong: an account with an
+        // active subscription of its own but no Business passed it and could be
+        // deleted, taking its Listings, Locations and paid entitlement with it.
+        //
+        // `active_subscription` is the canonical account contract and already
+        // encodes the entitling statuses (active / expiring_soon / grace_period),
+        // so it is used directly rather than re-stating the status list here.
+        if ($user->active_subscription !== null) {
             return redirect()->back()
-                ->with('error', 'Cannot delete user with active subscriptions.');
+                ->with('error', 'Cannot delete an account with an active subscription.');
         }
 
         // Delete user's businesses first

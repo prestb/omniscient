@@ -690,7 +690,6 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     // Categories
     Route::prefix('categories')->name('categories.')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
-        Route::get('/tree', [CategoryController::class, 'tree'])->name('tree');
         Route::post('/', [CategoryController::class, 'store'])->name('store');
         Route::post('/reorder', [CategoryController::class, 'reorder'])->name('reorder');
         Route::put('/{category}', [CategoryController::class, 'update'])->name('update');
@@ -724,6 +723,11 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
 
     // Locations
     Route::prefix('locations')->name('locations.')->group(function () {
+        // PHASE 27 — PHYSICAL LOCATION INSPECTION. The routes below manage
+        // geographic REFERENCE data (country/region/city/area); this one inspects
+        // the `locations` table itself — the physical places a Listing sits at.
+        Route::get('/', [LocationController::class, 'index'])->name('index');
+
         Route::get('/countries', [LocationController::class, 'countries'])->name('countries');
         Route::post('/countries', [LocationController::class, 'storeCountry'])->name('countries.store');
         Route::put('/countries/{country}', [LocationController::class, 'updateCountry'])->name('countries.update');

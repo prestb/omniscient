@@ -20,6 +20,19 @@ class SuperDashboardController extends Controller
 {
     public function index(Request $request)
     {
+        // PHASE 27 — DEFENCE IN DEPTH.
+        //
+        // The route group declares `role:super_admin`, and this controller now
+        // asserts the same requirement directly (matching the defensive checks in
+        // SuperAdminActionsController and ImpersonationController), so a future
+        // middleware change cannot silently expose the platform-wide dashboard to
+        // an ordinary admin.
+        $user = $request->user();
+
+        if (!$user || !$user->isSuperAdmin()) {
+            abort(403, 'Only super admins can view the super dashboard.');
+        }
+
         // ============== KPIs ==============
         $stats = [
             'total_users' => User::count(),

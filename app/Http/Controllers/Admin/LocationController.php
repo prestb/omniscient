@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\City;
 use App\Models\Country;
+use App\Models\Location;
 use App\Models\Region;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,6 +14,94 @@ use Inertia\Inertia;
 class LocationController extends Controller
 {
     // Countries
+    /**
+     * PHASE 27 — PHYSICAL LOCATION INSPECTION (READ-ONLY).
+     *
+     * Distinct from the geography actions below, which manage reference data
+     * (Country/Region/City/Area). This lists the `locations` table: the physical
+     * places Listings sit at.
+     *
+     * A Location is ACCOUNT-owned with OPTIONAL organization context, so `owner`
+     * is the ownership path and `business` is shown as context only — never as
+     * the owner. No moderation action is exposed: the existing architecture does
+     * not establish any for places.
+     */
+    public function index(Request $request)
+    {
+        $query = Location::query()
+            ->with([
+                'owner:id,name,email',
+                'business:id,name,slug',
+                'city:id,name',
+                'region:id,name',
+                'country:id,name',
+            ])
+            ->withCount('listings');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhereHas('owner', function ($oq) use ($search) {
+                        $oq->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('city_id')) {
+            $query->where('city_id', (int) $request->city_id);
+        }
+
+        if ($request->filled('country_id')) {
+            $query->where('country_id', (int) $request->country_id);
+        }
+
+        if ($request->filled('has_listings')) {
+            $request->has_listings === 'yes'
+                ? $query->has('listings')
+                : $query->doesntHave('listings');
+        }
+
+        $locations = $query->latest('id')->paginate(20)->withQueryString();
+
+        return Inertia::render('Admin/Locations/Index', [
+            'locations' => $locations->through(fn (Location $location) => [
+                'id' => $location->id,
+                'name' => $location->name,
+                'address' => $location->address,
+                'owner' => $location->owner ? [
+                    'id' => $location->owner->id,
+                    'name' => $location->owner->name,
+                    'email' => $location->owner->email,
+                ] : null,
+                // Context only — a Location is account-owned.
+                'business' => $location->business ? [
+                    'id' => $location->business->id,
+                    'name' => $location->business->name,
+                    'slug' => $location->business->slug,
+                ] : null,
+                'city' => $location->city?->name,
+                'region' => $location->region?->name,
+                'country' => $location->country?->name,
+                'coordinates' => ($location->latitude !== null && $location->longitude !== null)
+                    ? ['latitude' => (float) $location->latitude, 'longitude' => (float) $location->longitude]
+                    : null,
+                'listings_count' => $location->listings_count,
+                'hidden' => $location->hidden_at !== null,
+            ]),
+            'filters' => $request->only(['search', 'city_id', 'country_id', 'has_listings']),
+            'stats' => [
+                'total' => Location::count(),
+                'with_listings' => Location::has('listings')->count(),
+                'without_listings' => Location::doesntHave('listings')->count(),
+            ],
+            'cities' => City::orderBy('name')->get(['id', 'name']),
+            'countries' => Country::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
     public function countries()
     {
         $countries = Country::withCount('regions')->paginate(20);

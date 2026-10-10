@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Category;
+use App\Models\Listing;
+use App\Models\Location;
 use App\Models\PaymentTransaction;
 use App\Models\Plan;
 use App\Models\Review;
@@ -24,6 +26,25 @@ class DashboardController extends Controller
         $publishedBusinesses = Business::where('status', 'published')->count();
         $totalUsers = User::count();
         $activeOwners = User::where('role', 'owner')->where('status', 'active')->count();
+
+        // PHASE 27 — LISTING AND PHYSICAL-LOCATION KPIs.
+        //
+        // Listing is the canonical discovery entity, yet it was absent from
+        // the platform dashboard, as were physical Locations (the geography
+        // pages manage reference data, not places).
+        //
+        // `published` alone is NOT public: `hidden_at` also removes a Listing
+        // from discovery, and soft-deleted rows are excluded automatically by
+        // the global scope. These predicates mirror the canonical visibility
+        // rule used by /search, the sitemap and Admin\ListingController.
+        $totalListings = Listing::count();
+        $publishedListings = Listing::where('status', Listing::STATUS_PUBLISHED)
+            ->whereNull('hidden_at')
+            ->count();
+        $nonPublicListings = $totalListings - $publishedListings;
+
+        $totalLocations = Location::count();
+        $locationsWithListings = Location::whereHas('listings')->count();
 
         // Subscription stats
         $activeSubscriptions = Subscription::where('status', 'active')->count();
@@ -133,6 +154,11 @@ class DashboardController extends Controller
                 'total_businesses' => $totalBusinesses,
                 'published_businesses' => $publishedBusinesses,
                 'total_users' => $totalUsers,
+            'total_listings' => $totalListings,
+            'published_listings' => $publishedListings,
+            'non_public_listings' => $nonPublicListings,
+            'total_locations' => $totalLocations,
+            'locations_with_listings' => $locationsWithListings,
                 'active_owners' => $activeOwners,
                 'active_subscriptions' => $activeSubscriptions,
                 'expiring_subscriptions' => $expiringSubscriptions,

@@ -16,13 +16,31 @@ class CheckRole
 
         $user = Auth::user();
 
-        // Super admin has full access
+        // Super admin has full access.
         if ($user->role === 'super_admin') {
             return $next($request);
         }
 
-        // Admin has full access
+        // PHASE 27 — AUTHORIZATION BOUNDARY.
+        //
+        // `admin` used to short-circuit BEFORE the role check, so it ALSO
+        // satisfied `role:super_admin` and the nested super-admin route group was
+        // not actually protected: a plain admin could reach
+        // `/admin/super-dashboard`.
+        //
+        // An admin keeps full access EXCEPT where a route is restricted to super
+        // admins — i.e. it declares `super_admin` and does NOT also accept
+        // `admin`. Owner-side contracts are unaffected: `role:owner` and
+        // `role:user,owner` never mention super_admin, so admin access to them is
+        // unchanged, as is the graceful redirect for owners and users.
         if ($user->role === 'admin') {
+            $superAdminOnly = in_array('super_admin', $roles, true)
+                && ! in_array('admin', $roles, true);
+
+            if ($superAdminOnly) {
+                abort(403, 'Unauthorized access.');
+            }
+
             return $next($request);
         }
 

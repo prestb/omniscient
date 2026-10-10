@@ -462,6 +462,34 @@ class BusinessController extends Controller
 
     public function destroy(Business $business)
     {
+        // PHASE 27 — DEPENDENCY SAFEGUARD.
+        //
+        // This used to be a bare `$business->delete()`. It removed an
+        // organization from public view while its Listings stayed published and
+        // reachable at /listing/{slug}, and it applied a WEAKER rule than the
+        // owner-side path, which refuses the same deletion while any of the
+        // organization's Locations is still used by a Listing.
+        //
+        // Admin now applies the SAME rule, so the two policies cannot drift. A
+        // Location is ACCOUNT-owned and only optionally carries organization
+        // context, so this deliberately asks whether the Listings reference it
+        // rather than assuming one Location belongs to one Business.
+        //
+        // Ordinary deletion stays a SOFT delete. Intentional force deletion is
+        // untouched and keeps its own transactional cleanup.
+        $locationsInUse = $business->locations()
+            ->whereHas('listings')
+            ->withCount('listings')
+            ->get();
+
+        if ($locationsInUse->isNotEmpty()) {
+            return redirect()->back()->with(
+                'error',
+                'This organization still has ' . $locationsInUse->sum('listings_count')
+                . ' Listing(s) attached to its Locations. Detach or remove them before deleting the organization.'
+            );
+        }
+
         $business->delete();
 
         return redirect()->route('admin.businesses.index')

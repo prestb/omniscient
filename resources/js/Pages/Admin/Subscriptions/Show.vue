@@ -224,14 +224,7 @@
                                 </svg>
                                 Edit Subscription
                             </a>
-                            <a :href="`/admin/payments/create?subscription=${subscription.id}`"
-                                class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                Record Payment
-                            </a>
+
                             <button v-if="subscription.status === 'active'" @click="suspendSubscription"
                                 class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-yellow-300 dark:border-yellow-700 text-yellow-600 dark:text-yellow-400 rounded-xl hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors font-medium text-sm">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -112,6 +112,46 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total users</p>
                 </a>
 
+                <!-- PHASE 27 — canonical Listing KPIs -->
+                <a href="/admin/listings"
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all group">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                            </svg>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                            {{ stats?.published_listings || 0 }} public
+                        </span>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ stats?.total_listings || 0 }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Total listings
+                        <span v-if="(stats?.non_public_listings || 0) > 0"
+                            class="text-amber-600 dark:text-amber-400">· {{ stats.non_public_listings }} not public</span>
+                    </p>
+                </a>
+
+                <!-- PHASE 27 — physical Locations (places), not geographic reference data -->
+                <a href="/admin/locations"
+                    class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md hover:-translate-y-0.5 hover:border-teal-200 dark:hover:border-teal-700 transition-all group">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                            {{ stats?.locations_with_listings || 0 }} in use
+                        </span>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ stats?.total_locations || 0 }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Physical locations</p>
+                </a>
                 <!-- Active subscriptions -->
                 <a href="/admin/subscriptions"
                     class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all group">
