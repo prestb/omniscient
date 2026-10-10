@@ -98,6 +98,12 @@ class BusinessController extends Controller
             \App\Models\ListingContact::withTrashed()->whereIn('listing_id', $listingIds)->restore();
             \App\Models\ListingImage::withTrashed()->whereIn('listing_id', $listingIds)->restore();
 
+            // PHASE 23H — those restores are QUERY-BUILDER bulk operations and
+            // fire no model events, so Scout never sees them. The affected
+            // Listings must be synchronized explicitly or their documents would
+            // keep publishing an empty `services_names`.
+            \App\Support\ListingSearchSync::forListingIds($listingIds);
+
             \App\Models\Coupon::withTrashed()
                 ->where('business_id', $business->id)
                 ->restore();
@@ -162,6 +168,10 @@ class BusinessController extends Controller
             \App\Models\ListingService::withTrashed()->whereIn('listing_id', $listingIds)->forceDelete();
             \App\Models\ListingContact::withTrashed()->whereIn('listing_id', $listingIds)->forceDelete();
             \App\Models\ListingImage::withTrashed()->whereIn('listing_id', $listingIds)->forceDelete();
+
+            // PHASE 23H — bulk query-builder deletes fire no model events; the
+            // affected Listings are synchronized explicitly.
+            \App\Support\ListingSearchSync::forListingIds($listingIds);
 
             \App\Models\Coupon::withTrashed()
                 ->where('business_id', $business->id)

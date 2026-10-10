@@ -6,7 +6,13 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use App\Models\ListingCategoryPivot;
+use App\Models\ListingService;
+use App\Models\Location;
 use App\Models\Review;
+use App\Observers\ListingCategoryPivotObserver;
+use App\Observers\ListingServiceObserver;
+use App\Observers\LocationObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\SubscriptionObserver;
 use App\Models\Subscription;
@@ -56,6 +62,30 @@ class AppServiceProvider extends ServiceProvider
         Review::observe(ReviewObserver::class);
 
         Subscription::observe(SubscriptionObserver::class);
+
+        // PHASE 23H — LISTING CHILD → SEARCH SYNCHRONIZATION.
+        //
+        // `Listing::toSearchableArray()` publishes `category_ids`,
+        // `categories_names` (pivot) and `services_names` (ListingService), but
+        // Scout only observes a Listing's OWN events. Changing a child left the
+        // Meilisearch document stale. These two observers are the single
+        // authoritative path that rebuilds the document from the current child
+        // state; nothing else re-indexes a Listing for a child change.
+        //
+        // The pivot is observed via `Listing::categories()->using(...)`, which
+        // is what makes attach/detach/sync fire model events at all.
+        ListingCategoryPivot::observe(ListingCategoryPivotObserver::class);
+
+        ListingService::observe(ListingServiceObserver::class);
+
+        // PHASE 23H — the remaining SEARCH-AFFECTING children.
+        //
+        // `toSearchableArray()` also publishes Location fields (city, region,
+        // country, address, is_open_now), `has_active_subscription` from the
+        // owner's Subscription, and `rating`/`reviews_count` from the Listing's
+        // own approved Reviews. Review and Subscription already have observers;
+        // Location did not.
+        Location::observe(LocationObserver::class);
 
     }
 }

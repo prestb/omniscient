@@ -163,6 +163,11 @@ class Listing extends Model
     public function categories()
     {
         return $this->belongsToMany(Category::class, 'listing_categories')
+            // PHASE 23H — `using()` is what makes category mutations
+            // observable. Without it Laravel bulk-inserts on attach and
+            // bulk-deletes on detach, so no pivot event fires and a category
+            // change never reaches the search document.
+            ->using(ListingCategoryPivot::class)
             ->withPivot(['is_primary', 'sort_order'])
             ->withTimestamps()
             ->orderByPivot('sort_order');

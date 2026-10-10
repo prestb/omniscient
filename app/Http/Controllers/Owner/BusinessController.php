@@ -334,6 +334,16 @@ class BusinessController extends Controller
                 ];
             }
 
+            // PHASE 23H — the bulk deletes below run through the QUERY BUILDER
+            // and therefore fire NO model events, so Scout cannot see them.
+            // The Listing rows themselves survive (a Listing is independently
+            // owned), so their searchable documents would keep publishing the
+            // deleted `services_names`. Capture the affected Listings and
+            // synchronize them explicitly after the mutation.
+            $affectedListingIds = \App\Models\Listing::query()
+                ->where('business_id', $lockedBusiness->id)
+                ->pluck('id');
+
             // Every existing Location row is locked and confirmed unused before
             // any related records are mutated.
             $lockedBusiness->locations()->delete();
@@ -344,6 +354,8 @@ class BusinessController extends Controller
             \App\Models\Coupon::where('business_id', $lockedBusiness->id)->delete();
             \App\Models\Lead::where('business_id', $lockedBusiness->id)->delete();
             $lockedBusiness->delete();
+
+            \App\Support\ListingSearchSync::forListingIds($affectedListingIds);
 
             return null;
         });

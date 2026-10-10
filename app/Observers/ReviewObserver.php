@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Review;
+use App\Support\ListingSearchSync;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -26,18 +27,28 @@ class ReviewObserver
     public function created(Review $review): void
     {
         $this->syncBusinessRating($review);
+
+        // PHASE 23H — `rating` and `reviews_count` are published in the
+        // Listing's searchable document straight from its own approved reviews,
+        // so a new review changes what the Listing reports and how it sorts.
+        ListingSearchSync::forListingId($review->listing_id);
     }
 
     public function updated(Review $review): void
     {
         if ($review->isDirty('status') || $review->isDirty('rating')) {
             $this->syncBusinessRating($review);
+
+            // Approval and rating edits are exactly what the aggregate reads.
+            ListingSearchSync::forListingId($review->listing_id);
         }
     }
 
     public function deleted(Review $review): void
     {
         $this->syncBusinessRating($review);
+
+        ListingSearchSync::forListingId($review->listing_id);
     }
 
     /**

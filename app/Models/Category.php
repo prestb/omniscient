@@ -67,6 +67,13 @@ class Category extends Model
     public function listings()
     {
         return $this->belongsToMany(Listing::class, 'listing_categories')
+            // PHASE 23H — the INVERSE direction must be observable too.
+            // Without `using()`, mutating from the Category side
+            // (`$category->listings()->sync(...)`) would bulk-write the pivot and
+            // fire nothing, silently bypassing search synchronization. No
+            // current code mutates from this side; this closes the path so a
+            // future one cannot bypass it.
+            ->using(ListingCategoryPivot::class)
             ->withPivot(['is_primary', 'sort_order'])
             ->withTimestamps();
     }

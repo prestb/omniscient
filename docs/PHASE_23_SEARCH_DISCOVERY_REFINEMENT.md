@@ -25,6 +25,7 @@ read the document in full.
 | Main `/search` error boundary | **Implemented by 23D** — an engine outage now returns HTTP 200 with an empty result set instead of a 500 |
 | 23E — `/search` response contract | **Implemented by 23E** — the page consumes the canonical flattened paginator envelope |
 | 23G — development Meilisearch reconciliation | **Performed** — the `businesses` index was proven stale and removed, the orphaned `categories` documents were flushed, and the canonical `listings` index was rebuilt. See `docs/PHASE_23G_MEILISEARCH_INDEX_RECONCILIATION.md` |
+| 23H — Listing child → search synchronization | **Implemented** — category, service, location, subscription and review mutations now synchronize the owning Listing's document through one explicit path. See `docs/PHASE_23H_LISTING_CHILD_SEARCH_SYNCHRONIZATION.md` |
 
 **Historical statements that must NOT be read as current status.** Section 4
 ("Workstream B — Meilisearch") was written during the Phase 23B audit. It records
@@ -693,3 +694,82 @@ is a sandbox boundary, not a project defect.
 ```
 git diff --check : clean
 ```
+
+---
+
+# Phase 23H — Listing Child → Search Synchronization
+
+## The rule
+
+> **A persisted mutation of a child whose data appears in
+> `Listing::toSearchableArray()` synchronizes the owning Listing's search
+> document.**
+
+Previously the document only followed the **Listing's own** save, so
+`DATABASE STATE ≠ SEARCH INDEX STATE` for child changes. Phase 23G measured it on
+the live index: attaching a category and creating a service left
+`category_ids: []` and `services_names: []` indefinitely.
+
+## Categories
+
+`Listing::categories()` now declares `->using(ListingCategoryPivot::class)`.
+Laravel only fires pivot MODEL events for a relation declared with `->using()`;
+otherwise `attach()` bulk-inserts and `detach()` bulk-deletes through the query
+builder and fire nothing (and Laravel 12 does **not** fire
+`pivotAttached`/`pivotDetached` at all). `ListingCategoryPivotObserver` therefore
+covers attach, detach, sync, syncWithoutDetaching and toggle through one path.
+
+## Services
+
+`ListingServiceObserver` covers create, update, delete, restore and forceDelete
+for `services_names`.
+
+## Additional children found by the audit
+
+`toSearchableArray()` publishes three more child-derived groups, all of which
+were unsynchronized and are now covered:
+
+| Document fields | Child | New boundary |
+|---|---|---|
+| `city_id`, `region_id`, `country_id`, `city`, `region`, `country`, `address`, `is_open_now` | `Location` | `LocationObserver` |
+| `has_active_subscription` | owner's `Subscription` | `SubscriptionObserver` (extended) |
+| `rating`, `reviews_count` | the Listing's approved `Review`s | `ReviewObserver` (extended) |
+
+Images, contacts, favourites and analytics are **not** in the document, so no
+synchronization is required — a deliberate decision, not an omission.
+
+## Synchronization mechanism
+
+`App\Support\ListingSearchSync` is the single explicit entry point: it evaluates
+`shouldBeSearchable()` and then calls `searchable()` or `unsearchable()`. There
+is **no `->touch()`** and no arbitrary column write — search synchronization is
+an explicit act, not a side effect of a timestamp — and it is the **only**
+`->searchable()` call site in `app/` outside a comment. The LISTING is always the
+path, never the Business, so a Business-less Professional behaves identically.
+
+Child observers live at the model boundary, never in controllers, so a future
+mutation path cannot silently bypass indexing.
+
+## Transaction / queue behaviour
+
+Scout indexing is **synchronous** here (`scout.queue` false, `after_commit`
+false); this phase adds no queue. Child mutations can fire inside a
+`DB::transaction`, and the sync reads the same connection, so the normal path
+publishes the correct new state — but a **rollback** would leave the index ahead
+of the database. That exposure is pre-existing (Scout already indexes a Listing
+inside a transaction) and changing it would alter every Scout write, so it is
+documented rather than redesigned.
+
+Known bulk-query operations that cannot fire model events — the Admin business
+restore/forceDelete and the Owner business deletion — now call
+`ListingSearchSync::forListingIds()` explicitly.
+
+## Tests
+
+`tests/Feature/Search/ListingChildSearchSyncTest.php` — 13 tests, 39 assertions,
+asserting real index behaviour (categories), the document itself (location,
+subscription, review) and the canonical visibility contract. Reverting only the
+two wiring edits makes **8 of them fail**, proving they test the defect rather
+than the implementation.
+
+Full record: `docs/PHASE_23H_LISTING_CHILD_SEARCH_SYNCHRONIZATION.md`.
