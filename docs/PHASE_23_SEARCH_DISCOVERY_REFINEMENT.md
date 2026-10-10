@@ -83,6 +83,102 @@ There is no `meta` key. `data`, `current_page`, `from`, `to`, `last_page`,
 See `docs/PHASE_22E_GEOSPATIAL_FOUNDATION.md` for the geospatial foundation that
 §1 below already lists as a true claim.
 
+### 0.1 Roadmap reconciliation — added by Phase 23I
+
+Re-derived at `718a501` from the current code, tests, the live Meilisearch server
+and the CI workflow. A commit message was never treated as evidence of
+completion, and no row below repeats a claim that was not re-checked.
+
+| Phase | Evidence in the repository | Status | Remaining work | Depends on |
+|---|---|---|---|---|
+| 22D — test-database isolation | `tests/TestCase.php` every-source guard; `tests/Unit/TestingDatabaseIsolationTest`; `phpunit.xml` pins `omniscient_testing` | **VERIFIED COMPLETE** | — | — |
+| 22E-1 — coordinate-pair integrity | `locations_coordinate_pair_check` migration; `LocationCoordinatePairConstraintTest` (6) | **VERIFIED COMPLETE** | — | — |
+| 22E-2 — distance primitive | `app/Support/LocationDistance.php`; `LocationDistanceTest` (6) | **VERIFIED COMPLETE** | — | — |
+| 22E-3 — server-side radius | `DirectoryController::validatedMapOrigin`; `DirectoryMapRadiusTest` (11) | **VERIFIED COMPLETE — `/directory` map mode only** | radius on `/search`: **NOT STARTED** | product decision |
+| 22E-4 — client radius authority removed | `DirectoryMap.vue` renders props directly | **VERIFIED COMPLETE** | — | — |
+| 23D — `/search` error boundary | `SearchController` try/catch; `SearchErrorBoundaryTest` (8) | **VERIFIED COMPLETE** | — | — |
+| 23E — `/search` response contract | `SearchResponseContractTest` (6) | **VERIFIED COMPLETE** | — | — |
+| 23F — Scout operational safety | three live removal tests in `ListingLifecycleTest`; R5 §13 | **VERIFIED COMPLETE** | F4/F5/F6 accepted residuals, documented | — |
+| 23G — development index reconciliation | live dev state: `listings` 0, `categories` 0, no `businesses` | **VERIFIED COMPLETE** | — | — |
+| 23H — Listing child → search synchronization | `ListingSearchSync` + 5 observers; `ListingChildSearchSyncTest` (14) | **VERIFIED COMPLETE** | `is_open_now` is time-varying and cannot be synchronized — see 23I-1 | — |
+| Geospatial completion | `PHASE_22E` "Current limitations" 1, 2, 3, 6, 7 — **all re-verified true** | **NOT STARTED** | distance ordering; radius on `/search`; bounding-box prefilter; MySQL-8 Haversine verification; exact-boundary test | product decision |
+| Derived-value parity | findings 23I-1 and 23I-2 below | **NOT STARTED** | see below | product decision |
+| Transaction-consistent indexing | finding 23I-3 below | **NOT STARTED** | see below | — |
+
+#### Audited gaps (Phase 23I)
+
+**23I-1 (HIGH) — `is_open_now` is a TIME-VARYING value stored in a static index.**
+`Location::getIsOpenNowAttribute()` derives open/closed from `now()` plus weekly
+hours and date overrides. `Listing::toSearchableArray()` publishes it,
+`ConfigureMeilisearch` declares it filterable, and `/search?open_now` filters on
+the **indexed** value — while `/directory?open_now` evaluates it **live** in SQL
+(`DirectoryController:129-134`). The two engines therefore disagree as soon as the
+clock moves past the last index write. **No synchronization mechanism can repair
+this**: it is not a mutation-propagation problem but a fact that cannot be
+represented by a static index. Separately, `LocationHour` and
+`LocationHourOverride` have **no observer**, so editing hours does not even
+refresh the frozen value.
+
+**23I-2 (MEDIUM) — the directory review sorts count unapproved reviews.**
+`DirectoryController` sorts `rating`/`reviews` with `withAvg('reviews','rating')`
+and `withCount('reviews')`; `Listing::reviews()` has no status filter and `Review`
+has no global scope, so pending and rejected reviews are included. **Measured**:
+a Listing with three PENDING reviews sorts ABOVE one with a single APPROVED
+review (`reviews_count` 3 vs 1), while its search document — built from
+`approvedReviews()` — reports `reviews_count` 0 and `rating` 0. The directory's
+own `min_rating` filter IS approved-only, so `/directory` is internally
+inconsistent too. Untested: both existing directory-sort tests use approved
+reviews only.
+
+**23I-3 (MEDIUM) — synchronous indexing inside transactions.**
+Twelve `DB::transaction` / `beginTransaction` sites exist, including
+`Owner\ListingController::store`/`update` (which also syncs categories) and five
+`LocationController` paths that fan out through `LocationObserver`. Scout writes
+immediately (`scout.queue` false, `scout.after_commit` false), so a rolled-back
+transaction can leave the index ahead of the database. The remedy is verified
+available, not speculative: Laravel 12.69.2 dispatches a listener after commit
+when it declares `public $afterCommit = true` or implements
+`ShouldHandleEventsAfterCommit` (`Dispatcher:600-605`), excluding only the
+pre-write hooks, and Scout reads the same switch from `scout.after_commit`. Not
+changed here because it alters the timing of every indexing path.
+
+#### Corrected obsolete claims
+
+* `app/Support/DiscoverySort.php:64-72` and `:86-91` still describe
+  `rating`/`reviews_count` as the **owning Business's** aggregate. PHASE 21C-R1
+  moved both engines to the **Listing's own approved** reviews, and
+  `ConfigureMeilisearch::sortableAttributes()` already documents the new meaning.
+  The comment is stale. Recorded, **not changed** — Phase 23I makes no
+  production-code changes.
+* `docs/PHASE_22E_GEOSPATIAL_FOUNDATION.md` "Current limitations" is **still
+  accurate**; all eight items were re-checked against the current code.
+
+#### CI dependency
+
+`.github/workflows/tests.yml` triggers on `push`/`pull_request` to **`main` or
+`develop`** only. HEAD is on `phase-11-resume`, and **`develop` does not exist
+upstream** (`git ls-remote` lists only `main`, `master`, `phase-11-resume` and
+`phase-22c-location-race-fix`). CI is therefore **not merely unexecuted here but
+structurally unreachable** until a PR targets `main`. No CI run has ever been
+observed; every "CI VERIFIED" claim would be false.
+
+#### Recommended next phase
+
+**Phase 23J — Search/Directory semantic parity for derived and time-varying
+fields.** Decide and implement ONE authority for `is_open_now` (deliberately not
+a static index value) and for the review aggregates, so `/search` and
+`/directory` cannot disagree; add the missing
+`LocationHour`/`LocationHourOverride` synchronization if hours remain indexed; and
+close the untested gaps with focused tests. It deliberately excludes distance
+ordering, radius on `/search` and bounding-box prefilters, which stay in the
+geospatial backlog. After-commit (transaction-consistent) indexing should follow
+as its own phase, because it changes the timing of every indexing path.
+
+This is the phase the R5 audit referred to generically as *"Phase 24: GO"*; that
+gate remains unmet, because its only condition — a first CI run on a branch the
+workflow triggers — still has not happened.
+
+
 ---
 
 ## 1. Initial audit (Phase 23)
