@@ -137,13 +137,6 @@
                                         List Your Business
                                     </Link>
 
-                                    <Link v-if="user?.role === 'user'"
-                                          href="/user/reviews"
-                                          class="flex items-center gap-2.5 mx-2 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors font-medium">
-                                        <NavIcon name="star" size="sm" class="flex-shrink-0 text-gray-400" />
-                                        My Reviews
-                                    </Link>
-
                                     <Link href="/profile"
                                           class="flex items-center gap-2.5 mx-2 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors font-medium">
                                         <NavIcon name="user" size="sm" class="flex-shrink-0 text-gray-400" />

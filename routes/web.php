@@ -279,7 +279,14 @@ Route::middleware(['auth', 'role:user,admin,super_admin'])
     ->name('user.')
     ->group(function () {
         Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/reviews', fn() => Inertia::render('User/Reviews/Index'))->name('reviews.index');
+
+        // PHASE 25 - the former GET /user/reviews route rendered
+        // `User/Reviews/Index`, a Vue page that has NEVER existed in this
+        // repository, so the route (and the Navbar link that pointed at it)
+        // could only ever raise a client-side page-resolution error. A
+        // user-facing "My Reviews" surface is a real product feature but was
+        // never implemented; it is removed rather than left broken and is
+        // recorded as deferred in the connection documentation.
     });
 
 
