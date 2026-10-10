@@ -593,9 +593,120 @@ counts              : 298 / 72 before and after
 | F8 — one live-search test under a null driver | **CLOSED** (§11) |
 | F2 — dead `UpdateMeilisearchSettings` command | **CLOSED** (§12.2) |
 | F3 — stale `index-settings.businesses` key | **CLOSED** (§12.1), guarded (§12.3) |
-| F4 — `scout:delete-all-indexes` deletes everything under an empty prefix | **OPEN, documented.** Vendor behaviour; fixing it means overriding a Scout command, which was judged out of scope |
-| F5 — `scout:flush` / `import` / `delete-index` are prefix-aware but unguarded | **accepted residual risk** |
-| F6 — no host allow-list for `APP_ENV=testing` | **accepted residual risk** |
+| F4 — `scout:delete-all-indexes` deletes everything under an empty prefix | **RECLASSIFIED by 23F — see §13** |
+| F5 — `scout:flush` / `import` / `delete-index` are prefix-aware but unguarded | **RECLASSIFIED by 23F — see §13** |
+| F6 — no host allow-list for `APP_ENV=testing` | **RECLASSIFIED by 23F — see §13** |
 
 **Phase 24: GO**, unchanged, still conditional only on the first CI run on a
 branch the workflow triggers.
+
+## 13. Phase 23F — F4 / F5 / F6 re-audited at a later HEAD
+
+Re-derived against `fc77a41` (after 23C-R1, 23C-R4, 23C-R5, 23D and 23E) from the
+current code and the live server, rather than carried forward from the text
+above. **No production code was changed as a result.**
+
+### F4 — `scout:delete-all-indexes` deletes every index under an empty prefix
+
+**Classification: ENVIRONMENT-ONLY (vendor-intentional). Not a code defect.**
+
+Mechanically still true: `MeilisearchEngine::deleteAllIndexes()` deletes every
+index whose uid `startsWith(config('scout.prefix'))`, and the development prefix
+is still `''`. But:
+
+* the command's **name and its behaviour agree** — it deletes all indexes;
+* **nothing in the application invokes it**: no `$schedule->command`, no
+  `Artisan::call`, no seeder, no CI step — only documentation mentions it;
+* the hazard needs a Meilisearch server **shared with other applications**.
+  Every index on this server belongs to this application, so "delete all"
+  removes exactly this application's own indexes.
+
+R5's word *"catastrophic"* over-stated it. Residual recorded, not fixed: on a
+**shared** server with an empty prefix it would delete other applications'
+indexes. That is operational guidance, not code.
+
+### F5 — `scout:flush` / `import` / `delete-index` are prefix-aware but unguarded
+
+**Classification: INTENTIONAL / accepted residual. Not a code defect.**
+
+Re-derived: **none of these commands can produce an empty or unsafe index name.**
+
+* `scout:flush` and `scout:import` take a **model class** and resolve through
+  `searchableAs()` → `App\Support\SearchIndexName`, which returns `prefix . base`
+  and can never be empty.
+* `scout:delete-index <name>` resolves a bare string through `prefix . $name`,
+  short-circuiting when the name is already prefixed. Under the pinned test
+  configuration, `scout:delete-index listings` therefore targets `test_listings`,
+  **not** the development index.
+* `SearchIndexName::resolve()` always appends a non-empty base, so an empty
+  resolved name is unreachable.
+
+The guard's absence is real but **unreachable**. `assertSafeForMutation()` would
+be a no-op for these commands in development — where mutating the development
+index is the entire point of `scout:flush` — and under testing the `phpunit.xml`
+pin already forces `test_*`. An event-level guard was judged speculative: new
+surface to prevent a state no supported invocation can reach.
+
+### F6 — no host allow-list
+
+**Classification: INTENTIONAL (accepted residual). Not a code defect.**
+
+`APP_ENV=testing` with `SCOUT_PREFIX=test_` writes to `test_listings` on whatever
+host `MEILISEARCH_HOST` names — the same class of misconfiguration as pointing a
+test suite at a production database, and not made worse by the search layer. A
+host allow-list is new infrastructure, which Phase 23F's brief forbids.
+
+### 13.1 Verified intact — no regression
+
+| Contract | Evidence |
+|---|---|
+| **Index naming** (23C-R4) | `Listing`/`Category` → `SearchIndexName`; the only prefix reader in `app/`/`config/` is `SearchIndexName::prefix()`; no hard-coded index literal remains |
+| **Mutation safety** | `ConfigureMeilisearch::applyTo()` guards **before** constructing a client; `scout:sync-index-settings` is a true no-op (empty `index-settings`) |
+| **22D isolation** | `phpunit.xml` still pins `DB_DATABASE=omniscient_testing`; the hardened every-source guard is intact (`tests/TestCase.php`) |
+| **23D resilience** | `SearchController::index` still wraps only the engine pipeline, logs, and returns an empty paginator with HTTP 200 |
+| **23E contract** | `/search` still emits the flattened paginator; no `meta` key |
+| **Searchable document** | `toSearchableArray()` exposes no secrets, no contacts, no owner identity and no unused columns; it carries only public discovery fields |
+| **Bulk import** | `makeAllSearchableUsing()` restricts `scout:import` to published, unhidden rows |
+| **Visibility transitions** | `ModelObserver::saved()` removes the document when `shouldBeSearchable()` becomes false, and `deleted()` removes it on delete — **now proven against the real server** by three new tests (§13.2) |
+
+### 13.2 New coverage added by 23F
+
+`ListingIndexVisibilityTest` asserts the **model hook** and deliberately needs no
+running Meilisearch, so it never proved the **index** actually loses the
+document. `tests/Feature/Listing/ListingLifecycleTest.php` gains three
+live-server tests: an unpublished, a hidden and a deleted Listing must each be
+**removed** from `test_listings`, not merely filtered out of queries. All three
+pass (0.7s each). This converts the 23C visibility contract from
+vendor-reading into measured evidence.
+
+### 13.3 Environment observation — Meilisearch instance replaced
+
+While auditing, the local Meilisearch was found to have been **replaced since
+23E**: the task counter had reset from ~81,800 to 846, the **`listings` index no
+longer exists**, and a **`businesses` index (3 documents, dated 2026-09-03)** has
+reappeared — a leftover from before Business stopped being searchable. The
+`categories` index holds **71 documents dated 2026-09-03 while the development
+`categories` table is EMPTY**, i.e. it is stale orphan state that nothing
+consumes and nothing reconciles.
+
+This is an **environment change, not a code defect**, and nothing in this phase
+created or repaired it. It is recorded because it materially changes what
+"the development index" means for future verification. In particular, the three
+new removal tests pass because the suite targets `test_listings`; the **absent
+development `listings` index** is unrelated to them.
+
+### 13.4 The two ImagePipelineTest failures now PASS — and that is not 23F's doing
+
+§4 above records two `Tests\Feature\Images\ImagePipelineTest` failures as
+pre-existing and environment-dependent. **They now pass**, and the full suite is
+green: `1 incomplete, 1078 passed (3804 assertions)` with exit code 0.
+
+Verified in isolation: `ImagePipelineTest` → **4 passed (18 assertions)**.
+
+This phase changed **no** image, media or storage code, so it neither caused nor
+fixed them. They were **environmental**, and the same environment rebuild noted
+in §13.3 repaired them. Recorded here so a future reader does not chase a defect
+that no longer reproduces — and so that 23F does not take credit for it.
+
+Arithmetic is consistent: 23E's `1073 passed + 2 failed` becomes
+`1075 passed`, plus 23F's three new visibility-removal tests = **1078**.

@@ -32,12 +32,25 @@ with *"This workstream was not completed."* Those were accurate **when written**
 and are **superseded** by the 23C, R4 and R5 sections further down this same
 document. Do not schedule that workstream again on the strength of §4.
 
-**Still open and deliberately unfixed** (recorded in full in
-`docs/PHASE_23C_R5_AUDIT.md`): **F4** — `scout:delete-all-indexes` deletes every
-index when the Scout prefix is empty (vendor behaviour, an operational hazard in
-development); **F5** — Scout's `flush` / `import` / `delete-index` resolve the
-prefix correctly but are unguarded; **F6** — there is no Meilisearch host
-allow-list.
+**F4 / F5 / F6 — re-audited by Phase 23F; none is a code defect.** The R5 text
+above was written at an earlier HEAD and has been re-derived against the current
+one (full evidence in `docs/PHASE_23C_R5_AUDIT.md` §13):
+
+* **F4** — `scout:delete-all-indexes` deletes every index when the Scout prefix
+  is empty. **ENVIRONMENT-ONLY, vendor-intentional**: the command's name and
+  behaviour agree, nothing in the application invokes it, and the hazard needs a
+  server shared with other applications. No fix applied.
+* **F5** — Scout's `flush` / `import` / `delete-index`. **INTENTIONAL**: none of
+  them can produce an empty or unsafe index name — they resolve through
+  `SearchIndexName`, and `delete-index` short-circuits an already-prefixed name.
+  No fix applied.
+* **F6** — no Meilisearch host allow-list. **INTENTIONAL, accepted residual**;
+  adding one would be new infrastructure.
+
+**Also corrected by 23F:** the claim that the visibility contract was
+vendor-trusted. `ListingIndexVisibilityTest` asserts only the model hook, so
+three live-server tests were added proving an unpublished, hidden or deleted
+Listing is actually **removed** from `test_listings`.
 
 **`/search` response contract — RESOLVED by 23E.** 23D recorded that
 `Search/Index.vue` reads `listings.total`, `listings.from` and `listings.links`

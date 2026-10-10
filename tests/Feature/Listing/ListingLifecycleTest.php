@@ -276,3 +276,94 @@ test('a created listing is indexed in the real listings Meilisearch index', func
 
     expect($found)->toBeTrue('The created Listing should be present in the listings index.');
 });
+
+// ═══ PHASE 23F — VISIBILITY REMOVAL FROM THE REAL INDEX ═════════════════════
+//
+// `ListingIndexVisibilityTest` asserts the MODEL HOOK (`shouldBeSearchable()`)
+// and deliberately does not need a running Meilisearch. It therefore never
+// proved that the INDEX actually loses the document when a Listing becomes
+// undiscoverable — which is the contract Phase 23C exists to uphold. A stale
+// document that merely gets filtered out of queries is still a document the
+// application considers undiscoverable.
+//
+// Scout's `ModelObserver` performs the removal (`shouldBeSearchable()` false
+// and `wasSearchableBeforeUpdate()` true => `unsearchable()`), but that is
+// VENDOR behaviour. These tests pin the resulting APP-LEVEL invariant against
+// the real server, so a future change to the hook, the engine or the config
+// cannot silently leave public-visibility documents behind.
+//
+// Markers are a single unique token so the query cannot collide with the other
+// `Zebra …` fixtures in this suite.
+
+/** Poll the real index until the Listing is present, or give up. */
+function llIndexHas(Listing $listing, string $marker, int $attempts = 15): bool
+{
+    for ($attempt = 0; $attempt < $attempts; $attempt++) {
+        if (Listing::search($marker)->take(5)->get()->pluck('id')->contains($listing->id)) {
+            return true;
+        }
+
+        usleep(300000);
+    }
+
+    return false;
+}
+
+/** Poll the real index until the Listing is gone, or give up. */
+function llIndexLacks(Listing $listing, string $marker, int $attempts = 25): bool
+{
+    for ($attempt = 0; $attempt < $attempts; $attempt++) {
+        if (! Listing::search($marker)->take(5)->get()->pluck('id')->contains($listing->id)) {
+            return true;
+        }
+
+        usleep(300000);
+    }
+
+    return false;
+}
+
+test('an unpublished listing is removed from the real listings Meilisearch index', function () {
+    $marker = 'ZebraRetract' . uniqid();
+
+    $listing = Listing::factory()->published()->create(['name' => $marker]);
+
+    expect(llIndexHas($listing, $marker))
+        ->toBeTrue('Precondition: the published Listing should have been indexed.');
+
+    $listing->update(['status' => Listing::STATUS_DRAFT]);
+
+    expect(llIndexLacks($listing, $marker))->toBeTrue(
+        'An unpublished Listing must be REMOVED from the index, not merely filtered out of queries.'
+    );
+});
+
+test('a hidden listing is removed from the real listings Meilisearch index', function () {
+    $marker = 'ZebraConceal' . uniqid();
+
+    $listing = Listing::factory()->published()->create(['name' => $marker]);
+
+    expect(llIndexHas($listing, $marker))
+        ->toBeTrue('Precondition: the published Listing should have been indexed.');
+
+    $listing->update(['hidden_at' => now()]);
+
+    expect(llIndexLacks($listing, $marker))->toBeTrue(
+        'A hidden Listing must be REMOVED from the index, not merely filtered out of queries.'
+    );
+});
+
+test('a deleted listing is removed from the real listings Meilisearch index', function () {
+    $marker = 'ZebraErase' . uniqid();
+
+    $listing = Listing::factory()->published()->create(['name' => $marker]);
+
+    expect(llIndexHas($listing, $marker))
+        ->toBeTrue('Precondition: the published Listing should have been indexed.');
+
+    $listing->delete();
+
+    expect(llIndexLacks($listing, $marker))->toBeTrue(
+        'A deleted Listing must be REMOVED from the index.'
+    );
+});
