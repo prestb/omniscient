@@ -28,8 +28,8 @@ function analyticsFor(Listing $listing): ?ListingAnalytics
 test('a view is recorded against the explicit listing only', function () {
     $business = Business::factory()->create();
 
-    $a = Listing::factory()->forBusiness($business)->create();
-    $b = Listing::factory()->forBusiness($business)->create();
+    $a = Listing::factory()->forBusiness($business)->published()->create();
+    $b = Listing::factory()->forBusiness($business)->published()->create();
 
     $this->post("/analytics/listing/{$a->id}/track-view")->assertOk()
         ->assertJson(['success' => true]);
@@ -44,8 +44,8 @@ test('a view is recorded against the explicit listing only', function () {
 test('a click is recorded against the explicit listing only', function () {
     $business = Business::factory()->create();
 
-    $a = Listing::factory()->forBusiness($business)->create();
-    $b = Listing::factory()->forBusiness($business)->create();
+    $a = Listing::factory()->forBusiness($business)->published()->create();
+    $b = Listing::factory()->forBusiness($business)->published()->create();
 
     $this->post("/analytics/listing/{$a->id}/track-click/phone")->assertOk()
         ->assertJson(['success' => true]);
@@ -59,8 +59,8 @@ test('listing identity is authoritative and never resolves through the business'
 
     // B is created FIRST, so any ordering-based "representative Listing"
     // heuristic would have selected B rather than A.
-    $b = Listing::factory()->forBusiness($business)->create();
-    $a = Listing::factory()->forBusiness($business)->create();
+    $b = Listing::factory()->forBusiness($business)->published()->create();
+    $a = Listing::factory()->forBusiness($business)->published()->create();
 
     $this->post("/analytics/listing/{$a->id}/track-click/website")->assertOk();
 
@@ -86,8 +86,8 @@ test('listing identity is authoritative and never resolves through the business'
 test('independent events stay attached to their respective listings', function () {
     $business = Business::factory()->create();
 
-    $a = Listing::factory()->forBusiness($business)->create();
-    $b = Listing::factory()->forBusiness($business)->create();
+    $a = Listing::factory()->forBusiness($business)->published()->create();
+    $b = Listing::factory()->forBusiness($business)->published()->create();
 
     $this->post("/analytics/listing/{$a->id}/track-click/phone")->assertOk();
     $this->post("/analytics/listing/{$b->id}/track-click/website")->assertOk();
@@ -102,7 +102,7 @@ test('independent events stay attached to their respective listings', function (
 });
 
 test('the supported click vocabulary is preserved and nothing new is accepted', function (string $type) {
-    $listing = Listing::factory()->create();
+    $listing = Listing::factory()->published()->create();
 
     $this->post("/analytics/listing/{$listing->id}/track-click/{$type}")->assertOk()
         ->assertJson(['success' => true]);
@@ -111,7 +111,7 @@ test('the supported click vocabulary is preserved and nothing new is accepted', 
 })->with(['phone', 'whatsapp', 'website', 'direction', 'social']);
 
 test('an unsupported click type is rejected without writing', function () {
-    $listing = Listing::factory()->create();
+    $listing = Listing::factory()->published()->create();
 
     $this->post("/analytics/listing/{$listing->id}/track-click/not-a-real-type")
         ->assertStatus(400);
@@ -151,8 +151,8 @@ test('the obsolete Business-keyed tracking routes were removed', function () {
 test('a contact event is attributed to the listing that owns the contact', function () {
     $business = Business::factory()->create();
 
-    $a = Listing::factory()->forBusiness($business)->create();
-    $b = Listing::factory()->forBusiness($business)->create();
+    $a = Listing::factory()->forBusiness($business)->published()->create();
+    $b = Listing::factory()->forBusiness($business)->published()->create();
 
     // Contacts belong to their own Listings. A `facebook` contact is a social
     // contact, so its click emits the analytics type `social`.
@@ -187,7 +187,7 @@ test('the organization page no longer emits Business-keyed analytics', function 
 
 test('an organization-owned website click creates no listing analytics', function () {
     $business = Business::factory()->create(['website' => 'https://acme.test']);
-    Listing::factory()->forBusiness($business)->create();
+    Listing::factory()->forBusiness($business)->published()->create();
 
     // The emission was removed entirely. Nothing is recorded, and there is no
     // organization-level analytics record either — none should exist.
@@ -206,8 +206,8 @@ test('the canonical Business aggregate dashboard still sums across listings', fu
 
     $business = Business::factory()->create(['owner_id' => $owner->id, 'status' => 'published']);
 
-    $a = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
-    $b = Listing::factory()->forBusiness($business)->forOwner($owner)->create();
+    $a = Listing::factory()->forBusiness($business)->forOwner($owner)->published()->create();
+    $b = Listing::factory()->forBusiness($business)->forOwner($owner)->published()->create();
 
     $this->post("/analytics/listing/{$a->id}/track-view")->assertOk();
     $this->post("/analytics/listing/{$b->id}/track-view")->assertOk();

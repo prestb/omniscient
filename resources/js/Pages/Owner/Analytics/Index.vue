@@ -62,7 +62,7 @@
                 </div>
                 <div
                     class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Unique Visitors</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Unique Visitors <span class="text-[10px] font-normal">(per session)</span></p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{
                         formatNumber(summary.total_unique_visitors)
                     }}</p>

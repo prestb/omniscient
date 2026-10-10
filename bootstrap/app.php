@@ -3,7 +3,6 @@
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
-use App\Http\Middleware\TrackBusinessView;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
@@ -64,8 +63,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => CheckRole::class,
-            'track.business' => TrackBusinessView::class,
-            'throttle' => Illuminate\Routing\Middleware\ThrottleRequests::class,
+                'throttle' => Illuminate\Routing\Middleware\ThrottleRequests::class,
             'plan.feature' => \App\Http\Middleware\CheckPlanFeature::class,
             'plan.limit' => \App\Http\Middleware\CheckPlanLimit::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerifiedNotice::class,

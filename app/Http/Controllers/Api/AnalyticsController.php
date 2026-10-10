@@ -36,6 +36,18 @@ class AnalyticsController extends Controller
 
     public function trackListingView(Request $request, Listing $listing)
     {
+        // WAVE 28B — INGESTION VISIBILITY.
+        //
+        // The route binds {listing} by id, so a POST could previously increment a
+        // draft, hidden or suspended Listing that the public cannot even reach.
+        // The gate is the SAME contract the public Listing page relies on —
+        // `Listing::isVisibleToPublic()` (`status = published` AND `hidden_at IS
+        // NULL`), with soft-deleted rows already excluded by the global scope — so
+        // no second visibility definition is introduced.
+        if (!$listing->isVisibleToPublic()) {
+            return response()->json(['error' => 'Listing not found'], 404);
+        }
+
         try {
             ListingAnalytics::trackView($listing->id);
 
@@ -58,6 +70,11 @@ class AnalyticsController extends Controller
 
     public function trackListingClick(Request $request, Listing $listing, string $type)
     {
+        // WAVE 28B — the same visibility gate as trackListingView.
+        if (!$listing->isVisibleToPublic()) {
+            return response()->json(['error' => 'Listing not found'], 404);
+        }
+
         try {
             // Same vocabulary as the existing endpoint. Nothing renamed.
             if (!in_array($type, self::VALID_CLICK_TYPES, true)) {

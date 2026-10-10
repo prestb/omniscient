@@ -82,7 +82,6 @@ use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\TestRatingController;
 
 // Middleware
-use App\Http\Middleware\TrackBusinessView;
 
 
 
@@ -92,8 +91,7 @@ use App\Http\Middleware\TrackBusinessView;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/directory', [DirectoryController::class, 'index'])->name('directory');
 Route::get('/business/{slug}', [DirectoryController::class, 'show'])
-    ->name('business.show')
-    ->middleware('track.business');
+    ->name('business.show');
 
 // PHASE 11 / WAVE 1D-2 — the canonical public Listing page.
 // A Listing has its OWN slug and its OWN identity; it is not addressed

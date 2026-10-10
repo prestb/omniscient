@@ -65,7 +65,13 @@ class DashboardController extends Controller
                 // ============== ANALYTICS ==============
         // PHASE 11 / WAVE 1B — analytics are listing-owned. Aggregate across the
         // organization's listings for the organization-level dashboard.
-        $listingIds = $business->listings()->pluck('id');
+        // WAVE 28B — ACCOUNT-OWNED, then narrowed to the selected organization.
+        // `$business->listings()` did not check ownership, so a Listing that merely
+        // referenced this organization while being owned by another account was
+        // aggregated into this account's totals.
+        $listingIds = \App\Models\Listing::where('owner_id', $user->id)
+            ->where('business_id', $business->id)
+            ->pluck('id');
 
         $analyticsStats = \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
             ->selectRaw('
@@ -347,15 +353,20 @@ class DashboardController extends Controller
      */
     private function analyticsComparison($listingIds, int $days): array
     {
-        $currentPeriod = now()->subDays($days);
-        $previousPeriod = now()->subDays($days * 2);
+        // WAVE 28B — one shared, half-open definition (see
+        // ListingAnalytics::periodBoundaries). The previous version used
+        // `>= currentPeriod` and `whereBetween(previousPeriod, currentPeriod)`,
+        // which counted the boundary day in BOTH windows.
+        [$currentStart, $previousStart, $tomorrow] = \App\Models\ListingAnalytics::periodBoundaries($days);
 
         $current = (int) \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
-            ->where('date', '>=', $currentPeriod)
+            ->where('date', '>=', $currentStart)
+            ->where('date', '<', $tomorrow)
             ->sum('views');
 
         $previous = (int) \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
-            ->whereBetween('date', [$previousPeriod, $currentPeriod])
+            ->where('date', '>=', $previousStart)
+            ->where('date', '<', $currentStart)
             ->sum('views');
 
         $growth = $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : 0;

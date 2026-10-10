@@ -160,18 +160,47 @@ class ListingAnalytics extends Model
         }
     }
 
+    /**
+     * WAVE 28B - EXPLICIT, HALF-OPEN PERIOD BOUNDARIES.
+     *
+     * One definition shared by every comparison in the application, so the
+     * owner dashboard and the model can never disagree about what "the
+     * previous period" means.
+     *
+     * The current window is [currentStart, tomorrow): exactly $days days and
+     * INCLUDING today. The previous window is [previousStart, currentStart):
+     * exactly $days days, ending the day before the current one begins. The
+     * windows are therefore equal in length and DISJOINT, so the boundary day
+     * belongs to the CURRENT period only.
+     *
+     * @return array{0: string, 1: string, 2: string} [currentStart, previousStart, tomorrow]
+     */
+    public static function periodBoundaries(int $days): array
+    {
+        $today = now()->startOfDay();
+        $currentStart = $today->copy()->subDays($days - 1);
+
+        return [
+            $currentStart->toDateString(),
+            $currentStart->copy()->subDays($days)->toDateString(),
+            $today->copy()->addDay()->toDateString(),
+        ];
+    }
+
     public static function getPeriodComparison(int $listingId, int $days = 30)
     {
         try {
-            $currentPeriod = now()->subDays($days);
-            $previousPeriod = now()->subDays($days * 2);
+            // WAVE 28B - disjoint, equal-length, half-open windows.
+            [$currentStart, $previousStart, $tomorrow] = self::periodBoundaries($days);
 
             $current = self::where('listing_id', $listingId)
-                ->where('date', '>=', $currentPeriod)
+                ->where('date', '>=', $currentStart)
+                ->where('date', '<', $tomorrow)
                 ->sum('views');
 
             $previous = self::where('listing_id', $listingId)
-                ->whereBetween('date', [$previousPeriod, $currentPeriod])
+                ->where('date', '>=', $previousStart)
+                ->where('date', '<', $currentStart)
                 ->sum('views');
 
             $growth = $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : 0;

@@ -13,6 +13,9 @@ use SplTempFileObject;
 
 class AnalyticsController extends Controller
 {
+    /** WAVE 28B — the period choices the UI offers; anything else falls back to 30. */
+    private const SUPPORTED_DAYS = [7, 30, 90, 365];
+
     /**
      * PHASE 11 / WAVE 1B — analytics are listing-owned. The owner dashboard is
      * still addressed by organization, so we AGGREGATE across the
@@ -20,9 +23,41 @@ class AnalyticsController extends Controller
      *
      * @return \Illuminate\Support\Collection<int, int>
      */
-    private function listingIdsFor($business)
+    /**
+     * WAVE 28B - THE AUTHORIZED LISTING SET IS ACCOUNT-OWNED.
+     *
+     * Analytics belong to LISTINGS, and an account's analytics are derived from
+     * ALL the Listings it owns - independently owned Professional Listings
+     * (business_id = NULL) included. A Business is an optional read-time FILTER
+     * over this set and is never the authoritative analytics owner.
+     *
+     * Ownership is Listing.owner_id, so a Listing that merely REFERENCES one of
+     * the account's Businesses while being owned by somebody else is excluded.
+     * The previous $business->listings() did not make that distinction and could
+     * aggregate another account's Listing activity into this account's totals.
+     *
+     * A selected Business only ever NARROWS this set - it can never expand it.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function authorizedListingIds(int $userId, ?int $businessId = null): \Illuminate\Support\Collection
     {
-        return $business->listings()->pluck('id');
+        return \App\Models\Listing::query()
+            ->where('owner_id', $userId)
+            ->when($businessId !== null, fn ($q) => $q->where('business_id', $businessId))
+            ->pluck('id');
+    }
+
+    /**
+     * WAVE 28B - the supported period choices, validated. An unvalidated `days`
+     * allowed arbitrarily wide ranges; invalid input falls back to the default
+     * rather than erroring.
+     */
+    private function validatedDays(Request $request): int
+    {
+        $days = (int) $request->input('days', 30);
+
+        return in_array($days, self::SUPPORTED_DAYS, true) ? $days : 30;
     }
 
     public function index(Request $request)
@@ -39,21 +74,21 @@ class AnalyticsController extends Controller
             $business = $businesses->firstWhere('id', $selectedBusinessId);
         }
 
-        if (!isset($business) || !$business) {
-            $business = $businesses->first();
-        }
+        // WAVE 28B - a Business is an OPTIONAL filter. An account with only
+        // independently owned Professional Listings is no longer redirected away:
+        // its analytics resolve from its own Listings.
+        $business = $selectedBusinessId
+            ? $businesses->firstWhere('id', $selectedBusinessId)
+            : null;
 
-        if (!$business) {
-            return redirect()->route('owner.dashboard')
-                ->with('error', 'No business to show analytics for.');
-        }
-
-        // Get date range filter
-        $days = request('days', 30);
+        $days = $this->validatedDays($request);
         $startDate = now()->subDays($days);
 
                 // Get analytics data — aggregate across the organization's listings.
-        $listingIds = $this->listingIdsFor($business);
+        // Account-owned set, narrowed (never expanded) by the filter.
+        $listingIds = $business
+            ? $this->authorizedListingIds($user->id, $business->id)
+            : $this->authorizedListingIds($user->id);
 
         $analyticsData = ListingAnalytics::whereIn('listing_id', $listingIds)
             ->where('date', '>=', $startDate)
@@ -102,14 +137,17 @@ class AnalyticsController extends Controller
             : 0;
 
         return Inertia::render('Owner/Analytics/Index', [
-            'business' => $business,
+            // WAVE 28B - a neutral subject when no Business is selected, so the
+            // page renders for an account with only Professional Listings.
+            'business' => $business ?? (object) ['id' => null, 'name' => 'All listings', 'slug' => null],
             'analyticsData' => $analyticsData,
             'chartData' => $chartData,
             'summary' => $summary,
             'conversionRate' => $conversionRate,
             'days' => $days,
             'businesses' => $businesses,
-            'selectedBusinessId' => $business->id,
+            'selectedBusinessId' => $business?->id,
+            'listingsCount' => $listingIds->count(),
         ]);
     }
 
@@ -235,33 +273,35 @@ class AnalyticsController extends Controller
     private function resolveExportContext(Request $request)
     {
         $user = Auth::user();
+
         $businesses = $user->businesses()
             ->whereIn('status', ['approved', 'published'])
             ->get(['id', 'name', 'slug', 'status']);
 
         $selectedBusinessId = $request->input('business');
+        $business = $selectedBusinessId
+            ? $businesses->firstWhere('id', $selectedBusinessId)
+            : null;
 
-        if ($selectedBusinessId) {
-            $business = $businesses->firstWhere('id', $selectedBusinessId);
-        }
+        // WAVE 28B - exports cover the ACCOUNT's authorized Listings, narrowed by
+        // the optional filter. A neutral subject keeps the CSV and PDF formats
+        // (and the pdf.analytics view) unchanged when no Business is selected.
+        $subject = $business ?? (object) ['name' => 'All listings', 'slug' => 'all-listings'];
 
-        if (!isset($business) || !$business) {
-            $business = $businesses->first();
-        }
+        $listingIds = $business
+            ? $this->authorizedListingIds($user->id, $business->id)
+            : $this->authorizedListingIds($user->id);
 
-        abort_unless($business, 404, 'No business found for export.');
-
-        $days = (int) $request->input('days', 30);
-        $days = max(1, min($days, 365)); // clamp 1..365
+        $days = $this->validatedDays($request);
 
         $startDate = now()->subDays($days);
         $endDate = now();
 
-                $analyticsData = ListingAnalytics::whereIn('listing_id', $this->listingIdsFor($business))
+        $analyticsData = ListingAnalytics::whereIn('listing_id', $listingIds)
             ->where('date', '>=', $startDate)
             ->orderBy('date')
             ->get();
 
-        return [$business, $analyticsData, $days, $startDate, $endDate];
+        return [$subject, $analyticsData, $days, $startDate, $endDate];
     }
 }
