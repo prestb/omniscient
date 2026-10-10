@@ -66,12 +66,23 @@ class SitemapController extends Controller
      * Only Businesses that actually render a meaningful public page.
      * A Business row with no published Listings is not a discovery surface.
      *
+     * PHASE 26 — the organization page is gated on MORE than its own status and
+     * visibility: `DirectoryController::show()` calls
+     * `Business::isPubliclyReachable()`, which ALSO requires the owner's active
+     * subscription, and aborts 404 without it. This method previously omitted
+     * that condition, so the sitemap advertised `/business/{slug}` URLs that
+     * returned 404 for any organization whose owner had no active subscription —
+     * a sitemap that contradicted application visibility.
+     *
+     * The filter now applies the SAME single source of truth the route does
+     * rather than re-stating the rule, so the two can never drift again.
+     *
      * @return array<int, string>
      */
     private function businessUrls(): array
     {
         return Business::query()
-            ->where('status', 'published')   // same gate as DirectoryController::show
+            ->where('status', 'published')   // cheap pre-filter; the model is authoritative
             ->whereNull('hidden_at')
             ->whereNotNull('slug')
             ->whereHas('listings', function ($q) {
@@ -79,6 +90,9 @@ class SitemapController extends Controller
                     ->whereNull('listings.hidden_at');
             })
             ->orderBy('id')
+            ->with('owner.activeSubscription')   // avoids N+1 in the filter below
+            ->get()
+            ->filter(fn (Business $business) => $business->isPubliclyReachable())
             ->pluck('slug')
             ->map(fn($slug) => url("/business/{$slug}"))
             ->all();

@@ -30,6 +30,25 @@ function seoListing(array $attrs = []): Listing
     ], $attrs));
 }
 
+/**
+ * PHASE 26 — give a Business the ACTIVE subscription its public page requires.
+ *
+ * `/business/{slug}` calls `Business::isPubliclyReachable()`, which is
+ * status + visibility + the owner's active subscription. Without this a Business
+ * has no reachable organization page at all.
+ */
+function seoSubscribe(Business $business): void
+{
+    $owner = $business->owner ?? User::factory()->owner()->create();
+    $business->update(['owner_id' => $owner->id]);
+
+    \App\Models\Subscription::factory()->create([
+        'user_id' => $owner->id,
+        'plan_id' => \App\Models\Plan::factory()->create(['max_listings' => 5])->id,
+        'status' => \App\Models\Subscription::STATUS_ACTIVE,
+    ]);
+}
+
 // ── Sitemap ─────────────────────────────────────────────────────────────────
 
 test('the sitemap endpoint serves xml', function () {
@@ -60,16 +79,47 @@ test('unpublished, hidden, suspended and deleted listings do not appear', functi
     expect($xml)->not->toContain($deleted->slug);
 });
 
-test('a business with a published listing appears, one without does not', function () {
-    $withListing = Business::factory()->create(['status' => 'published']);
-    seoListing(['business_id' => $withListing->id]);
+test('a subscribed business with a published listing appears, an unreachable one does not', function () {
+    // Reachable: published, visible, has a published Listing, owner subscribed.
+    $reachable = Business::factory()->create(['status' => 'published']);
+    seoListing(['business_id' => $reachable->id]);
+    seoSubscribe($reachable);
 
+    // NOT reachable: published and has a Listing, but no active subscription —
+    // `/business/{slug}` 404s, so the sitemap must not advertise it.
+    $unsubscribed = Business::factory()->create(['status' => 'published']);
+    seoListing(['business_id' => $unsubscribed->id]);
+
+    // NOT reachable: subscribed, but no published Listing to show.
     $empty = Business::factory()->create(['status' => 'published']);
+    seoSubscribe($empty);
 
     $xml = $this->get('/sitemap.xml')->getContent();
 
-    expect($xml)->toContain('/business/' . $withListing->slug);
+    expect($xml)->toContain('/business/' . $reachable->slug);
+    expect($xml)->not->toContain('/business/' . $unsubscribed->slug);
     expect($xml)->not->toContain('/business/' . $empty->slug);
+});
+
+test('every organization URL the sitemap advertises is actually reachable', function () {
+    // PHASE 26 — the invariant: the sitemap must agree with application
+    // visibility. Before this phase the sitemap advertised organizations whose
+    // owner had no active subscription, and those URLs returned 404.
+    $reachable = Business::factory()->create(['status' => 'published']);
+    seoListing(['business_id' => $reachable->id]);
+    seoSubscribe($reachable);
+
+    $unreachable = Business::factory()->create(['status' => 'published']);
+    seoListing(['business_id' => $unreachable->id]);
+
+    // The route itself: one 200, one 404.
+    $this->get('/business/' . $reachable->slug)->assertOk();
+    $this->get('/business/' . $unreachable->slug)->assertNotFound();
+
+    // The sitemap agrees with the route, in both directions.
+    $xml = $this->get('/sitemap.xml')->getContent();
+    expect($xml)->toContain('/business/' . $reachable->slug);
+    expect($xml)->not->toContain('/business/' . $unreachable->slug);
 });
 
 test('the sitemap never contains query-parameter or json urls', function () {
