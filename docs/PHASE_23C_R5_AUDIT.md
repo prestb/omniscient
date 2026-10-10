@@ -695,6 +695,13 @@ created or repaired it. It is recorded because it materially changes what
 new removal tests pass because the suite targets `test_listings`; the **absent
 development `listings` index** is unrelated to them.
 
+> **RESOLVED by Phase 23G.** The development instance was reconciled: the
+> `businesses` index was proven stale (no producer, no consumer) and removed,
+> the 71 orphaned `categories` documents were flushed to match an empty source
+> table, and `listings` was recreated with canonical settings. Final state:
+> `listings` 0, `categories` 0, `businesses` absent. See
+> `docs/PHASE_23G_MEILISEARCH_INDEX_RECONCILIATION.md`.
+
 ### 13.4 The two ImagePipelineTest failures now PASS — and that is not 23F's doing
 
 §4 above records two `Tests\Feature\Images\ImagePipelineTest` failures as

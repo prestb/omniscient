@@ -24,6 +24,7 @@ read the document in full.
 | 23C-R5 **F8** — live-search test under a null driver | Implemented — CI runs a real Meilisearch service (`2ff94c5`) |
 | Main `/search` error boundary | **Implemented by 23D** — an engine outage now returns HTTP 200 with an empty result set instead of a 500 |
 | 23E — `/search` response contract | **Implemented by 23E** — the page consumes the canonical flattened paginator envelope |
+| 23G — development Meilisearch reconciliation | **Performed** — the `businesses` index was proven stale and removed, the orphaned `categories` documents were flushed, and the canonical `listings` index was rebuilt. See `docs/PHASE_23G_MEILISEARCH_INDEX_RECONCILIATION.md` |
 
 **Historical statements that must NOT be read as current status.** Section 4
 ("Workstream B — Meilisearch") was written during the Phase 23B audit. It records
