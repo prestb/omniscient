@@ -48,7 +48,7 @@ class SubscriptionController extends Controller
         $approvedCount = $pendingBusinesses->where('status', 'approved')->count();
 
         $subscriptionHistory = Subscription::where('user_id', $user->id)
-            ->with(['plan', 'business'])
+            ->with(['plan'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

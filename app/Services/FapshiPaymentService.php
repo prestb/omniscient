@@ -310,17 +310,57 @@ class FapshiPaymentService
             return;
         }
 
-        // Update transaction status
+        // ============================================================
+        // PHASE 24-R1 — WEBHOOK IDEMPOTENCY.
+        //
+        // Fapshi RETRIES webhooks, and a retry is indistinguishable from a first
+        // delivery. The old code re-ran `handleSuccessfulPayment()` on every
+        // replay, and that method RESETS `start_date` and `end_date` — so a
+        // duplicate silently EXTENDED the subscription. The polling path
+        // (`checkStatus`) was already guarded; the webhook was not.
+        //
+        // The claim below is the idempotency primitive, and it is deliberately
+        // an ATOMIC conditional UPDATE rather than a read-then-write: only the
+        // delivery that flips `confirmed_at` from NULL to a value affects a row.
+        // Every later delivery — and a webhook arriving after polling already
+        // confirmed the transaction — affects ZERO rows and is ignored.
+        //
+        // It is NOT wrapped around `handleSuccessfulPayment()` because holding a
+        // row lock across notification delivery would let an unrelated failure
+        // roll back a payment that Fapshi has already taken.
+        // ============================================================
+        if ($status === 'SUCCESSFUL') {
+            $claimed = PaymentTransaction::whereKey($transaction->id)
+                ->whereNull('confirmed_at')
+                ->update([
+                    'status' => strtolower($status),
+                    'payment_data' => json_encode($payload),
+                    'confirmed_at' => now(),
+                ]);
+
+            if ($claimed === 0) {
+                Log::info('Fapshi Webhook: duplicate delivery ignored', [
+                    'transId' => $transId,
+                    'transaction_id' => $transaction->id,
+                ]);
+
+                return;
+            }
+
+            $transaction->refresh();
+            $this->handleSuccessfulPayment($transaction);
+
+            return;
+        }
+
+        // Non-successful events NEVER claim the transaction, so a later genuine
+        // success can still be applied.
         $transaction->update([
             'status' => strtolower($status),
             'payment_data' => $payload,
-            'confirmed_at' => now(),
         ]);
 
-        // Handle payment status
-        if ($status === 'SUCCESSFUL') {
-            $this->handleSuccessfulPayment($transaction);
-        } elseif ($status === 'FAILED') {
+        if ($status === 'FAILED') {
             $this->handleFailedPayment($transaction, $payload['reason'] ?? null);
         } elseif ($status === 'EXPIRED') {
             $this->handleExpiredPayment($transaction);
@@ -345,7 +385,7 @@ class FapshiPaymentService
         }
 
         $plan = $subscription->plan;
-        $owner = $subscription->user ?? $subscription->business?->owner;
+        $owner = $subscription->user;
 
         $startDate = now();
         $endDate = $startDate->copy()->addMonths($subscription->duration_months ?? 12);
@@ -413,10 +453,6 @@ class FapshiPaymentService
             'failure_reason' => null,
             'user_id' => $owner?->id,
         ]);
-
-        if ($subscription->business) {
-            $subscription->business->update(['has_active_subscription' => true]);
-        }
 
         // ============================================================
         // Auto-publish approved businesses + promote owner role
@@ -497,7 +533,7 @@ class FapshiPaymentService
             return;
         }
 
-        $business = $subscription->business;
+        $accountOwner = $subscription->user;
         $plan = $subscription->plan;
 
         $subscription->update([
@@ -506,10 +542,10 @@ class FapshiPaymentService
         ]);
 
         // ✅ Notify owner about payment failure
-        if ($business && $business->owner) {
+        if ($accountOwner) {
             try {
                 NotificationHelper::send(
-                    $business->owner,
+                    $accountOwner,
                     'Payment Failed ❌',
                     "Your payment for {$plan->name} subscription failed. Reason: " . ($reason ?? 'Please try again.'),
                     route('owner.subscription.index'),
@@ -565,7 +601,7 @@ class FapshiPaymentService
             return;
         }
 
-        $business = $subscription->business;
+        $accountOwner = $subscription->user;
         $plan = $subscription->plan;
 
         $subscription->update([
@@ -574,10 +610,10 @@ class FapshiPaymentService
         ]);
 
         // ✅ Notify owner about expired payment
-        if ($business && $business->owner) {
+        if ($accountOwner) {
             try {
                 NotificationHelper::send(
-                    $business->owner,
+                    $accountOwner,
                     'Payment Expired ⏰',
                     "Your payment link for {$plan->name} subscription has expired. Please initiate a new payment.",
                     route('owner.subscription.index'),

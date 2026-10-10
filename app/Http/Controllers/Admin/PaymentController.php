@@ -107,12 +107,19 @@ class PaymentController extends Controller
     }
 
     /**
-     * Get subscriptions for a business (API endpoint).
+     * Get subscriptions for an ACCOUNT (API endpoint).
+     *
+     * PHASE 24-R1 — a subscription belongs to the User, never to a Business.
+     * The endpoint keeps its request contract (the admin UI still sends a
+     * `business_id`) but resolves that organization to its OWNER and returns
+     * the owner's subscriptions.
      */
     public function getSubscriptions(Request $request)
     {
-        $subscriptions = Subscription::with(['plan', 'business'])
-            ->where('business_id', $request->business_id)
+        $ownerId = Business::find($request->business_id)?->owner_id;
+
+        $subscriptions = Subscription::with(['plan', 'user'])
+            ->where('user_id', $ownerId)
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($subscription) {

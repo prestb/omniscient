@@ -28,7 +28,7 @@ class CheckExpiringSubscriptions extends Command
                 $count++;
 
                 // ✅ Null-safe recipient lookup
-                $recipient = $subscription->user ?? $subscription->business?->owner;
+                $recipient = $subscription->user;
 
                 if ($recipient) {
                     NotificationHelper::send(
@@ -43,7 +43,7 @@ class CheckExpiringSubscriptions extends Command
                     Log::warning("CheckExpiringSubscriptions: no recipient for subscription #{$subscription->id}");
                 }
 
-                $businessName = $subscription->business?->name ?? 'N/A';
+                $businessName = $subscription->user?->name ?? 'N/A';
                 $this->line("Marked as expiring soon: {$businessName}");
                 Log::info("Marked as expiring soon: Subscription {$subscription->id}");
             }
@@ -55,7 +55,7 @@ class CheckExpiringSubscriptions extends Command
                 $count++;
 
                 // ✅ Null-safe recipient lookup
-                $recipient = $subscription->user ?? $subscription->business?->owner;
+                $recipient = $subscription->user;
 
                 if ($recipient) {
                     NotificationHelper::send(
@@ -70,7 +70,7 @@ class CheckExpiringSubscriptions extends Command
                     Log::warning("CheckExpiringSubscriptions: no recipient for expired subscription #{$subscription->id}");
                 }
 
-                $businessName = $subscription->business?->name ?? 'N/A';
+                $businessName = $subscription->user?->name ?? 'N/A';
                 $this->line("Moved to grace period: {$businessName}");
                 Log::info("Moved to grace period: Subscription {$subscription->id}");
             }

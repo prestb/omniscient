@@ -261,7 +261,7 @@
                              class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                             <span class="text-xl flex-shrink-0">{{ event.icon }}</span>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">{{ event.business }}</p>
+                                <p class="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">{{ event.account }}</p>
                                 <p class="text-xs text-gray-400 dark:text-gray-500">{{ event.label }} · {{ event.plan }}</p>
                             </div>
                             <div class="text-right flex-shrink-0 ml-3">

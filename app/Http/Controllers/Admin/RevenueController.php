@@ -288,7 +288,7 @@ class RevenueController extends Controller
 
         // Last 10 activated
         Subscription::where('status', 'active')
-            ->with(['business:id,name', 'plan:id,name'])
+            ->with(['user:id,name', 'plan:id,name'])
             ->latest('updated_at')
             ->limit(5)
             ->get()
@@ -296,7 +296,7 @@ class RevenueController extends Controller
                 $events[] = [
                     'type' => 'activated',
                     'label' => 'Subscription Activated',
-                    'business' => $sub->business?->name,
+                    'account' => $sub->user?->name,
                     'plan' => $sub->plan?->name,
                     'amount' => (float) $sub->total_price,
                     'date' => $sub->updated_at?->toIso8601String(),
@@ -306,7 +306,7 @@ class RevenueController extends Controller
 
         // Last 5 cancelled
         Subscription::where('status', 'cancelled')
-            ->with(['business:id,name', 'plan:id,name'])
+            ->with(['user:id,name', 'plan:id,name'])
             ->latest('cancelled_at')
             ->limit(5)
             ->get()
@@ -314,7 +314,7 @@ class RevenueController extends Controller
                 $events[] = [
                     'type' => 'cancelled',
                     'label' => 'Subscription Cancelled',
-                    'business' => $sub->business?->name,
+                    'account' => $sub->user?->name,
                     'plan' => $sub->plan?->name,
                     'amount' => 0,
                     'date' => $sub->cancelled_at?->toIso8601String(),

@@ -11,7 +11,7 @@
                     d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </template>
             <template #title>Subscriptions</template>
-            <template #subtitle>Manage business subscriptions and plans</template>
+            <template #subtitle>Manage account subscriptions and plans</template>
             <template #actions>
                 <button @click="exportCsv"
                     class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-semibold">
@@ -126,7 +126,7 @@
                             </svg>
                         </div>
                         <input type="text" v-model="filterState.search" @keyup.enter="applyFilters"
-                            placeholder="Search business or owner…"
+                            placeholder="Search account or owner…"
                             class="w-full pl-11 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors text-sm" />
                     </div>
 
@@ -282,10 +282,6 @@
                                             </p>
                                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                 {{ subscription.user?.email || 'N/A' }}
-                                            </p>
-                                            <p v-if="subscription.business"
-                                                class="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
-                                                🏢 {{ subscription.business.name }}
                                             </p>
                                         </div>
                                     </div>

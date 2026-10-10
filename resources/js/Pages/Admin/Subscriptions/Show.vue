@@ -12,7 +12,7 @@
                     d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </template>
             <template #title>Subscription #{{ subscription.id }}</template>
-            <template #subtitle>{{ subscription.user?.name || subscription.business?.name || 'N/A' }}</template>
+            <template #subtitle>{{ subscription.user?.name || 'N/A' }}</template>
             <template #actions>
                 <span :class="statusClass(subscription.status)">
                     {{ subscription.status_label }}
@@ -97,21 +97,6 @@
                                 </p>
                             </div>
 
-                            <!-- Business (optional, if linked) -->
-                            <div v-if="subscription.business">
-                                <label
-                                    class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                    </svg>
-                                    Linked Business
-                                </label>
-                                <a :href="`/admin/businesses/${subscription.business.id}`"
-                                    class="text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors mt-0.5 block">
-                                    {{ subscription.business.name }}
-                                </a>
-                            </div>
 
                             <!-- Plan -->
                             <div>

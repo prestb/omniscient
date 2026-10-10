@@ -382,3 +382,75 @@ currently acts as the effective listing quota. This is a **transitional**
 relationship, **not** an immutable law: the architecture must remain capable of
 `5 listings = 2 Business + 2 Professional + 1 Store` without redesigning
 subscriptions. No plan fields were renamed in Phase 4.
+
+---
+
+# Phase 24-R1 — Subscription Ownership Convergence & Payment Idempotency
+
+**Status: DELIVERED.** Two verified defects were closed without redesigning the
+subscription system.
+
+## 1. A subscription belongs to the ACCOUNT — and now only the account
+
+`subscriptions.business_id` was removed, together with:
+
+* its FOREIGN KEY to `businesses.id`;
+* `subscriptions_business_id_index` and `subscriptions_business_id_status_index`;
+* `Subscription::$fillable['business_id']`;
+* `Subscription::business()`.
+
+Migration: `2026_10_11_000002_remove_business_scoped_subscription_architecture.php`.
+
+The dependent objects are discovered with `Schema::getForeignKeys()` /
+`Schema::getIndexes()` **outside** the table-definition closure. Laravel's schema
+builder does not support safe conditional inspection from inside it, and dropping
+the column while its FK and indexes survived is exactly what broke `migrate:fresh`
+on the first attempt.
+
+Consumers were migrated to the account: the owner subscription page, the user
+model, both Fapshi paths, the expiry/grace console commands, the admin revenue and
+subscription screens, and the admin "subscriptions for an organization" endpoint —
+which keeps its request contract but resolves the organization to its OWNER and
+returns that account's subscriptions.
+
+**What remains, correctly and deliberately:** `Business::hasActiveSubscription()`
+and the `has_active_subscription` accessor **derive** their answer from
+`$this->owner?->active_subscription`. Business therefore has subscription
+*visibility*, never subscription *authority*. The stored
+`businesses.has_active_subscription` column was removed because the accessor
+shadowed it, so the writes that targeted it stored a value no reader could see.
+
+## 2. Payment is applied exactly once
+
+`FapshiPaymentService::processWebhook()` re-ran `handleSuccessfulPayment()` on
+every delivery, and that method resets `start_date` / `end_date` — so a retried
+webhook silently **extended** the subscription. The polling path was guarded; the
+webhook was not.
+
+The fix is an **atomic conditional claim** on the transaction:
+
+    $claimed = PaymentTransaction::whereKey($transaction->id)
+        ->whereNull('confirmed_at')
+        ->update([... 'confirmed_at' => now()]);
+
+Only the delivery that flips `confirmed_at` from NULL affects a row; every later
+delivery affects zero rows and returns early.
+
+| Path | Result |
+|---|---|
+| first SUCCESSFUL | subscription activated, transaction confirmed, dates set |
+| duplicate SUCCESSFUL | ignored — dates, `confirmed_at` and subscription count unchanged |
+| poll, then webhook | ignored: polling already set `confirmed_at` |
+| webhook, then poll | polling skips (`status !== active`) |
+| FAILED, then SUCCESSFUL | the failure never claims, so the genuine success still applies |
+
+It is deliberately **not** wrapped around `handleSuccessfulPayment()`: holding a
+row lock across notification delivery would let an unrelated failure roll back a
+payment Fapshi has already taken. No provider contract, route, secret mechanism or
+locking infrastructure was changed.
+
+## 3. Remaining limitation
+
+Payment-to-subscription **reconciliation and retry** is not implemented and
+remains deferred. The claim makes double-application impossible; it does not make
+application itself transactional.

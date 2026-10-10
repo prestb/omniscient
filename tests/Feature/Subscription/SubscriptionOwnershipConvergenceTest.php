@@ -5,6 +5,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\File;
 
 uses(RefreshDatabase::class);
@@ -63,7 +64,8 @@ test('processPayment succeeds for a user with no business at all', function () {
     expect($subscription->user_id)->toBe($user->id);
     // No Business was invented.
     expect(Business::where('owner_id', $user->id)->count())->toBe(0);
-    expect($subscription->business_id)->toBeNull();
+    // PHASE 24-R1 — the Business-scoped column is GONE, not merely unused.
+    expect(Schema::hasColumn('subscriptions', 'business_id'))->toBeFalse();
 });
 
 // ── B. One active per User (not per Business) ───────────────────────────────
@@ -93,7 +95,6 @@ test('two businesses owned by one user do not permit two active subscriptions', 
     // An active subscription attached to Business A.
     Subscription::factory()->create([
         'user_id' => $user->id,
-        'business_id' => $a->id,
         'plan_id' => $plan->id,
         'status' => Subscription::STATUS_ACTIVE,
     ]);
@@ -112,7 +113,6 @@ test('an active subscription attached to a different business still blocks the a
 
     Subscription::factory()->create([
         'user_id' => $user->id,
-        'business_id' => $other->id,
         'plan_id' => $plan->id,
         'status' => Subscription::STATUS_GRACE_PERIOD,
     ]);
@@ -130,7 +130,6 @@ test('the status endpoint reads the account subscription with no business', func
 
     Subscription::factory()->create([
         'user_id' => $user->id,
-        'business_id' => $business->id,
         'plan_id' => $plan->id,
         'status' => Subscription::STATUS_ACTIVE,
     ]);

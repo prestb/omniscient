@@ -20,7 +20,6 @@ class SubscriptionTest extends TestCase
         $plan = Plan::factory()->create();
 
         $subscription = Subscription::create([
-            'business_id' => $business->id,
             'plan_id' => $plan->id,
             'status' => 'active',
             'start_date' => now()->toDateString(),
@@ -28,7 +27,6 @@ class SubscriptionTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('subscriptions', [
-            'business_id' => $business->id,
             'plan_id' => $plan->id,
             'status' => 'active',
         ]);

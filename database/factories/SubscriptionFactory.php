@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\Business;
+use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -17,7 +17,8 @@ class SubscriptionFactory extends Factory
         $endDate = fake()->dateTimeBetween($startDate, '+1 year');
 
         return [
-            'business_id' => Business::factory(),
+            // PHASE 24-R1 — a subscription belongs to the ACCOUNT.
+            'user_id' => User::factory()->owner(),
             'plan_id' => Plan::factory(),
             'status' => 'active',
             'start_date' => $startDate,

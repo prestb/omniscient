@@ -25,7 +25,7 @@ class ProcessGracePeriod extends Command
             $subscription->suspendAfterGracePeriod();
             $count++;
 
-            $businessName = $subscription->business?->name ?? 'N/A';
+            $businessName = $subscription->user?->name ?? 'N/A';
             $graceEnd = $subscription->grace_period_ends_at?->format('Y-m-d') ?? 'N/A';
 
             $this->line("Suspended: {$businessName} (grace period ended: {$graceEnd})");

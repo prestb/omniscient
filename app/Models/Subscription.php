@@ -19,11 +19,9 @@ class Subscription extends Model
     const STATUS_GRACE_PERIOD = 'grace_period';
     const STATUS_SUSPENDED = 'suspended';
     const STATUS_CANCELLED = 'cancelled';
-    const STATUS_FAILED = 'failed';
 
     protected $fillable = [
         'user_id',
-        'business_id',
         'plan_id',
         'status',
         'start_date',
@@ -79,11 +77,6 @@ class Subscription extends Model
     ];
 
     // ============== RELATIONSHIPS ==============
-
-    public function business()
-    {
-        return $this->belongsTo(Business::class);
-    }
 
     public function scopeForUser($query, $userId)
     {

@@ -340,12 +340,6 @@ class FapshiController extends Controller
                         'failure_reason' => null,
                     ]);
 
-                    // Update business
-                    $business = $subscription->business;
-                    if ($business) {
-                        $business->update(['has_active_subscription' => true]);
-                    }
-
                     // ✅ RESTORE HIDDEN ITEMS — new plan may accommodate them
                     try {
                         app(PlanEnforcementService::class)->enforce($subscription);

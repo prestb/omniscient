@@ -446,7 +446,7 @@ class User extends Authenticatable implements MustVerifyEmail
                     Subscription::STATUS_EXPIRING_SOON,
                     Subscription::STATUS_GRACE_PERIOD,
                 ])
-                ->with(['plan', 'business'])
+                ->with(['plan'])
                 ->latest()
                 ->first();
         }

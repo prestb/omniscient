@@ -94,7 +94,7 @@ class SubscriptionController extends Controller
 
     public function index(Request $request)
     {
-        $query = Subscription::with(['user', 'plan', 'business']);
+        $query = Subscription::with(['user', 'plan']);
 
         // Filter: status
         if ($request->filled('status')) {
@@ -303,7 +303,7 @@ class SubscriptionController extends Controller
      */
     public function edit($id)
     {
-        $subscription = Subscription::with(['user', 'plan', 'business'])->findOrFail($id);
+        $subscription = Subscription::with(['user', 'plan'])->findOrFail($id);
 
         $users = \App\Models\User::whereIn('role', ['user', 'owner'])
             ->orderBy('name')
@@ -518,7 +518,7 @@ class SubscriptionController extends Controller
      */
     public function export(Request $request)
     {
-        $query = Subscription::with(['business:id,name', 'plan:id,name']);
+        $query = Subscription::with(['user:id,name,email', 'plan:id,name']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -564,7 +564,7 @@ class SubscriptionController extends Controller
             foreach ($subscriptions as $sub) {
                 fputcsv($file, [
                     $sub->id,
-                    $sub->business?->name ?? 'N/A',
+                    $sub->user?->name ?? 'N/A',
                     $sub->plan?->name ?? 'N/A',
                     $sub->status,
                     $sub->start_date?->format('Y-m-d') ?? '',
