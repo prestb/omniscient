@@ -234,7 +234,13 @@
                     <ListingCard v-for="listing in listings.data" :key="listing.id" :listing="listing" />
                 </div>
                 <div class="mt-6">
-                    <Pagination :links="listings.links" />
+                    <!-- PHASE 23E — the paginator's range metadata is passed
+                         through, matching Public/Directory.vue and
+                         Public/Collection.vue. Without it `Pagination` falls
+                         back to its 0/0/0 defaults and the "Showing X to Y of
+                         Z results" line is wrong. -->
+                    <Pagination :links="listings.links" :from="listings.from || 0" :to="listings.to || 0"
+                        :total="listings.total || 0" />
                 </div>
             </div>
 

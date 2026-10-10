@@ -129,13 +129,43 @@ class SearchController extends Controller
             $listings = $this->emptySearchResults();
         }
 
+        // =====================================================================
+        // PHASE 23E — CANONICAL APPLICATION PAGINATOR CONTRACT.
+        //
+        // This page used to render `ListingDirectoryResource::collection($listings)`,
+        // which wraps a PAGINATOR in a resource and emits the API shape
+        // `{ data, links: {first,last,prev,next}, meta: {current_page, from,
+        // to, total, last_page, links:[…], …} }`.
+        //
+        // Every other paginated page in this application passes the RAW
+        // paginator and transforms its items in place —
+        // `DirectoryController`, `CollectionController`, `Admin\ListingController`
+        // — which emits the flattened shape
+        // `{ data, from, to, total, current_page, last_page, links: [ … ] }`.
+        // That is the shape `Pagination.vue` requires (`links: Array`) and the
+        // shape `Search/Index.vue` already reads.
+        //
+        // So the envelope was wrong, not the consumer. Wrapping was the only
+        // occurrence of a paginator inside `Resource::collection()` in the
+        // codebase; the resource is still the ITEM transformer below, so the
+        // per-item payload is byte-identical to before.
+        //
+        // Applied after the boundary so the success path and the 23D failure
+        // path cannot drift apart — the fallback is simply an empty paginator
+        // and this transform is a no-op on it.
+        // =====================================================================
+        $listings->getCollection()->transform(
+            fn ($listing) => (new ListingDirectoryResource($listing))->resolve()
+        );
+
         // Get filter data
         $categories = Category::active()->root()->ordered()->get();
         $regions = Region::active()->get();
         $cities = City::active()->get();
 
         return Inertia::render('Public/Search/Index', [
-            'listings' => ListingDirectoryResource::collection($listings),
+            // PHASE 23E — the canonical paginator, not a resource envelope.
+            'listings' => $listings,
             // PHASE 15B — /search is a discovery UTILITY. Arbitrary q/filter/
             // sort/page permutations must not be indexed. `follow` keeps the
             // Listing links inside the results crawlable.

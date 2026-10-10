@@ -113,19 +113,20 @@ test('the search page renders normally when the search engine is up', function (
             ->component('Public/Search/Index')
             ->has('listings.data')
             ->has('listings.links')
-            ->has('listings.meta.total')
+            ->has('listings.total')
+            ->has('listings.from')
+            ->has('listings.to')
         );
 });
 
 // ═══ THE FAILURE PATH ═══════════════════════════════════════════════════════
 //
-// NOTE ON SHAPE — `/search` delivers its results as
-// `{ data, links, meta: { current_page, per_page, total, links, … } }`, which
-// is what `ListingDirectoryResource::collection($paginator)` produces. The
-// assertions below use that real contract. `Search/Index.vue` currently reads
-// `listings.total` / `listings.links` at the top level, i.e. the WRONG paths —
-// a pre-existing mismatch, deliberately NOT touched by this phase because the
-// brief forbids changing successful search behaviour.
+// NOTE ON SHAPE — PHASE 23E corrected the `/search` envelope. It used to be the
+// API-resource shape `{ data, links:{first,last,prev,next}, meta:{…} }`; it is
+// now the canonical application paginator shape
+// `{ data, links:[…], current_page, from, last_page, per_page, to, total }`,
+// identical to `/directory`, `/collections` and the admin listings page. The
+// assertions below use that contract.
 
 test('a search engine failure returns a normal 200 page instead of a 500', function () {
     sbListing('Zebra Search Failure');
@@ -136,7 +137,7 @@ test('a search engine failure returns a normal 200 page instead of a 500', funct
         ->assertInertia(fn ($page) => $page
             ->component('Public/Search/Index')
             ->where('listings.data', [])
-            ->where('listings.meta.total', 0)
+            ->where('listings.total', 0)
         );
 });
 
@@ -151,7 +152,7 @@ test('a failed search returns an empty result set rather than falling back to th
 
     // ...and search still returns nothing, because there is no fallback.
     expect($props['listings']['data'])->toBe([]);
-    expect($props['listings']['meta']['total'])->toBe(0);
+    expect($props['listings']['total'])->toBe(0);
 });
 
 test('a search engine failure does not leak the exception to the visitor', function () {
@@ -191,9 +192,9 @@ test('a failed search keeps the query, filters, sort and pagination shape', func
     expect($props['filters']['featured'])->toBe('1');
 
     // The empty result set is a real paginator, not a bare array.
-    expect($props['listings']['meta']['current_page'])->toBe(2);
-    expect($props['listings']['meta']['per_page'])->toBe(12);
-    expect($props['listings']['meta']['total'])->toBe(0);
+    expect($props['listings']['current_page'])->toBe(2);
+    expect($props['listings']['per_page'])->toBe(12);
+    expect($props['listings']['total'])->toBe(0);
 });
 
 test('the listings shape is identical whether or not the engine is up', function () {

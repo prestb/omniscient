@@ -23,6 +23,7 @@ read the document in full.
 | 23C-R5 **F3** — stale `index-settings.businesses` key | Implemented — removed and guarded (`1006c8e`) |
 | 23C-R5 **F8** — live-search test under a null driver | Implemented — CI runs a real Meilisearch service (`2ff94c5`) |
 | Main `/search` error boundary | **Implemented by 23D** — an engine outage now returns HTTP 200 with an empty result set instead of a 500 |
+| 23E — `/search` response contract | **Implemented by 23E** — the page consumes the canonical flattened paginator envelope |
 
 **Historical statements that must NOT be read as current status.** Section 4
 ("Workstream B — Meilisearch") was written during the Phase 23B audit. It records
@@ -38,11 +39,31 @@ development); **F5** — Scout's `flush` / `import` / `delete-index` resolve the
 prefix correctly but are unguarded; **F6** — there is no Meilisearch host
 allow-list.
 
-**Also observed during 23D, not fixed here:** `Search/Index.vue` reads
-`listings.total`, `listings.from` and `listings.links` at the top level, but
-`/search` actually delivers `{ data, links, meta: { current_page, per_page,
-total, … } }`. The paths under `meta` are the real ones. This is a pre-existing
-frontend/backend contract mismatch, out of scope for 23D.
+**`/search` response contract — RESOLVED by 23E.** 23D recorded that
+`Search/Index.vue` reads `listings.total`, `listings.from` and `listings.links`
+at the top level while `/search` delivered
+`{ data, links: {first,last,prev,next}, meta: {…} }`, and concluded "the paths
+under `meta` are the real ones". **That diagnosis was wrong.** The flattened
+paginator is the contract the whole application uses — `DirectoryController`,
+`CollectionController` and `Admin\ListingController` all pass a RAW paginator,
+and `Pagination.vue` declares `links: { type: Array, required: true }`. `/search`
+was the only place wrapping a paginator in `Resource::collection()`, which turned
+`links` into an object and moved `total`/`from`/`to` under `meta`. The server
+boundary was corrected; the Vue page's existing reads became correct.
+
+**Current contract for `/search`:**
+
+```text
+listings
+├── data            (array of ListingDirectoryResource payloads)
+├── links           (array of { url, label, active })  ← Pagination.vue
+├── current_page
+├── first_page_url / last_page_url / next_page_url / prev_page_url
+├── from / to / last_page / per_page / total / path
+```
+
+There is no `meta` key. `data`, `current_page`, `from`, `to`, `last_page`,
+`per_page` and `total` are all top level. See `SearchResponseContractTest.php`.
 
 See `docs/PHASE_22E_GEOSPATIAL_FOUNDATION.md` for the geospatial foundation that
 §1 below already lists as a true claim.
