@@ -53,6 +53,79 @@ class AnalyticsController extends Controller
      * allowed arbitrarily wide ranges; invalid input falls back to the default
      * rather than erroring.
      */
+    /**
+     * WAVE 28C - PER-LISTING BREAKDOWN over the authorized set.
+     *
+     * Every authorized Listing appears, so a Listing with no recorded activity is
+     * visible rather than silently missing.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function perListingBreakdown($listingIds, int $days): array
+    {
+        if ($listingIds->isEmpty()) {
+            return [];
+        }
+
+        $rows = ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->where('date', '>=', now()->subDays($days - 1))
+            ->groupBy('listing_id')
+            ->selectRaw('
+                listing_id,
+                COALESCE(SUM(views), 0) as total_views,
+                COALESCE(SUM(unique_visitors), 0) as total_unique_visitors,
+                COALESCE(SUM(phone_clicks), 0) as total_phone_clicks,
+                COALESCE(SUM(whatsapp_clicks), 0) as total_whatsapp_clicks,
+                COALESCE(SUM(website_clicks), 0) as total_website_clicks
+            ')
+            ->get()
+            ->keyBy('listing_id');
+
+        return \App\Models\Listing::whereIn('id', $listingIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'status', 'hidden_at'])
+            ->map(function ($listing) use ($rows) {
+                $row = $rows->get($listing->id);
+
+                return [
+                    'id' => $listing->id,
+                    'name' => $listing->name,
+                    'slug' => $listing->slug,
+                    'public_url' => '/listing/' . $listing->slug,
+                    'is_public' => $listing->isVisibleToPublic(),
+                    'total_views' => (int) ($row->total_views ?? 0),
+                    'total_unique_visitors' => (int) ($row->total_unique_visitors ?? 0),
+                    'total_phone_clicks' => (int) ($row->total_phone_clicks ?? 0),
+                    'total_whatsapp_clicks' => (int) ($row->total_whatsapp_clicks ?? 0),
+                    'total_website_clicks' => (int) ($row->total_website_clicks ?? 0),
+                ];
+            })->values()->all();
+    }
+
+    /**
+     * WAVE 28C - LISTING-SPECIFIC ANALYTICS.
+     *
+     * AUTHORIZATION: the requested Listing must be OWNED BY THE AUTHENTICATED
+     * ACCOUNT (`listings.owner_id`). Owning the Listing's Business, owning a
+     * sibling Listing, or supplying an id/slug is NOT sufficient. A non-owned
+     * Listing is treated as absent (404), which also avoids confirming that
+     * somebody else's Listing exists.
+     */
+    public function listingAnalytics(Request $request, \App\Models\Listing $listing)
+    {
+        $user = Auth::user();
+
+        abort_unless((int) $listing->owner_id === (int) $user->id, 404);
+        abort_unless($this->authorizedListingIds($user->id)->contains($listing->id), 404);
+
+        // One renderer, one authorization contract: the Listing-specific request
+        // renders the SAME analytics view, focused on that Listing.
+        return redirect()->route('owner.analytics.index', [
+            'listing' => $listing->id,
+            'days' => $this->validatedDays($request),
+        ]);
+    }
+
     private function validatedDays(Request $request): int
     {
         $days = (int) $request->input('days', 30);
@@ -82,6 +155,7 @@ class AnalyticsController extends Controller
             : null;
 
         $days = $this->validatedDays($request);
+
         $startDate = now()->subDays($days);
 
                 // Get analytics data — aggregate across the organization's listings.
@@ -89,6 +163,14 @@ class AnalyticsController extends Controller
         $listingIds = $business
             ? $this->authorizedListingIds($user->id, $business->id)
             : $this->authorizedListingIds($user->id);
+
+        // WAVE 28C - an optional LISTING filter, INTERSECTED with the
+        // account-authorised set, so a foreign id can only ever produce an empty
+        // result and never another account's data.
+        $requestedListingId = $request->integer('listing');
+        if ($requestedListingId) {
+            $listingIds = $listingIds->intersect([$requestedListingId])->values();
+        }
 
         $analyticsData = ListingAnalytics::whereIn('listing_id', $listingIds)
             ->where('date', '>=', $startDate)
@@ -148,6 +230,10 @@ class AnalyticsController extends Controller
             'businesses' => $businesses,
             'selectedBusinessId' => $business?->id,
             'listingsCount' => $listingIds->count(),
+            'selectedListingId' => $requestedListingId ?: null,
+            // WAVE 28C - per-Listing performance, so an owner can tell their own
+            // Listings apart. One grouped query; no new analytics subsystem.
+            'perListing' => $this->perListingBreakdown($listingIds, $days),
         ]);
     }
 

@@ -23,12 +23,17 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'name', 'slug', 'status', 'created_at', 'owner_id']);
 
+        // WAVE 28C - an account without a Business is NOT an account without
+        // analytics. Analytics are Listing-owned and resolve from the account's
+        // own Listings, so the business-less path returns the same `analytics`
+        // contract the Business path does (see accountAnalytics()).
         if ($businesses->isEmpty()) {
             return Inertia::render('Owner/Dashboard', [
                 'user' => $user,
                 'hasBusiness' => false,
                 'businesses' => [],
                 'selectedBusinessId' => null,
+                'analytics' => $this->accountAnalytics($user),
             ]);
         }
 
@@ -351,6 +356,64 @@ class DashboardController extends Controller
      * @param  \Illuminate\Support\Collection<int,int>  $listingIds
      * @return array{current:int, previous:int, growth:float}
      */
+    /**
+     * WAVE 28C - ACCOUNT-LEVEL ANALYTICS FOR A BUSINESS-LESS OWNER.
+     *
+     * Analytics are Listing-owned, so they resolve from the Listings the
+     * AUTHENTICATED ACCOUNT owns - independently owned Professional Listings
+     * included. No Business is required and none is consulted.
+     *
+     * The payload shape matches the Business path's `analytics` key, so the
+     * dashboard renders the same cards either way. An empty account yields zero
+     * totals with has_data=false rather than a misleading figure.
+     *
+     * @return array<string, mixed>
+     */
+    private function accountAnalytics($user, int $days = 30): array
+    {
+        $listingIds = \App\Models\Listing::where('owner_id', $user->id)->pluck('id');
+
+        $stats = \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->selectRaw('
+                COALESCE(SUM(views), 0) as total_views,
+                COALESCE(SUM(unique_visitors), 0) as total_unique_visitors,
+                COALESCE(SUM(phone_clicks), 0) as total_phone_clicks,
+                COALESCE(SUM(whatsapp_clicks), 0) as total_whatsapp_clicks,
+                COALESCE(SUM(website_clicks), 0) as total_website_clicks,
+                COALESCE(SUM(social_clicks), 0) as total_social_clicks,
+                COALESCE(SUM(direction_clicks), 0) as total_direction_clicks
+            ')
+            ->first();
+
+        $trend = \App\Models\ListingAnalytics::whereIn('listing_id', $listingIds)
+            ->where('date', '>=', now()->subDays($days - 1))
+            ->orderBy('date')
+            ->get();
+
+        return [
+            'stats' => [
+                'total_views' => (int) ($stats->total_views ?? 0),
+                'total_unique_visitors' => (int) ($stats->total_unique_visitors ?? 0),
+                'total_phone_clicks' => (int) ($stats->total_phone_clicks ?? 0),
+                'total_whatsapp_clicks' => (int) ($stats->total_whatsapp_clicks ?? 0),
+                'total_website_clicks' => (int) ($stats->total_website_clicks ?? 0),
+                'total_social_clicks' => (int) ($stats->total_social_clicks ?? 0),
+                'total_direction_clicks' => (int) ($stats->total_direction_clicks ?? 0),
+            ],
+            'chart' => [
+                'labels' => $trend->pluck('date')->map(fn ($d) => $d->format('M d'))->toArray(),
+                'views' => $trend->pluck('views')->toArray(),
+                'unique_visitors' => $trend->pluck('unique_visitors')->toArray(),
+                'phone_clicks' => $trend->pluck('phone_clicks')->toArray(),
+                'whatsapp_clicks' => $trend->pluck('whatsapp_clicks')->toArray(),
+                'website_clicks' => $trend->pluck('website_clicks')->toArray(),
+            ],
+            'comparison' => $this->analyticsComparison($listingIds, $days),
+            'has_data' => (int) ($stats->total_views ?? 0) > 0,
+            'listings_count' => $listingIds->count(),
+        ];
+    }
+
     private function analyticsComparison($listingIds, int $days): array
     {
         // WAVE 28B — one shared, half-open definition (see

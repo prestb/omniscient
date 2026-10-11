@@ -292,8 +292,8 @@
                     </div>
 
                     <!-- KPI CARDS (with deltas + click-through) -->
-                    <SkeletonLoader v-if="hasBusiness && isRefreshing" variant="kpi" :count="4" />
-                    <div v-else-if="hasBusiness" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <SkeletonLoader v-if="showAnalytics && isRefreshing" variant="kpi" :count="4" />
+                    <div v-else-if="showAnalytics" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                          <a href="/owner/analytics"
                               class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md hover:-translate-y-0.5 hover:border-primary-200 dark:hover:border-primary-800 transition-all group">
                               <div class="flex items-center justify-between mb-2">
@@ -382,10 +382,10 @@
                     </div>
 
                     <!-- ============ VIEWS CHART (skeleton on refresh) ============ -->
-                    <SkeletonLoader v-if="hasBusiness && isRefreshing" variant="chart" />
+                    <SkeletonLoader v-if="showAnalytics && isRefreshing" variant="chart" />
 
                     <div v-else-if="
-                         hasBusiness &&
+                         showAnalytics &&
                          analytics?.has_data &&
                          analytics?.chart?.labels?.length > 0
                     " class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -918,6 +918,13 @@
      };
 
      // ============== CONSOLIDATED BANNER (priority-ordered) ==============
+     /**
+      * WAVE 28C - analytics are LISTING-owned and account-scoped. An account may
+      * own Listings and no Business, so the analytics cards are gated on the
+      * presence of the analytics payload, never on Business existence.
+      */
+     const showAnalytics = computed(() => !!props.analytics);
+
      const topBanner = computed(() => {
           // 1. Pending account
           if (props.user?.status === "pending") {

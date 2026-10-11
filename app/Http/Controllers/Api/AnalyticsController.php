@@ -16,6 +16,71 @@ class AnalyticsController extends Controller
      */
     private const VALID_CLICK_TYPES = ['phone', 'whatsapp', 'website', 'direction', 'social'];
 
+    /**
+     * WAVE 28C - VIEW DEDUPLICATION WINDOW, IN MINUTES.
+     *
+     * DEFINITION OF `views`: the number of ACCEPTED Listing-view events, where an
+     * event is accepted at most ONCE per Listing per browser session per this
+     * window. Reloading the page, or any repeated request inside the window, does
+     * not add another view. A genuine later visit - after the window - counts
+     * again, so the metric is repeatable rather than capped.
+     *
+     * Deduplication is enforced SERVER-side in the cache, keyed by the session
+     * id. No client-supplied flag is trusted as the mechanism, and no IP address
+     * or device fingerprint is stored.
+     */
+    private const VIEW_DEDUP_WINDOW_MINUTES = 30;
+
+    /**
+     * WAVE 28C - BEST-EFFORT AUTOMATED-CLIENT TOKENS.
+     *
+     * User-Agent strings are spoofable, so this is deliberately a blunt deny-list
+     * and NOT a guarantee: a crawler presenting a browser User-Agent is still
+     * counted. It keeps the obvious majority of crawlers, monitors and
+     * command-line clients from inflating the metric without adding a heavyweight
+     * bot-detection dependency.
+     */
+    private const AUTOMATED_TOKENS = [
+        'bot', 'crawl', 'spider', 'slurp', 'facebookexternalhit', 'preview',
+        'curl', 'wget', 'python-requests', 'python-urllib', 'go-http-client',
+        'headlesschrome', 'phantomjs', 'lighthouse', 'pingdom', 'uptimerobot',
+        'semrush', 'ahrefs', 'bytespider', 'gptbot', 'claudebot', 'ccbot',
+    ];
+
+    /** True when the request looks automated. An absent User-Agent is a real visit. */
+    private function isAutomated(Request $request): bool
+    {
+        $agent = strtolower((string) $request->userAgent());
+
+        if ($agent === '') {
+            return false;
+        }
+
+        foreach (self::AUTOMATED_TOKENS as $token) {
+            if (str_contains($agent, $token)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Server-side deduplication: true when this session already counted this
+     * Listing inside the window. Cache::add() is atomic, so two concurrent
+     * requests cannot both win.
+     */
+    private function alreadyCounted(Request $request, Listing $listing, string $metric): bool
+    {
+        $key = 'analytics:' . $metric . ':' . $listing->id . ':' . $request->session()->getId();
+
+        return ! \Illuminate\Support\Facades\Cache::add(
+            $key,
+            1,
+            now()->addMinutes(self::VIEW_DEDUP_WINDOW_MINUTES)
+        );
+    }
+
     // PHASE 11 / WAVE 1D-3 — the Business-keyed trackView($businessId) and
     // trackClick($request, $businessId, $type) writers were DELETED. They existed
     // only to resolve an arbitrary Listing through Business::primaryListing() and
@@ -48,6 +113,17 @@ class AnalyticsController extends Controller
             return response()->json(['error' => 'Listing not found'], 404);
         }
 
+        // Automated clients do not create an analytics row at all.
+        if ($this->isAutomated($request)) {
+            return response()->json(['success' => true, 'counted' => false, 'reason' => 'automated']);
+        }
+
+        // Repeat views from the same session inside the window are accepted but
+        // NOT counted again, so refreshes cannot inflate the metric.
+        if ($this->alreadyCounted($request, $listing, 'view')) {
+            return response()->json(['success' => true, 'counted' => false, 'reason' => 'deduplicated']);
+        }
+
         try {
             ListingAnalytics::trackView($listing->id);
 
@@ -76,6 +152,13 @@ class AnalyticsController extends Controller
         }
 
         try {
+            // WAVE 28C - clicks are NOT deduplicated (a visitor may legitimately
+            // press "call" twice); only obvious automated clients are skipped, so
+            // the recorded click keeps its established meaning.
+            if ($this->isAutomated($request)) {
+                return response()->json(['success' => true, 'counted' => false, 'reason' => 'automated']);
+            }
+
             // Same vocabulary as the existing endpoint. Nothing renamed.
             if (!in_array($type, self::VALID_CLICK_TYPES, true)) {
                 return response()->json(['error' => 'Invalid click type'], 400);

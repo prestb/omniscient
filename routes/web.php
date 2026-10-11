@@ -530,6 +530,11 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
         Route::get('/', [AnalyticsController::class, 'index'])->name('index');
 
         // ✅ Export
+        // WAVE 28C - LISTING-SPECIFIC analytics. Authorized on listings.owner_id;
+        // a foreign Listing is treated as absent (404).
+        Route::get('/listing/{listing}', [AnalyticsController::class, 'listingAnalytics'])->name('listing');
+
+        // Export
         Route::get('/export/csv', [AnalyticsController::class, 'exportCsv'])->name('export.csv');
         Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
     });

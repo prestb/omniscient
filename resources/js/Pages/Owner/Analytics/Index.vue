@@ -108,6 +108,83 @@
                 </div>
             </div>
 
+            <!-- WAVE 28C - PER-LISTING PERFORMANCE.
+                 Analytics belong to each Listing; this reuses the page's existing
+                 table conventions and the same metrics the API returns. -->
+            <div
+                class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div
+                    class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Performance by Listing</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <strong>Views</strong> counts accepted Listing views; repeat views from the
+                            same browser session within 30 minutes are not counted again.
+                            <strong>Unique visitors</strong> is per session, not verified people.
+                            Click figures are button presses, not completed calls or messages.
+                        </p>
+                    </div>
+                    <a v-if="selectedListingId" :href="`/owner/analytics?days=${days}`"
+                        class="shrink-0 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                        View all listings
+                    </a>
+                </div>
+
+                <div v-if="!perListing || perListing.length === 0" class="px-6 py-10 text-center">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">No Listings to report on yet</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Analytics appear here once you own a Listing and it receives traffic.
+                    </p>
+                </div>
+
+                <div v-else class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th
+                                    class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Listing</th>
+                                <th
+                                    class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Views</th>
+                                <th
+                                    class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Unique Visitors (per session)</th>
+                                <th
+                                    class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Phone Clicks</th>
+                                <th
+                                    class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <tr v-for="row in perListing" :key="row.id"
+                                :class="String(selectedListingId) === String(row.id) ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'">
+                                <td class="px-6 py-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ row.name }}</p>
+                                    <a :href="row.public_url" target="_blank" rel="noopener"
+                                        class="text-xs text-primary-600 dark:text-primary-400 hover:underline">/listing/{{ row.slug }}</a>
+                                    <span v-if="!row.is_public"
+                                        class="ml-2 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">Not public</span>
+                                </td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ formatNumber(row.total_views) }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ formatNumber(row.total_unique_visitors) }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ formatNumber(row.total_phone_clicks) }}</td>
+                                <td class="px-6 py-4 text-right">
+                                    <a :href="`/owner/analytics?listing=${row.id}&days=${days}`"
+                                        class="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                                        {{ String(selectedListingId) === String(row.id) ? 'Viewing' : 'View analytics' }}
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Detailed Stats -->
             <div
                 class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -126,7 +203,7 @@
                                     Views</th>
                                 <th
                                     class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Unique Visitors</th>
+                                    Unique Visitors (per session)</th>
                                 <th
                                     class="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Phone Clicks</th>
@@ -172,6 +249,9 @@
     import PageHeader from '@/Components/PageHeader.vue';
 
     const props = defineProps({
+    perListing: { type: Array, default: () => [] },
+    selectedListingId: { type: [Number, String], default: null },
+    listingsCount: { type: Number, default: 0 },
         business: Object,
         analyticsData: Array,
         chartData: Object,
