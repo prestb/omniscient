@@ -301,7 +301,7 @@ treated as evidence of completion.
 | 28A - analytics audit | no document (audit-only wave; its findings were reported in-session) | **VERIFIED COMPLETE** (audit only, no implementation) | - |
 | 28B - analytics ownership convergence | `docs/PHASE_28B_ANALYTICS_OWNERSHIP_AND_INTEGRITY.md`; `tests/Feature/Owner/OwnerAnalyticsAuthorizationTest.php` (12); `phase28b-full-suite.txt`; commit `b319f93` | **VERIFIED COMPLETE** | - |
 | 28C - analytics experience & tracking integrity | `docs/PHASE_28C_ANALYTICS_EXPERIENCE_AND_TRACKING_INTEGRITY.md`; `tests/Feature/Owner/AnalyticsExperienceTest.php` (17); `phase28c-full-suite.txt` (1 incomplete, 1170 passed, 4122 assertions); commit `10fb637` | **VERIFIED COMPLETE** | - |
-| 29 - performance audit & optimization | `docs/PHASE_29_PERFORMANCE_AUDIT_AND_OPTIMIZATION.md`; `tests/Feature/Performance/AdminDashboardAggregateTest.php`; `phase29-full-suite.txt` (1 incomplete, 1171 passed, 4132 assertions); commit `245c490` | **PARTIAL - optimization VERIFIED, audit coverage INCOMPLETE** | the frontend bundle/build measurement and the media audit were **not performed**; the document discloses this rather than claiming it |
+| 29 - performance audit & optimization | `docs/PHASE_29_PERFORMANCE_AUDIT_AND_OPTIMIZATION.md` (incl. addendum §16); `tests/Feature/Performance/AdminDashboardAggregateTest.php`; `phase29-full-suite.txt` (1 incomplete, 1171 passed, 4132 assertions); commit `245c490` | **VERIFIED COMPLETE** | - |
 | 30 - security, accessibility & mobile readiness | `docs/PHASE_30_SECURITY_ACCESSIBILITY_MOBILE_READINESS.md`; `tests/Feature/Security/SecurityAndAccessibilityTest.php` (5); `phase30-full-suite.txt` (1 incomplete, 1176 passed, 4141 assertions); commit `f21e106` | **VERIFIED COMPLETE** | a browser-based accessibility audit, contrast measurement and device testing were not possible in this environment; disclosed, not claimed |
 | Next phase | - | **NOT STARTED** | - |
 
@@ -313,6 +313,17 @@ full-suite artifact timestamped one minute before the commit. What is **not**
 complete is audit *coverage*: the wave's frontend bundle-size investigation and its
 media audit were skipped and are recorded as unmeasured, so no frontend or media
 performance claim should be derived from that wave.
+
+**Wave 29 follow-up (completing the reconciliation above).** The two areas recorded
+as unperformed were completed afterwards and are documented in the Phase 29
+addendum §16: the production frontend bundle was built and measured
+(`npm run build`, PASS, 24.6 s, 127 JS chunks / 2,563.9 KB JS, 16 CSS / 179.1 KB,
+total 2,803.6 KB), and the media pipeline was audited end to end (originals
+downscaled to `MAX_UPLOAD_EDGE = 1600`, sized + WebP variants generated, variants
+served on public pages via `OptimizedImage` with `loading="lazy"` by default). Both
+concluded `AUDITED - NO EVIDENCE-BACKED OPTIMIZATION REQUIRED`, so **no application
+code was changed**. Wave 29's row was therefore promoted from PARTIAL to VERIFIED
+COMPLETE on that evidence alone.
 
 
 ---

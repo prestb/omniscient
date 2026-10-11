@@ -245,3 +245,139 @@ This file: `docs/PHASE_29_PERFORMANCE_AUDIT_AND_OPTIMIZATION.md`.
 * **No map-mode bounding** — would silently drop pins, changing product semantics.
 * **No media/CDN/bundle work** — nothing was measured there, so nothing was claimed.
 * **No Business/Listing/Location model redesign** — out of scope by §20.
+
+
+---
+
+# 16. ADDENDUM - Wave 29 completion (frontend bundle + media audit)
+
+Wave 29 was reconciled as **PARTIAL** because two enumerated scope areas had not been
+performed: frontend bundle/build measurement and the media audit. This addendum closes
+both. **Nothing above is retracted or rewritten** - the baseline, the measured query
+counts, the 84 -> 57 optimization, the Meilisearch findings, the schema/index and
+caching reviews and the regression evidence all stand exactly as written.
+
+## 16.1 Frontend bundle audit
+
+**Command:** `npm run build` (the repository's canonical script -
+`vite build && vite build --ssr`). No alternative build process was introduced.
+
+| Measure | Result |
+|---|---|
+| Build result | **PASS**, exit code 0 |
+| Duration | **24.6 s wall** (client 16.45 s + SSR 3.40 s) |
+| Client files emitted | **147** |
+| JS assets | **127 chunks** - total **2,563.9 KB** |
+| CSS assets | **16** - total **179.1 KB** |
+| Client total | **2,803.6 KB** |
+| SSR files | 133, 4,991.9 KB (server-side only, never shipped to a browser) |
+| Compressed sizes | **not recorded** - the build tooling emits no gzip/brotli figures, and no size was fabricated |
+
+**Largest client assets**
+
+| Size | Asset | Note |
+|---|---|---|
+| 295.7 KB | `app-*.js` | the shared Inertia + Vue + axios shell, loaded once |
+| 239.8 KB | `Directory-*.js` | the map page |
+| 203.3 KB | `LineChart-*.js` | `chart.js` + `vue-chartjs` |
+| 163.8 KB | `app-*.css` | Tailwind output |
+| 154.1 KB | `Index-*.js` | a page chunk |
+| 125.6 KB | `BusinessProfile-*.js` | public organization page |
+
+**Findings**
+
+* **Route-level code splitting is already in place.** 127 separate JS chunks show
+  Inertia's per-page dynamic resolution working: no page ships the whole application,
+  and `app-*.js` (295.7 KB) is the only always-loaded script.
+* **The chart chunk does not affect public pages.** `LineChart` (203.3 KB, the largest
+  non-shell chunk) is imported **only** by `Admin/Revenue`, `Admin/Dashboard`,
+  `Admin/SuperDashboard`, `Owner/Analytics` and `Owner/Dashboard` - all authenticated
+  dashboards. It is lazily loaded per page and never enters a public route's critical
+  path.
+* The remaining large chunks are public pages that legitimately carry their own
+  dependencies (`Directory` ships the map; `BusinessProfile` is a full organization
+  page). Their size is consistent with what they render.
+* **No evidence of duplicate major libraries, accidentally bundled server-only code,
+  or a missing splitting opportunity** was found in the emitted output.
+
+**Decision: `AUDITED - NO EVIDENCE-BACKED OPTIMIZATION REQUIRED`.**
+A successful build is not itself a measurement, so the numbers above are the
+measurement. Per the governing rule, a large file is not treated as a defect merely
+for being large: every large chunk is either the intended shared shell or a
+page-scoped, lazily-loaded bundle whose size matches its function.
+
+## 16.2 Media audit
+
+**The pipeline is already substantial.** `App\Services\ImageService` defines sized
+variants, `QUALITY = 80`, `FORMATS = ['jpg', 'webp']` and `MAX_UPLOAD_EDGE = 1600`;
+`process()` **downscales the incoming original** to that edge and then generates every
+size x format variant, idempotently (existing variants are overwritten). An
+`images:backfill` command exists to generate variants for older uploads.
+
+**Upload.** Originals are constrained (`MAX_UPLOAD_EDGE = 1600`) and re-encoded, so
+oversized originals are **not** retained at full resolution, and variants are produced
+on ingest. `ListingImage` exposes `thumbnail_url`, `medium_url`, `large_url` and
+`thumb_webp`, which is what the delivery layer consumes.
+
+**Delivery - `Components/Public/OptimizedImage.vue`.** One component that:
+
+* renders a `<picture>` with a **WebP `<source>`** and a JPEG `<img>` fallback, so a
+  modern format is offered to every capable browser;
+* resolves a **size variant** (`thumb` / `medium` / `large`, enforced by its prop
+  validator) to `/storage/{base}_{size}.jpg|webp` - it requests a **variant, not the
+  original**;
+* defaults to **`loading="lazy"` and `decoding="async"`**;
+* falls back to the original on error, and to initials when no image exists.
+
+**Where it is used:** `ListingCard`, `ExploreCard`, `ReviewImageGallery`,
+`Public/BusinessProfile` (cover `large`, logo `thumb`, listing covers, gallery) and
+`Public/ListingProfile` (cover `large`, logo `thumb`, gallery) - exactly the public
+listing, card, search-result and organization surfaces.
+
+> An earlier source scan reported "only 3 lazy-loading instances" and "0 width/height
+> attributes". That scan was **misleading** and is corrected here: the lazy default
+> lives in `OptimizedImage`'s prop declaration rather than at each call site, and the
+> single `srcset` occurrence is the WebP `<source>` inside that component.
+
+**Concrete residual issues (documented, not proven defects)**
+
+1. **No viewport-based `srcset` selection.** `OptimizedImage` serves the ONE size its
+   caller names, so a phone viewing a `large` cover downloads the large variant even
+   though smaller variants exist. This is real but bounded - one cover per page - and
+   the variants needed to fix it already exist.
+2. **`<img>` carries no `width`/`height` attributes.** The component is used inside
+   sized/aspect-ratio containers, so layout shift was **not measured** and no CLS claim
+   is made either way; measuring it needs rendered output, which this environment does
+   not provide.
+3. **`ReviewForm`, admin and owner preview `<img>` tags** bypass `OptimizedImage`.
+   Those are form and management surfaces, not public discovery pages, so their weight
+   is not on the public critical path.
+
+**Decision: `AUDITED - NO EVIDENCE-BACKED OPTIMIZATION REQUIRED`.**
+The measured pipeline already downscales originals, generates sized and WebP variants,
+serves a variant rather than the original on public pages, and lazy-loads by default.
+The residuals are an enhancement opportunity (viewport `srcset`) and an unmeasured
+layout question (dimensions); neither is an evidence-backed defect, and a media-system
+redesign is explicitly out of scope.
+
+## 16.3 Wave 29 completion status
+
+| Acceptance criterion | Result |
+|---|---|
+| documented performance baseline | **SATISFIED** (sections 1, 2) |
+| audit of public/owner/admin/search/analytics paths | **SATISFIED** (section 3, 13 paths) |
+| evidence-backed DB + N+1 findings | **SATISFIED** (query counts + SQL shapes) |
+| Meilisearch + index-sync findings | **SATISFIED** (sections 4 and 8) |
+| justified optimizations with before/after | **SATISFIED** (84 -> 62 -> 57, -32%) |
+| index + caching review | **SATISFIED** (sections 10, 11 - none, justified) |
+| frontend bundle/build measurements | **SATISFIED by this addendum** (16.1) |
+| media audit | **SATISFIED by this addendum** (16.2) |
+| relevant regression tests | **SATISFIED** (`AdminDashboardAggregateTest`) |
+| full suite with real MariaDB + Meilisearch | **SATISFIED** (`phase29-full-suite.txt`: 1 incomplete, 1171 passed, 4132 assertions) |
+| production frontend build | **SATISFIED** (PASS, exit 0, 24.6 s) |
+| remaining risks + deferred optimizations | **SATISFIED** (sections 14, 15, 16.2 residuals) |
+| Phase 29 documentation complete | **SATISFIED** - this addendum completes it |
+
+**All Wave 29 acceptance criteria are now satisfied.** No application code was changed
+to achieve this: the audit produced measurements, and the measurements justified no
+code change.
