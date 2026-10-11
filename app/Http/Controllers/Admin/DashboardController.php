@@ -200,16 +200,24 @@ class DashboardController extends Controller
         $labels = [];
         $data = [];
 
+        // WAVE 29 - ONE grouped aggregate replaces twelve per-month SUM queries.
+        // whereMonth()/whereYear() also wrap the column in a function, which
+        // prevents index use; the range predicate below is index-friendly.
+        $byMonth = PaymentTransaction::where('status', 'successful')
+            ->where('confirmed_at', '>=', Carbon::now()->startOfMonth()->subMonths(11))
+            ->selectRaw('YEAR(confirmed_at) as y, MONTH(confirmed_at) as m, SUM(amount) as total')
+            ->groupBy('y', 'm')
+            ->get()
+            ->keyBy(fn ($row) => $row->y . '-' . $row->m);
+
         for ($i = 11; $i >= 0; $i--) {
             $month = Carbon::now()->subMonths($i);
             $labels[] = $month->format('M Y');
 
-            $revenue = PaymentTransaction::where('status', 'successful')
-                ->whereMonth('confirmed_at', $month->month)
-                ->whereYear('confirmed_at', $month->year)
-                ->sum('amount');
+            // Same value the per-month SUM produced; absent months are 0.
+            $row = $byMonth->get($month->year . '-' . $month->month);
 
-            $data[] = $revenue / 1000;
+            $data[] = ($row->total ?? 0) / 1000;
         }
 
         return [
@@ -232,15 +240,20 @@ class DashboardController extends Controller
         $labels = [];
         $data = [];
 
+        // WAVE 29 - ONE grouped aggregate replaces twelve per-month COUNT queries.
+        $byMonth = Business::where('created_at', '>=', Carbon::now()->startOfMonth()->subMonths(11))
+            ->selectRaw('YEAR(created_at) as y, MONTH(created_at) as m, COUNT(*) as total')
+            ->groupBy('y', 'm')
+            ->get()
+            ->keyBy(fn ($row) => $row->y . '-' . $row->m);
+
         for ($i = 11; $i >= 0; $i--) {
             $month = Carbon::now()->subMonths($i);
             $labels[] = $month->format('M Y');
 
-            $count = Business::whereMonth('created_at', $month->month)
-                ->whereYear('created_at', $month->year)
-                ->count();
+            $row = $byMonth->get($month->year . '-' . $month->month);
 
-            $data[] = $count;
+            $data[] = (int) ($row->total ?? 0);
         }
 
         return [
@@ -260,13 +273,19 @@ class DashboardController extends Controller
 
     private function getSubscriptionStatusData()
     {
+        // WAVE 29 - ONE grouped aggregate replaces six per-status COUNT queries.
+        $counts = Subscription::query()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
         $statuses = [
-            'Active' => Subscription::where('status', 'active')->count(),
-            'Expiring Soon' => Subscription::where('status', 'expiring_soon')->count(),
-            'Grace Period' => Subscription::where('status', 'grace_period')->count(),
-            'Expired' => Subscription::where('status', 'expired')->count(),
-            'Suspended' => Subscription::where('status', 'suspended')->count(),
-            'Cancelled' => Subscription::where('status', 'cancelled')->count(),
+            'Active' => (int) $counts->get('active', 0),
+            'Expiring Soon' => (int) $counts->get('expiring_soon', 0),
+            'Grace Period' => (int) $counts->get('grace_period', 0),
+            'Expired' => (int) $counts->get('expired', 0),
+            'Suspended' => (int) $counts->get('suspended', 0),
+            'Cancelled' => (int) $counts->get('cancelled', 0),
         ];
 
         $colors = [
