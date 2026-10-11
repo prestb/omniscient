@@ -44,7 +44,7 @@
             <!-- Filters -->
             <form @submit.prevent="applyFilters"
                 class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <input v-model="form.search" type="text" placeholder="Search name, address or owner…"
+                <input v-model="form.search" type="text" aria-label="Search physical locations" placeholder="Search name, address or owner…"
                     class="rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 text-sm" />
 
                 <select v-model="form.country_id"

@@ -16,9 +16,14 @@ class PushSubscriptionController extends Controller
     public function subscribe(Request $request)
     {
         try {
+            // WAVE 30 - SECURITY. The payload carries the push ENDPOINT and the
+            // p256dh/auth keys, which are credentials for delivering push to this
+            // user. Logging $request->all() wrote those secrets into the
+            // application log, so only non-sensitive metadata is recorded now.
             Log::info('Push subscription request received', [
                 'user_id' => auth()->id(),
-                'data' => $request->all()
+                'endpoint_host' => parse_url((string) $request->input('endpoint'), PHP_URL_HOST),
+                'has_keys' => $request->filled('keys.p256dh') && $request->filled('keys.auth'),
             ]);
 
             $validated = $request->validate([
@@ -78,7 +83,8 @@ class PushSubscriptionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to subscribe: ' . $e->getMessage(),
+                // WAVE 30 - SECURITY: the detail is logged, not returned to the client.
+                'message' => 'Failed to subscribe.',
             ], 500);
         }
     }
@@ -122,7 +128,8 @@ class PushSubscriptionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to unsubscribe: ' . $e->getMessage(),
+                // WAVE 30 - SECURITY: the detail is logged, not returned to the client.
+                'message' => 'Failed to unsubscribe.',
             ], 500);
         }
     }

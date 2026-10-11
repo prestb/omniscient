@@ -11,7 +11,7 @@
                 </svg>
             </div>
 
-            <input ref="inputEl" v-model="query" type="text" :placeholder="placeholder" autocomplete="off"
+            <input ref="inputEl" v-model="query" type="text" :aria-label="placeholder || 'Search listings'" :placeholder="placeholder" autocomplete="off"
                 :class="inputClass" @input="onInput" @focus="onFocus" @keydown.down.prevent="moveHighlight(1)"
                 @keydown.up.prevent="moveHighlight(-1)" @keydown.enter.prevent="onEnter" @keydown.esc="close" role="combobox" aria-autocomplete="list" :aria-controls="listboxId" :aria-activedescendant="activeDescendant"
                 @blur="onBlur" />

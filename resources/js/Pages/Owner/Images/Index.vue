@@ -44,7 +44,7 @@
                         </div>
                     </div>
                     <div class="space-y-3">
-                        <input type="file" accept="image/*" @change="upload('logo', $event)"
+                        <input type="file" accept="image/*" aria-label="Upload organization logo" @change="upload('logo', $event)"
                             class="block text-sm text-gray-600 dark:text-gray-300" />
                         <p class="text-xs text-gray-400">JPEG, PNG, GIF or WebP · max 5MB · min 100×100</p>
                         <button v-if="logo" type="button" @click="remove('logo')"
@@ -65,7 +65,7 @@
                             cover image</div>
                     </div>
                     <div class="space-y-3">
-                        <input type="file" accept="image/*" @change="upload('cover', $event)"
+                        <input type="file" accept="image/*" aria-label="Upload organization cover image" @change="upload('cover', $event)"
                             class="block text-sm text-gray-600 dark:text-gray-300" />
                         <p class="text-xs text-gray-400">JPEG, PNG, GIF or WebP · max 5MB · min 100×100</p>
                         <button v-if="cover" type="button" @click="remove('cover')"

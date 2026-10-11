@@ -732,7 +732,7 @@
                                 Visit this URL once to keep your browser signed in during maintenance.
                             </p>
                             <div class="flex items-center gap-1.5">
-                                <input type="text" :value="maintenance.bypass_url" readonly
+                                <input type="text" :value="maintenance.bypass_url" readonly aria-label="Maintenance bypass URL"
                                     class="flex-1 px-2 py-1.5 text-[11px] font-mono bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-800 rounded-lg text-gray-700 dark:text-gray-300 truncate" />
                                 <button @click="copyBypassUrl"
                                     class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-colors flex-shrink-0">

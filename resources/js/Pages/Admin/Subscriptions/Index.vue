@@ -125,7 +125,7 @@
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
-                        <input type="text" v-model="filterState.search" @keyup.enter="applyFilters"
+                        <input type="text" v-model="filterState.search" aria-label="Search subscriptions by account or owner" @keyup.enter="applyFilters"
                             placeholder="Search account or owner…"
                             class="w-full pl-11 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors text-sm" />
                     </div>
@@ -159,10 +159,10 @@
                 <!-- Date range + actions -->
                 <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                     <div class="flex items-center gap-2 flex-1">
-                        <input type="date" v-model="filterState.date_from"
+                        <input type="date" v-model="filterState.date_from" aria-label="Subscriptions created from date"
                             class="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors text-sm" />
                         <span class="text-gray-400 dark:text-gray-500 text-sm font-medium">to</span>
-                        <input type="date" v-model="filterState.date_to"
+                        <input type="date" v-model="filterState.date_to" aria-label="Subscriptions created to date"
                             class="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors text-sm" />
                     </div>
                     <div class="flex gap-2">
