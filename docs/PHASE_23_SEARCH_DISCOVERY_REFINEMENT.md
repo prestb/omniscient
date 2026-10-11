@@ -289,6 +289,31 @@ matching file text) and asserts `is_open_now` is **not** filterable.
 * Transaction-consistent indexing (23I-3) is deliberately untouched: `scout.queue`
   and `scout.after_commit` are unchanged and remain its own future phase.
 
+### 0.3 Wave 28-30 reconciliation - added by the post-Wave-30 audit
+
+Re-derived at `f21e106` from the local commit history, the phase documents in
+`docs/`, the recorded full-suite artifacts in `storage/app/phase23c-r4/`, and the
+regression tests actually present in the tree. As in 0.1, a commit message was not
+treated as evidence of completion.
+
+| Wave | Evidence in the repository | Status | Remaining work |
+|---|---|---|---|
+| 28A - analytics audit | no document (audit-only wave; its findings were reported in-session) | **VERIFIED COMPLETE** (audit only, no implementation) | - |
+| 28B - analytics ownership convergence | `docs/PHASE_28B_ANALYTICS_OWNERSHIP_AND_INTEGRITY.md`; `tests/Feature/Owner/OwnerAnalyticsAuthorizationTest.php` (12); `phase28b-full-suite.txt`; commit `b319f93` | **VERIFIED COMPLETE** | - |
+| 28C - analytics experience & tracking integrity | `docs/PHASE_28C_ANALYTICS_EXPERIENCE_AND_TRACKING_INTEGRITY.md`; `tests/Feature/Owner/AnalyticsExperienceTest.php` (17); `phase28c-full-suite.txt` (1 incomplete, 1170 passed, 4122 assertions); commit `10fb637` | **VERIFIED COMPLETE** | - |
+| 29 - performance audit & optimization | `docs/PHASE_29_PERFORMANCE_AUDIT_AND_OPTIMIZATION.md`; `tests/Feature/Performance/AdminDashboardAggregateTest.php`; `phase29-full-suite.txt` (1 incomplete, 1171 passed, 4132 assertions); commit `245c490` | **PARTIAL - optimization VERIFIED, audit coverage INCOMPLETE** | the frontend bundle/build measurement and the media audit were **not performed**; the document discloses this rather than claiming it |
+| 30 - security, accessibility & mobile readiness | `docs/PHASE_30_SECURITY_ACCESSIBILITY_MOBILE_READINESS.md`; `tests/Feature/Security/SecurityAndAccessibilityTest.php` (5); `phase30-full-suite.txt` (1 incomplete, 1176 passed, 4141 assertions); commit `f21e106` | **VERIFIED COMPLETE** | a browser-based accessibility audit, contrast measurement and device testing were not possible in this environment; disclosed, not claimed |
+| Next phase | - | **NOT STARTED** | - |
+
+**Wave 29 caveat.** Its primary objective - identify and eliminate real, measurable
+performance problems - is verified: the admin dashboard month-loops and the six
+per-status subscription counts were replaced by grouped aggregates, measured at
+84 -> 57 queries (-32%), pinned by a regression test and corroborated by a recorded
+full-suite artifact timestamped one minute before the commit. What is **not**
+complete is audit *coverage*: the wave's frontend bundle-size investigation and its
+media audit were skipped and are recorded as unmeasured, so no frontend or media
+performance claim should be derived from that wave.
+
 
 ---
 
