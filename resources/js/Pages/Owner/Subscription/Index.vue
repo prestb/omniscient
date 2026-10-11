@@ -369,6 +369,7 @@ const page = usePage();
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import axios from 'axios';
     import { useStatusBadge } from '@/composables/useStatusBadge';
+import { isUnlimitedLimit } from '@/composables/usePlan';
     import PageHeader from '@/Components/PageHeader.vue';
 
     onMounted(() => {
@@ -440,7 +441,7 @@ const page = usePage();
     const formatLimit = (value) => {
         const n = Number(value);
         if (isNaN(n)) return '—';
-        if (n === 999 || n === -1) return '∞';
+        if (isUnlimitedLimit(n)) return '∞';
         if (n === 0) return '0';
         return n;
     };

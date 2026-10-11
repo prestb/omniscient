@@ -377,9 +377,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get max businesses allowed by current plan
+     * WAVE C2 - RENAMED from `getMaxBusinesses()`.
+     *
+     * The old name claimed to return a BUSINESS allowance, but the method has
+     * always returned the plan's LISTING allowance (`max_listings`), and an
+     * organization is not a quota unit. The docblock said "Get max businesses
+     * allowed by current plan" while the body read `max_listings` - exactly the
+     * kind of stale Business-era naming this wave removes.
+     *
+     * Behaviour is UNCHANGED and deliberately so: this is a rename, not an
+     * entitlement change. The method currently has no callers in the
+     * application, so no consumer needed updating; it is retained rather than
+     * deleted because removing an unused accessor is a separate decision.
      */
-    public function getMaxBusinesses()
+    public function getMaxListings()
     {
         if ($this->role === 'super_admin') {
             return PHP_INT_MAX;

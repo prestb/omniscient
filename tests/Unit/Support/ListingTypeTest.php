@@ -11,13 +11,16 @@ use PHPUnit\Framework\TestCase;
  */
 class ListingTypeTest extends TestCase
 {
-    public function test_business_is_the_only_implemented_type(): void
+    public function test_all_declared_types_are_implemented(): void
     {
         $this->assertTrue(ListingType::BUSINESS->isImplemented());
-        $this->assertFalse(ListingType::PROFESSIONAL->isImplemented());
-        $this->assertFalse(ListingType::STORE->isImplemented());
+        $this->assertTrue(ListingType::PROFESSIONAL->isImplemented());
+        $this->assertTrue(ListingType::STORE->isImplemented());
 
-        $this->assertSame([ListingType::BUSINESS], ListingType::implemented());
+        $this->assertSame(
+            [ListingType::BUSINESS, ListingType::PROFESSIONAL, ListingType::STORE],
+            ListingType::implemented()
+        );
     }
 
     public function test_creation_entitlement_mapping_is_stable(): void

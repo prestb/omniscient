@@ -497,6 +497,7 @@
 import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useToast } from '@/composables/useToast';
+import { isUnlimitedLimit } from '@/composables/usePlan';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 
@@ -685,14 +686,14 @@ const formatPrice = (price) => {
 const formatLimit = (value) => {
     const n = Number(value);
     if (isNaN(n)) return '—';
-    if (n === 999 || n === -1) return '∞';
+    if (isUnlimitedLimit(n)) return '∞';
     if (n === 0) return '0';
     return n;
 };
 
 const isUnlimited = (value) => {
     const n = Number(value);
-    return n === 999 || n === -1;
+    return isUnlimitedLimit(n);
 };
 
 

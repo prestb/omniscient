@@ -143,7 +143,7 @@ class Business extends Model
         }
 
                 $maxBranches = $subscription->plan->max_locations ?? 0;
-        if ($maxBranches === -1 || $maxBranches === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($maxBranches)) {
             return true;
         }
 
@@ -170,7 +170,7 @@ class Business extends Model
         }
 
                 $maxBranches = $subscription->plan->max_locations ?? 0;
-        if ($maxBranches === -1 || $maxBranches === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($maxBranches)) {
             return PHP_INT_MAX;
         }
 
@@ -197,7 +197,7 @@ class Business extends Model
         }
 
         $maxImages = $subscription->plan->max_images ?? 0;
-        if ($maxImages === -1 || $maxImages === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($maxImages)) {
             return true;
         }
 
@@ -229,7 +229,7 @@ class Business extends Model
         //    magic value that did not match the unlimited sentinels (-1 / 999)
         //    used by every sibling method. Unlimited plans now report remaining
         //    image slots correctly.
-        if ($maxImages === -1 || $maxImages === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($maxImages)) {
             return PHP_INT_MAX;
         }
 

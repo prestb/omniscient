@@ -54,7 +54,7 @@ class SubscriptionHelper
             'images' => $subscription->plan->max_images ?? 0,
         ];
 
-        if ($limits[$type] === -1) return false;
+        if (\App\Models\Plan::isUnlimitedLimit($limits[$type] ?? null)) return false;
 
         $counts = [
             'listings' => \App\Models\Listing::countFor($user),

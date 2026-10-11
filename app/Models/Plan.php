@@ -164,12 +164,64 @@ class Plan extends Model
     }
 
     /**
-     * Check if plan has unlimited resource
+     * WAVE A1 - THE canonical unlimited sentinel.
+     *
+     * Evidence for choosing -1: PlanController validates every max_* field as
+     * `integer|min:-1`, so -1 is the only unlimited value an administrator can
+     * actually save; the schema columns are NOT NULL integers with finite
+     * defaults; and the seeder only ever writes finite values.
+     */
+    public const UNLIMITED = -1;
+
+    /**
+     * WAVE A1 - LEGACY COMPATIBILITY SENTINEL.
+     *
+     * 999 is not documented anywhere and no seeder, factory or test uses it, but
+     * twelve backend call sites and several UI surfaces already treat it as
+     * unlimited. Reading it as a hard limit in one layer and as unlimited in
+     * another is the inconsistency this wave removes, so it is accepted here as
+     * unlimited everywhere. Normalising stored plans to -1 is a data decision and
+     * is deliberately NOT performed by this wave.
+     */
+    public const LEGACY_UNLIMITED = 999;
+
+    /**
+     * WAVE A1 - THE single predicate every limit check must use.
+     *
+     * `null` is deliberately NOT unlimited: the columns are NOT NULL, so null can
+     * only mean "not loaded". Treating it as unlimited would fail OPEN and grant
+     * an unconfigured plan unlimited access. getLimit() already coalesces a
+     * missing value to 0, so this fails CLOSED.
+     */
+    public static function isUnlimitedLimit(int|string|null $limit): bool
+    {
+        if ($limit === null || $limit === '') {
+            return false;
+        }
+
+        $limit = (int) $limit;
+
+        return $limit === self::UNLIMITED || $limit === self::LEGACY_UNLIMITED;
+    }
+
+    /**
+     * WAVE A1 - the numeric ceiling for an unlimited limit, for callers that must
+     * compare or compute rather than branch. Finite limits pass through unchanged.
+     */
+    public static function normaliseLimit(int|string|null $limit): int
+    {
+        return self::isUnlimitedLimit($limit) ? PHP_INT_MAX : (int) $limit;
+    }
+
+    /**
+     * Check if plan has unlimited resource.
+     *
+     * WAVE A1 - delegates to the single canonical predicate above. Behaviour is
+     * unchanged for every input getLimit() can return.
      */
     public function isUnlimited(string $resource): bool
     {
-        $limit = $this->getLimit($resource);
-        return $limit === -1 || $limit === null;
+        return self::isUnlimitedLimit($this->getLimit($resource));
     }
 
     /**

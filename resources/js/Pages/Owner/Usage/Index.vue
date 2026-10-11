@@ -200,7 +200,7 @@
                                     of
                                     <span
                                         class="font-semibold text-gray-700 dark:text-gray-300"
-                                        >{{ item.limit === -1 ? "∞" : item.limit }}</span
+                                        >{{ formatLimit(item.limit) }}</span
                                     >
                                     used
                                 </p>
@@ -210,7 +210,7 @@
                             class="text-2xl font-bold tracking-tight"
                             :class="statusColor(item).text"
                         >
-                            {{ item.limit === -1 ? "∞" : getPercent(item) + "%" }}
+                            {{ isUnlimitedLimit(item.limit) ? "∞" : getPercent(item) + "%" }}
                         </div>
                     </div>
 
@@ -223,7 +223,7 @@
                             :class="statusColor(item).bar"
                             :style="{
                                 width:
-                                    item.limit === -1 ? '100%' : getPercent(item) + '%',
+                                    isUnlimitedLimit(item.limit) ? '100%' : getPercent(item) + '%',
                             }"
                         ></div>
                     </div>
@@ -253,7 +253,7 @@
                         <p class="text-xs font-bold uppercase tracking-wide" :class="statusColor(item).text">
                             {{ getStatusText(item) }}
                         </p>
-                        <a v-if="item.limit !== -1 && item.current >= item.limit"
+                        <a v-if="!isUnlimitedLimit(item.limit) && item.current >= item.limit"
                            href="/owner/subscription/renew"
                            class="text-xs font-bold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors">
                             Upgrade →
@@ -367,6 +367,7 @@
 
 <script setup>
 import { computed } from "vue";
+import { isUnlimitedLimit } from '@/composables/usePlan';
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 // import Breadcrumb from '@/Components/Breadcrumb.vue';
 import PageHeader from "@/Components/PageHeader.vue";
@@ -404,17 +405,17 @@ const isUnavailable = (item) => {
 };
 
 const isUnlimited = (item) => {
-    return item.limit === -1;
+    return isUnlimitedLimit(item.limit);
 };
 
 const getPercent = (item) => {
-    if (item.limit === -1) return 0;
+    if (isUnlimitedLimit(item.limit)) return 0;
     if (item.limit === 0) return 0;   // ✅ 0/0 shows 0%, not 100%
     return Math.min(100, Math.round((item.current / item.limit) * 100));
 };
 
 const statusColor = (item) => {
-    if (item.limit === -1) return { text: 'text-primary-600 dark:text-primary-400', bar: 'bg-gradient-to-r from-primary-400 to-primary-500' };
+    if (isUnlimitedLimit(item.limit)) return { text: 'text-primary-600 dark:text-primary-400', bar: 'bg-gradient-to-r from-primary-400 to-primary-500' };
     if (item.limit === 0) return { text: 'text-gray-500 dark:text-gray-400', bar: 'bg-gray-300 dark:bg-gray-600' };   // ✅ not available
     const percent = getPercent(item);
     if (percent >= 100) return { text: 'text-red-600 dark:text-red-400', bar: 'bg-gradient-to-r from-red-500 to-red-600' };
@@ -423,7 +424,7 @@ const statusColor = (item) => {
 };
 
 const getStatusText = (item) => {
-    if (item.limit === -1) return 'Unlimited';
+    if (isUnlimitedLimit(item.limit)) return 'Unlimited';
     if (item.limit === 0) return 'Not on your plan';   // ✅ clearer than "Limit reached"
     if (item.current >= item.limit) return 'Limit reached';
     if (item.current >= item.limit * 0.8) return 'Almost full';

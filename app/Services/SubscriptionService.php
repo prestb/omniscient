@@ -70,8 +70,8 @@ class SubscriptionService
             $old = (int) ($oldPlan->{$limit} ?? 0);
             $new = (int) ($newPlan->{$limit} ?? 0);
 
-            $oldUnlimited = ($old === -1 || $old === 999);
-            $newUnlimited = ($new === -1 || $new === 999);
+            $oldUnlimited = (\App\Models\Plan::isUnlimitedLimit($old));
+            $newUnlimited = (\App\Models\Plan::isUnlimitedLimit($new));
 
             if ($oldUnlimited || $newUnlimited) {
                 continue;
@@ -108,8 +108,8 @@ class SubscriptionService
             $old = (int) ($oldPlan->{$limit} ?? 0);
             $new = (int) ($newPlan->{$limit} ?? 0);
 
-            $oldUnlimited = ($old === -1 || $old === 999);
-            $newUnlimited = ($new === -1 || $new === 999);
+            $oldUnlimited = (\App\Models\Plan::isUnlimitedLimit($old));
+            $newUnlimited = (\App\Models\Plan::isUnlimitedLimit($new));
 
             if ($oldUnlimited && !$newUnlimited) {
                 return true;

@@ -67,8 +67,58 @@ class EntitlementService
      * Does the account's plan ALLOW this listing type at all?
      *
      * This is the TYPE half of the decision (independent of quota). It reads
-     * the plan's `features` JSON by the type's canonical entitlement key and
-     * falls back to the type's `allowedByDefault()` when the key is absent
+     * CONTRACT B (reconciled) - THIS IS NOT THE PRODUCT AUTHORIZATION POLICY.
+     *
+     * No controller, policy, middleware or request validation calls this method,
+     * and none should: Listing-type availability is not gated by a separate plan
+     * entitlement. What governs creation is the account-level LISTING QUOTA,
+     * enforced by `canAdd('listings')` and the `plan.limit:listings` middleware.
+     *
+     * The method is retained as compatibility metadata. It reads the plan's
+     * `features` JSON by the type's canonical entitlement key and falls back to
+     * the type's `allowedByDefault()` when the key is absent - which, under
+     * Contract B, allows every type.
+OLD, 1],
+
+    [<<<'OLD'
+     * combined. Prefer this over calling canCreate()/allowsListingType()
+OLD, <<<'NEW'
+     * combined. RETAINED FOR COMPATIBILITY - NOT THE AUTHORIZATION POLICY.
+     *
+     * Like allowsListingType() this has no production caller. Do not wire it into
+     * a creation path: doing so would reintroduce a per-type gate that Contract B
+     * does not have, and would additionally require a per-type quota key that no
+     * plan defines (so it would deny every Professional and Store creation).
+     *
+     * Retained alongside canCreate()/allowsListingType() as metadata only.
+OLD, 1],
+]);
+
+// ═══ STEP 3 — tests that contradicted Contract B ════════════════════════════
+edit('tests/Unit/Support/ListingTypeTest.php', [
+    [<<<'OLD'
+    public function test_business_is_the_only_implemented_type(): void
+    {
+        $this->assertTrue(ListingType::BUSINESS->isImplemented());
+        $this->assertFalse(ListingType::PROFESSIONAL->isImplemented());
+        $this->assertFalse(ListingType::STORE->isImplemented());
+
+        $this->assertSame([ListingType::BUSINESS], ListingType::implemented());
+    }
+OLD, <<<'NEW'
+    public function test_all_declared_types_are_implemented(): void
+    {
+        // CONTRACT B: Business, Professional and Store are all shippable Listing
+        // types backed by the same concrete `listings` entity.
+        $this->assertTrue(ListingType::BUSINESS->isImplemented());
+        $this->assertTrue(ListingType::PROFESSIONAL->isImplemented());
+        $this->assertTrue(ListingType::STORE->isImplemented());
+
+        $this->assertSame(
+            [ListingType::BUSINESS, ListingType::PROFESSIONAL, ListingType::STORE],
+            ListingType::implemented()
+        );
+    }
      * (see ListingType for the business back-compatibility rule).
      *
      * No plan names are inspected — only the entitlement contract.
@@ -126,7 +176,7 @@ class EntitlementService
 
         $limit = $this->limit($user, $entitlement);
         $current = $this->usage($user, $entitlement);
-        $unlimited = ($limit === -1 || $limit === 999);
+        $unlimited = (\App\Models\Plan::isUnlimitedLimit($limit));
 
         return [
             'type' => $type->value,
@@ -239,7 +289,7 @@ class EntitlementService
                 'current' => $this->usage($user, $key),
                 'limit' => $limit,
                 'remaining' => $this->remaining($user, $key),
-                'unlimited' => ($limit === -1 || $limit === 999),
+                'unlimited' => (\App\Models\Plan::isUnlimitedLimit($limit)),
             ];
         }
 

@@ -39,12 +39,22 @@ enum ListingType: string
     case STORE = 'store';
 
     /**
-     * The type currently backed by a real database entity in the
-     * production application. Everything else is design-only in Phase 1.
+     * CONTRACT B (reconciled) - every declared Listing type is SHIPPABLE.
+     *
+     * Business, Professional and Store are all backed by the same concrete
+     * `listings` entity: the type is persisted, validated, editable, indexed in
+     * Meilisearch as a filterable attribute, filterable in admin, rendered on the
+     * public page and covered by the Listing journey tests.
+     *
+     * This previously returned only BUSINESS and described the others as
+     * "design-only in Phase 1". That was stale metadata which contradicted the
+     * shipped product, and it is corrected here rather than acted upon.
+     *
+     * @return array<int, self>
      */
     public static function implemented(): array
     {
-        return [self::BUSINESS];
+        return [self::BUSINESS, self::PROFESSIONAL, self::STORE];
     }
 
     /**
@@ -104,21 +114,23 @@ enum ListingType: string
     }
 
     /**
-     * Whether this listing type is ALLOWED for a plan when the plan's
-     * `features` JSON does not mention it.
+     * CONTRACT B (reconciled) - Listing-type availability is NOT restricted by a
+     * separate plan entitlement. Every type is allowed when the plan's `features`
+     * JSON does not mention it.
      *
-     * ── Phase 3 back-compatibility rule ──
-     * BUSINESS predates the listing-type feature flags and was always
-     * creatable whenever the account had quota, so an absent flag means
-     * ALLOWED. The not-yet-shipped types (PROFESSIONAL, STORE) must be
-     * explicitly enabled, so an absent flag means NOT allowed.
+     * What actually governs whether an account may create a Listing is the
+     * account-level LISTING QUOTA (`plan.max_listings`, enforced by
+     * `canAdd('listings')` and the `plan.limit:listings` route middleware on
+     * creation). Type access is not a second, independent gate.
      *
-     * This keeps business creation working without editing any existing plan
-     * while still gating the future types — and can be tightened deliberately
-     * in a later phase.
+     * This previously returned `$this === self::BUSINESS`, so an absent flag
+     * denied Professional and Store - a rule the shipped product never applied,
+     * because nothing in the application consults this method for authorization.
+     * Returning `true` keeps the metadata consistent with Contract B and ensures
+     * the mechanism cannot contradict it if it is ever wired up.
      */
     public function allowedByDefault(): bool
     {
-        return $this === self::BUSINESS;
+        return true;
     }
 }

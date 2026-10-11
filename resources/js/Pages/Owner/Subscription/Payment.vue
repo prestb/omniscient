@@ -96,7 +96,7 @@
                                 <div
                                     class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
                                     <span class="text-sm text-gray-600 dark:text-gray-400">Locations</span>
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ plan?.max_locations === 999 ?'♾️ Unlimited' : plan?.max_locations }}</span>
+                                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ isUnlimitedLimit(plan?.max_locations) ? '♾️ Unlimited' : plan?.max_locations }}</span>
                                 </div>
                                 <div
                                     class="flex justify-between items-center py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
@@ -184,6 +184,7 @@
     import { router } from '@inertiajs/vue3';
     import { useToast } from '@/composables/useToast';
     import { useConfirm } from '@/composables/useConfirm';
+import { isUnlimitedLimit } from '@/composables/usePlan';
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import PageHeader from '@/Components/PageHeader.vue';
 

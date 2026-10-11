@@ -520,7 +520,7 @@
                                                        }}</span>
                                                        /
                                                        {{
-                                                            usage[key].limit === -1
+                                                            isUnlimitedLimit(usage[key].limit)
                                                                  ? "∞"
                                                                  : usage[key].limit
                                                        }}
@@ -860,6 +860,7 @@
      import { useToast } from "@/composables/useToast";
      import { useConfirm } from "@/composables/useConfirm";
      import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { isUnlimitedLimit } from '@/composables/usePlan';
      import PageHeader from "@/Components/PageHeader.vue";
      import LineChart from "@/Components/Charts/LineChart.vue";
      import DoughnutChart from "@/Components/Charts/DoughnutChart.vue";
@@ -1285,7 +1286,7 @@
 
      // ============== USAGE HELPERS ==============
      const getUsagePercent = (item) => {
-          if (!item || item.limit === -1 || !item.limit) return 0;
+          if (!item || !item.limit || isUnlimitedLimit(item.limit)) return 0;
           return Math.min(100, Math.round((item.current / item.limit) * 100));
      };
 

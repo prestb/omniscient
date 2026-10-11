@@ -71,7 +71,7 @@
             <div class="flex items-start justify-between gap-4 flex-wrap">
                 <div class="min-w-0">
                     <p class="text-body font-semibold text-ink dark:text-white">
-                        <template v-if="quota.limit === -1">
+                        <template v-if="isUnlimitedLimit(quota.limit)">
                             {{ quota.current }} {{ quota.current === 1 ? 'Listing' : 'Listings' }} &middot; unlimited on your plan
                         </template>
                         <template v-else>
@@ -153,6 +153,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, usePage } from '@inertiajs/vue3';
+import { isUnlimitedLimit } from '@/composables/usePlan';
 
 const props = defineProps({
     // PHASE 21B-F - canonical account capacity. The backend owns this;

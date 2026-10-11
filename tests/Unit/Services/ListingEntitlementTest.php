@@ -43,11 +43,13 @@ class ListingEntitlementTest extends TestCase
         $this->assertTrue($this->entitlements->allowsListingType($user, ListingType::BUSINESS));
     }
 
-    public function test_professional_type_is_not_allowed_when_flag_absent(): void
+    public function test_professional_type_is_allowed_when_flag_absent(): void
     {
+        // CONTRACT B - no separate per-type gate: an absent flag allows the type.
+        // This metadata is not consulted by any authorization path.
         $user = $this->userOnPlan(['max_listings' => 3, 'features' => []]);
 
-        $this->assertFalse($this->entitlements->allowsListingType($user, ListingType::PROFESSIONAL));
+        $this->assertTrue($this->entitlements->allowsListingType($user, ListingType::PROFESSIONAL));
     }
 
     public function test_professional_type_is_allowed_when_flag_enabled(): void
@@ -105,12 +107,16 @@ class ListingEntitlementTest extends TestCase
         $this->assertFalse($this->entitlements->canCreateListingType($user, ListingType::PROFESSIONAL));
     }
 
-    public function test_type_disallowed_blocks_composite_even_when_quota_allows(): void
+    public function test_store_type_is_allowed_but_the_composite_still_requires_a_quota_key(): void
     {
-        // Business quota is generous, but the STORE type is NOT enabled.
+        // CONTRACT B: the TYPE is allowed with no flag present...
         $user = $this->userOnPlan(['max_listings' => 10, 'features' => []]);
 
-        $this->assertFalse($this->entitlements->allowsListingType($user, ListingType::STORE));
+        $this->assertTrue($this->entitlements->allowsListingType($user, ListingType::STORE));
+
+        // ...while the legacy composite still reports false, because it additionally
+        // reads a per-type COUNT key (`stores`) that no plan defines. That is exactly
+        // why the composite is retained as metadata and never wired into creation.
         $this->assertFalse($this->entitlements->canCreateListingType($user, ListingType::STORE));
     }
 

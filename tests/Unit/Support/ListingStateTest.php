@@ -72,10 +72,11 @@ class ListingStateTest extends TestCase
         $this->assertSame('stores', ListingType::STORE->creationEntitlement());
     }
 
-    public function test_only_business_is_implemented_in_phase_1(): void
+    public function test_every_listing_type_is_implemented(): void
     {
+        // CONTRACT B reconciliation - the Phase 1 "business only" contract is retired.
         $this->assertTrue(ListingType::BUSINESS->isImplemented());
-        $this->assertFalse(ListingType::PROFESSIONAL->isImplemented());
-        $this->assertFalse(ListingType::STORE->isImplemented());
+        $this->assertTrue(ListingType::PROFESSIONAL->isImplemented());
+        $this->assertTrue(ListingType::STORE->isImplemented());
     }
 }

@@ -240,7 +240,7 @@
 <script setup>
     import { router } from '@inertiajs/vue3';
     import { computed, ref } from 'vue';
-    import { usePlan } from '@/composables/usePlan';
+    import { usePlan, isUnlimitedLimit } from '@/composables/usePlan';
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import Pagination from '@/Components/Pagination.vue';
     import LockedFeature from '@/Components/LockedFeature.vue';
@@ -273,7 +273,7 @@
     const isLocked = computed(() => !can('coupons'));
 
     const showLimitWarning = computed(() => {
-        return !isLocked.value && props.remaining !== -1 && props.remaining <= 1;
+        return !isLocked.value && !isUnlimitedLimit(props.remaining) && props.remaining <= 1;
     });
 
     const formatPrice = (price) => {

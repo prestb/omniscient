@@ -74,7 +74,7 @@ class PlanEnforcementService
         // Businesses than their listing allowance had Businesses hidden for a
         // quota that says nothing about Businesses.
         $maxListings = (int) ($subscription->plan->max_listings ?? 0);
-        if ($maxListings === -1 || $maxListings === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($maxListings)) {
             // Unlimited — restore everything, no hiding
             $restored += $this->restoreAllForOwner($subscription->user_id, Listing::class);
             $restored += $this->restoreAllForOwner($subscription->user_id, Business::class);
@@ -150,7 +150,7 @@ class PlanEnforcementService
     private function enforceLocations(Subscription $sub, Business $business, bool $graceActive, array &$breakdown): array
     {
         $limit = (int) ($sub->plan->max_locations ?? 0);
-        if ($limit === -1 || $limit === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($limit)) {
             return $this->restoreChildren($business->locations());
         }
 
@@ -186,7 +186,7 @@ class PlanEnforcementService
         $listingIds = $business->listings()->pluck('id');
         $base = ListingService::whereIn('listing_id', $listingIds);
 
-        if ($limit === -1 || $limit === 999 || $limit === 0) {
+        if (\App\Models\Plan::isUnlimitedLimit($limit) || $limit === 0) {
             return $this->restoreChildren((clone $base));
         }
 
@@ -213,7 +213,7 @@ class PlanEnforcementService
                 $listingIds = $business->listings()->pluck('id');
         $base = ListingImage::whereIn('listing_id', $listingIds);
 
-        if ($limit === -1 || $limit === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($limit)) {
             return $this->restoreChildren((clone $base));
         }
 
@@ -239,7 +239,7 @@ class PlanEnforcementService
     private function enforceCoupons(Subscription $sub, Business $business, bool $graceActive, array &$breakdown): array
     {
         $limit = (int) ($sub->plan->max_coupons ?? 0);
-        if ($limit === -1 || $limit === 999) {
+        if (\App\Models\Plan::isUnlimitedLimit($limit)) {
             return $this->restoreChildren(Coupon::where('business_id', $business->id));
         }
 

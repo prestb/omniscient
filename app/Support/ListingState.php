@@ -106,7 +106,7 @@ final class ListingState
      */
     public static function quotaStateForIndex(int $index, int $limit, bool $graceActive = false): string
     {
-        $unlimited = ($limit === -1 || $limit === 999);
+        $unlimited = (\App\Models\Plan::isUnlimitedLimit($limit));
 
         if ($unlimited || $index < $limit) {
             return self::QUOTA_ACTIVE;

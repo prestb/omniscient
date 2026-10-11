@@ -226,7 +226,7 @@ class DashboardController extends Controller
                 $user->businesses()->pluck('id')
             )->pluck('id');
 
-            $branchCount = \App\Models\Location::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count();
+            $locationsCount = \App\Models\Location::where('owner_id', $user->id)->count();
             $serviceCount = \App\Models\ListingService::whereIn('listing_id', $listingIdsForUser)->count();
             $imageCount = \App\Models\ListingImage::whereIn('listing_id', $listingIdsForUser)->count();
             $couponCount = \App\Models\Coupon::where('user_id', $user->id)->count();
@@ -236,7 +236,7 @@ class DashboardController extends Controller
                 'plan_tier' => $plan->tier ?? 'free',
                 'plan_price' => (float) ($plan->price_monthly ?? 0),
                 'listings' => ['current' => \App\Models\Listing::countFor($user), 'limit' => $plan->max_listings ?? 1],
-                'locations' => ['current' => $branchCount, 'limit' => $plan->max_locations ?? 1],
+                'locations' => ['current' => $locationsCount, 'limit' => $plan->max_locations ?? 1],
                 'services' => ['current' => $serviceCount, 'limit' => $plan->max_services ?? 3],
                 'images' => ['current' => $imageCount, 'limit' => $plan->max_images ?? 3],
                 'coupons' => ['current' => $couponCount, 'limit' => $plan->max_coupons ?? 0],
@@ -312,16 +312,19 @@ class DashboardController extends Controller
         $activities = [];
 
                 // Recent locations added
-        $recentBranches = $business->locations()
+        // WAVE C2 - `$recentBranches`/`$branch` were local names for Locations.
+        // The serialized `'type' => 'branch'` value below is a frontend contract
+        // and is deliberately left unchanged.
+        $recentLocations = $business->locations()
             ->latest()
             ->take(3)
             ->get();
 
-        foreach ($recentBranches as $branch) {
+        foreach ($recentLocations as $location) {
             $activities[] = [
                 'type' => 'branch',
-                'message' => "Added location: {$branch->name}",
-                'time' => $branch->created_at->diffForHumans(),
+                'message' => "Added location: {$location->name}",
+                'time' => $location->created_at->diffForHumans(),
                 'icon' => '📍',
             ];
         }
@@ -533,7 +536,7 @@ class DashboardController extends Controller
 
         $counts = [
             'listings' => \App\Models\Listing::countFor($user),
-            'locations' => \App\Models\Location::whereHas('business', fn($q) => $q->where('owner_id', $user->id))->count(),
+            'locations' => \App\Models\Location::where('owner_id', $user->id)->count(),
             'services' => \App\Models\ListingService::whereIn('listing_id', $listingIdsForUser)->count(),
             'images' => \App\Models\ListingImage::whereIn('listing_id', $listingIdsForUser)->count(),
             'coupons' => \App\Models\Coupon::where('user_id', $user->id)->count(),
@@ -555,7 +558,7 @@ class DashboardController extends Controller
             $limit = $limits[$key];
 
             // Unlimited plan — never over
-            if ($limit === -1 || $limit === 999) {
+            if (\App\Models\Plan::isUnlimitedLimit($limit)) {
                 $items[$key] = ['current' => $current, 'limit' => $limit, 'over' => 0];
                 continue;
             }

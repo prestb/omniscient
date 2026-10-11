@@ -348,7 +348,7 @@ class BusinessController extends Controller
     // PHASE 11 / WAVE 1D-4 — the commented-out `plan->max_businesses` lookup that
     // used to sit here was removed. `max_businesses` is not a plan column: a
     // Business is an optional organization and is NOT a quota unit.
-//     $isUnlimited = $maxBusinesses === -1 || $maxBusinesses === 999;
+//     $isUnlimited = \App\Models\Plan::isUnlimitedLimit($maxBusinesses);
 
     //     // If plan allows more and we're within limit, auto-publish
 //     if ($isUnlimited || ($otherBusinesses + 1) <= $maxBusinesses) {
@@ -389,30 +389,39 @@ class BusinessController extends Controller
             return;
         }
 
-        // Count other businesses for this OWNER
-        $otherBusinesses = $owner->businesses()
-            ->where('id', '!=', $business->id)
-            ->whereIn('status', ['published', 'approved'])
-            ->count();
+        // WAVE A2 - AN ORGANIZATION IS NOT A QUOTA UNIT.
+        //
+        // This used to consult the account's LISTING allowance before
+        // publishing an approved organization, and it counted BUSINESSES
+        // against `max_listings`:
+        //
+        //     $maxBusinesses = $activeSubscription->plan->max_listings ?? 1;
+        //     if ($isUnlimited || ($otherBusinesses + 1) <= $maxBusinesses) {
+        //
+        // That coupling was accidental. Organizations do not consume the Listing
+        // quota, and the Listing quota governs actual Listings only, so an
+        // approved organization is published unconditionally once the guards
+        // above are satisfied.
+        //
+        // The guards above are PRESERVED and are not the Listing quota: the
+        // organization must have an owner, and that owner must hold an active
+        // subscription, because organization public reachability is deliberately
+        // subscription-dependent (see Business::isPubliclyReachable()). No new
+        // restriction is introduced in place of the removed one, and no
+        // `max_businesses` quota is added.
+        $business->update([
+            'status' => Business::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
 
-        $maxBusinesses = $activeSubscription->plan->max_listings ?? 1;
-        $isUnlimited = $maxBusinesses === -1 || $maxBusinesses === 999;
-
-        if ($isUnlimited || ($otherBusinesses + 1) <= $maxBusinesses) {
-            $business->update([
-                'status' => Business::STATUS_PUBLISHED,
-                'published_at' => now(),
-            ]);
-
-            \App\Helpers\NotificationHelper::send(
-                $owner,
-                'Business Published! 🚀',
-                "Your business '{$business->name}' is now live!",
-                route('business.show', $business->slug),
-                ['business_id' => $business->id],
-                'business_published'
-            );
-        }
+        \App\Helpers\NotificationHelper::send(
+            $owner,
+            'Business Published! 🚀',
+            "Your business '{$business->name}' is now live!",
+            route('business.show', $business->slug),
+            ['business_id' => $business->id],
+            'business_published'
+        );
     }
     public function reject(Request $request, Business $business)
     {
